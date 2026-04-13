@@ -206,7 +206,7 @@ window.addEventListener('resize',()=>{
 // Once the user scrolls back to within 80px of the bottom, re-pin.
 let _scrollPinned=true;
 (function(){
-  const el=document.getElementById('messages');
+  const el=document.getElementById('rpMessages')||document.getElementById('messages');
   if(!el) return;
   el.addEventListener('scroll',()=>{
     const nearBottom=el.scrollHeight-el.scrollTop-el.clientHeight<80;
@@ -274,12 +274,12 @@ function _syncCtxIndicator(usage){
 
 function scrollIfPinned(){
   if(!_scrollPinned) return;
-  const el=$('messages');
+  const el=$('rpMessages')||$('messages');
   if(el) el.scrollTop=el.scrollHeight;
 }
 function scrollToBottom(){
   _scrollPinned=true;
-  const el=$('messages');
+  const el=$('rpMessages')||$('messages');
   if(el) el.scrollTop=el.scrollHeight;
 }
 
@@ -1238,10 +1238,18 @@ function renderMermaidBlocks(){
 }
 
 function appendThinking(){
-  $('emptyState').style.display='none';
-  const row=document.createElement('div');row.className='msg-row';row.id='thinkingRow';
-  row.innerHTML=`<div class="msg-role assistant"><div class="role-icon assistant">H</div>Hermes</div><div class="thinking"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
-  $('msgInner').appendChild(row);scrollToBottom();
+  const emp = typeof EMPLOYEE_STORE!=='undefined'?getEmployee(EMPLOYEE_STORE.selectedId):null;
+  const avatar = emp?emp.avatar:'🤖';
+  const name = emp?emp.name:'Hermes';
+  const inner = $('rpMsgInner');
+  if(!inner) return;
+  const emptyChat = $('rpEmptyChat');
+  if(emptyChat) emptyChat.style.display='none';
+  const row=document.createElement('div');row.className='rp-msg-row';row.id='thinkingRow';
+  row.innerHTML=`<div class="rp-msg-role assistant"><span class="rp-msg-icon">${avatar}</span><span class="rp-msg-name">${esc(name)}</span></div><div class="thinking" style="padding-left:22px"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  inner.appendChild(row);
+  const msgArea = $('rpMessages');
+  if(msgArea) msgArea.scrollTop = msgArea.scrollHeight;
 }
 function removeThinking(){const el=$('thinkingRow');if(el)el.remove();}
 

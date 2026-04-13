@@ -257,7 +257,7 @@ $('btnAttach').onclick=()=>$('fileInput').click();
 })();
 window._micActive=window._micActive||false;
 $('fileInput').onchange=e=>{addFiles(Array.from(e.target.files));e.target.value='';};
-$('btnNewChat').onclick=async()=>{await newSession();await renderSessionList();$('msg').focus();};
+$('btnNewChat').onclick=async()=>{if(typeof showEmployeeDialog==='function')showEmployeeDialog();};
 $('btnDownload').onclick=()=>{
   if(!S.session)return;
   const blob=new Blob([transcript()],{type:'text/markdown'});
@@ -503,21 +503,35 @@ function applyBotName(){
   }
   // Pre-load workspace list so sidebar name is correct from first render
   await loadWorkspaceList();
+  // 初始化员工面板和右侧面板
+  if (typeof initEmployees === 'function') initEmployees();
+  if (typeof initRightPanel === 'function') initRightPanel();
+  // 重定向 renderMessages 到右侧面板
+  if (typeof _renderRpMessages === 'function') {
+    const _origRenderMessages = window.renderMessages;
+    window.renderMessages = function() {
+      // 如果有选中的员工，渲染到右侧面板
+      if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId && _rpView === 'chat') {
+        _renderRpMessages();
+      }
+      // 不再渲染到中间区域（已无 msgInner 元素）
+    };
+  }
   await loadOnboardingWizard();
   _initResizePanels();
   // Restore workspace panel open/closed state from last visit
   if(localStorage.getItem('hermes-webui-workspace-panel')==='open'){
     _workspacePanelMode='browse';
   }
+  // 不再恢复会话到中间区域（现在是员工面板）
+  // 会话在点击员工卡片时加载到右侧面板
   const saved=localStorage.getItem('hermes-webui-session');
   if(saved){
-    try{await loadSession(saved);syncWorkspacePanelState();await renderSessionList();if(typeof startGatewaySSE==='function')startGatewaySSE();await checkInflightOnBoot(saved);return;}
+    try{S.session = {session_id: saved}; if(typeof startGatewaySSE==='function')startGatewaySSE();await checkInflightOnBoot(saved);}
     catch(e){localStorage.removeItem('hermes-webui-session');}
   }
-  // no saved session - show empty state, wait for user to hit +
   syncTopbar();
   syncWorkspacePanelState();
-  $('emptyState').style.display='';
   await renderSessionList();
   // Start real-time gateway session sync if setting is enabled
   if(typeof startGatewaySSE==='function') startGatewaySSE();

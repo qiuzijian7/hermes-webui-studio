@@ -1,0 +1,490 @@
+/**
+ * employee.js — 员工卡片渲染、拖拽、状态管理
+ * 参考 OpenOffice 的 office-store 架构
+ */
+
+// ── 员工数据模型 ────────────────────────────────────────────────────────────
+const EMPLOYEE_STORE = {
+  employees: [],
+  selectedId: null,
+  _nextId: 1,
+};
+
+const EMPLOYEE_AVATARS = [
+  '🤖', '👩‍💻', '🧑‍🔬', '👨‍🎨', '👩‍🔧', '🧙‍♂️', '🦊', '🐱', '🐶', '🦁',
+  '🐼', '🦄', '🐸', '🦉', '🐝', '🧑‍🚀', '🥷', '🧑‍🍳', '👨‍⚕️', '👩‍🏫'
+];
+
+const EMPLOYEE_ROLES = [
+  '通用助手', '代码工程师', '数据分析师', '内容创作者',
+  '测试专家', '运维工程师', '产品经理', '设计顾问',
+  '架构师', '安全专家', 'DBA', 'AI 工程师',
+];
+
+const STATUS_MAP = {
+  idle:     { label: '空闲',   color: 'var(--muted)',  bg: 'rgba(255,255,255,.05)', dot: 'var(--muted)',  animated: false },
+  working:  { label: '工作中', color: '#4ade80',        bg: 'rgba(74,222,128,.08)',  dot: '#4ade80',       animated: true  },
+  thinking: { label: '思考中', color: 'var(--blue)',    bg: 'rgba(124,185,255,.08)', dot: 'var(--blue)',   animated: true  },
+  error:    { label: '出错',   color: 'var(--accent)',  bg: 'rgba(233,69,96,.08)',   dot: 'var(--accent)', animated: false },
+  offline:  { label: '离线',   color: 'var(--muted)',   bg: 'rgba(255,255,255,.02)', dot: 'rgba(255,255,255,.2)', animated: false },
+};
+
+// ── 持久化 ────────────────────────────────────────────────────────────────
+function _saveEmployees() {
+  try {
+    localStorage.setItem('hermes-employees', JSON.stringify(EMPLOYEE_STORE.employees));
+    localStorage.setItem('hermes-employee-next-id', String(EMPLOYEE_STORE._nextId));
+  } catch(e) {}
+}
+
+function _loadEmployees() {
+  try {
+    const raw = localStorage.getItem('hermes-employees');
+    if (raw) EMPLOYEE_STORE.employees = JSON.parse(raw);
+    const nid = localStorage.getItem('hermes-employee-next-id');
+    if (nid) EMPLOYEE_STORE._nextId = parseInt(nid, 10);
+  } catch(e) {}
+}
+
+// ── CRUD ──────────────────────────────────────────────────────────────────
+function createEmployee(opts = {}) {
+  const id = 'emp-' + EMPLOYEE_STORE._nextId++;
+  const avatarIdx = (EMPLOYEE_STORE.employees.length) % EMPLOYEE_AVATARS.length;
+  const emp = {
+    id,
+    name: opts.name || '员工 ' + EMPLOYEE_STORE._nextId,
+    role: opts.role || EMPLOYEE_ROLES[0],
+    avatar: opts.avatar || EMPLOYEE_AVATARS[avatarIdx],
+    status: 'idle',
+    skills: opts.skills || [],
+    sessionId: null,  // 绑定的会话 ID
+    createdAt: Date.now(),
+    lastActiveAt: Date.now(),
+    metadata: {},
+  };
+  EMPLOYEE_STORE.employees.push(emp);
+  _saveEmployees();
+  renderEmployeeCards();
+  return emp;
+}
+
+function getEmployee(id) {
+  return EMPLOYEE_STORE.employees.find(e => e.id === id);
+}
+
+function updateEmployee(id, updates) {
+  const emp = getEmployee(id);
+  if (!emp) return;
+  Object.assign(emp, updates);
+  _saveEmployees();
+  renderEmployeeCards();
+}
+
+function deleteEmployee(id) {
+  const idx = EMPLOYEE_STORE.employees.findIndex(e => e.id === id);
+  if (idx < 0) return;
+  EMPLOYEE_STORE.employees.splice(idx, 1);
+  if (EMPLOYEE_STORE.selectedId === id) {
+    EMPLOYEE_STORE.selectedId = null;
+    closeRightPanel();
+  }
+  _saveEmployees();
+  renderEmployeeCards();
+}
+
+function setEmployeeStatus(id, status) {
+  const emp = getEmployee(id);
+  if (!emp) return;
+  emp.status = status;
+  emp.lastActiveAt = Date.now();
+  _saveEmployees();
+  // 只更新对应卡片的状态，不全量重渲染
+  const card = document.querySelector(`.emp-card[data-id="${id}"]`);
+  if (card) _updateCardStatus(card, emp);
+}
+
+function selectEmployee(id) {
+  EMPLOYEE_STORE.selectedId = id;
+  // 更新卡片选中状态
+  document.querySelectorAll('.emp-card').forEach(c => {
+    c.classList.toggle('emp-selected', c.dataset.id === id);
+  });
+  // 打开右侧对话面板
+  openEmployeeChat(id);
+}
+
+// ── 搜索/筛选 ────────────────────────────────────────────────────────────
+
+function _timeAgo(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return '刚刚';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return min + '分钟前';
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return hr + '小时前';
+  const day = Math.floor(hr / 24);
+  return day + '天前';
+}
+
+let _empFilter = 'all';  // 'all' | 'working' | 'idle'
+let _empSearchQuery = '';
+
+function filterEmployees() {
+  const input = $('empSearch');
+  _empSearchQuery = (input ? input.value : '').toLowerCase().trim();
+  renderEmployeeCards();
+}
+
+function setEmpFilter(filter, btn) {
+  _empFilter = filter;
+  document.querySelectorAll('.emp-filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderEmployeeCards();
+}
+
+function _getFilteredEmployees() {
+  let list = EMPLOYEE_STORE.employees;
+  // 状态筛选
+  if (_empFilter === 'working') {
+    list = list.filter(e => e.status === 'working' || e.status === 'thinking');
+  } else if (_empFilter === 'idle') {
+    list = list.filter(e => e.status === 'idle' || e.status === 'offline');
+  }
+  // 文字搜索
+  if (_empSearchQuery) {
+    list = list.filter(e => {
+      const nameMatch = e.name.toLowerCase().includes(_empSearchQuery);
+      const roleMatch = e.role.toLowerCase().includes(_empSearchQuery);
+      const skillMatch = e.skills.some(s => (s.name || s).toLowerCase().includes(_empSearchQuery));
+      return nameMatch || roleMatch || skillMatch;
+    });
+  }
+  return list;
+}
+
+// ── 渲染 ──────────────────────────────────────────────────────────────────
+function renderEmployeeCards() {
+  const canvas = $('employeeCanvas');
+  const empty = $('employeeEmptyState');
+  if (!canvas) return;
+
+  // 清除旧卡片（保留空状态元素和工具栏等）
+  canvas.querySelectorAll('.emp-card').forEach(c => c.remove());
+
+  const filtered = _getFilteredEmployees();
+
+  if (!EMPLOYEE_STORE.employees.length) {
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  if (!filtered.length && _empSearchQuery) {
+    // 搜索无结果
+    const noResult = document.createElement('div');
+    noResult.className = 'emp-search-no-result';
+    noResult.innerHTML = '<p>没有找到匹配的员工</p>';
+    canvas.appendChild(noResult);
+    return;
+  }
+
+  for (const emp of filtered) {
+    const card = _buildCard(emp);
+    canvas.appendChild(card);
+  }
+}
+
+function _buildCard(emp) {
+  const card = document.createElement('div');
+  card.className = 'emp-card' + (emp.id === EMPLOYEE_STORE.selectedId ? ' emp-selected' : '');
+  card.dataset.id = emp.id;
+  card.draggable = true;
+
+  const st = STATUS_MAP[emp.status] || STATUS_MAP.idle;
+  const skillsHtml = emp.skills.length
+    ? emp.skills.slice(0, 3).map(s => `<span class="emp-skill-tag">${esc(s.name || s)}</span>`).join('') +
+      (emp.skills.length > 3 ? `<span class="emp-skill-more">+${emp.skills.length - 3}</span>` : '')
+    : '';
+
+  card.innerHTML = `
+    <div class="emp-card-status-bar" data-status="${emp.status}"></div>
+    <div class="emp-card-body">
+      <div class="emp-card-header">
+        <div class="emp-avatar" style="background:${st.bg}">${emp.avatar}</div>
+        <div class="emp-card-info">
+          <div class="emp-card-name">${esc(emp.name)}</div>
+          <div class="emp-card-role">${esc(emp.role)}</div>
+        </div>
+        <button class="emp-card-menu-btn" onclick="event.stopPropagation();_showCardMenu(event,'${emp.id}')">⋯</button>
+      </div>
+      <div class="emp-card-status">
+        <span class="emp-status-dot${st.animated ? ' emp-dot-animated' : ''}" style="background:${st.dot}"></span>
+        <span class="emp-status-label" style="color:${st.color}">${st.label}</span>
+        <span class="emp-card-time">${_timeAgo(emp.lastActiveAt)}</span>
+      </div>
+      ${skillsHtml ? `<div class="emp-card-skills">${skillsHtml}</div>` : ''}
+      <div class="emp-card-actions">
+        <button class="emp-action-btn" onclick="event.stopPropagation();selectEmployee('${emp.id}')" title="对话">${li('message-square',13)}</button>
+        <button class="emp-action-btn" onclick="event.stopPropagation();_showEmployeeSkillConfig('${emp.id}')" title="技能">${li('book-open',13)}</button>
+      </div>
+    </div>
+  `;
+
+  // 点击选中
+  card.addEventListener('click', () => selectEmployee(emp.id));
+
+  // 拖拽交换
+  _initCardDrag(card, emp);
+
+  return card;
+}
+
+function _updateCardStatus(card, emp) {
+  const st = STATUS_MAP[emp.status] || STATUS_MAP.idle;
+  const bar = card.querySelector('.emp-card-status-bar');
+  if (bar) bar.dataset.status = emp.status;
+  const dot = card.querySelector('.emp-status-dot');
+  if (dot) {
+    dot.style.background = st.dot;
+    dot.classList.toggle('emp-dot-animated', st.animated);
+  }
+  const label = card.querySelector('.emp-status-label');
+  if (label) { label.style.color = st.color; label.textContent = st.label; }
+  const avatar = card.querySelector('.emp-avatar');
+  if (avatar) avatar.style.background = st.bg;
+}
+
+// ── 拖拽（网格内交换位置）──────────────────────────────────────────────────
+let _dragSourceId = null;
+
+function _initCardDrag(card, emp) {
+  card.addEventListener('dragstart', e => {
+    if (e.target.closest('button') || e.target.closest('.emp-card-menu-btn')) {
+      e.preventDefault();
+      return;
+    }
+    _dragSourceId = emp.id;
+    card.classList.add('emp-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', emp.id);
+    // 设置拖拽预览
+    requestAnimationFrame(() => card.classList.add('emp-dragging'));
+  });
+
+  card.addEventListener('dragend', () => {
+    card.classList.remove('emp-dragging');
+    _dragSourceId = null;
+    // 清理所有 drag-over 状态
+    document.querySelectorAll('.emp-drag-over').forEach(c => c.classList.remove('emp-drag-over'));
+  });
+
+  card.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (_dragSourceId && _dragSourceId !== emp.id) {
+      card.classList.add('emp-drag-over');
+    }
+  });
+
+  card.addEventListener('dragleave', () => {
+    card.classList.remove('emp-drag-over');
+  });
+
+  card.addEventListener('drop', e => {
+    e.preventDefault();
+    card.classList.remove('emp-drag-over');
+    const sourceId = _dragSourceId || e.dataTransfer.getData('text/plain');
+    if (!sourceId || sourceId === emp.id) return;
+
+    // 在数组中交换位置
+    const srcIdx = EMPLOYEE_STORE.employees.findIndex(em => em.id === sourceId);
+    const tgtIdx = EMPLOYEE_STORE.employees.findIndex(em => em.id === emp.id);
+    if (srcIdx < 0 || tgtIdx < 0) return;
+
+    // 交换
+    const [moved] = EMPLOYEE_STORE.employees.splice(srcIdx, 1);
+    EMPLOYEE_STORE.employees.splice(tgtIdx, 0, moved);
+    _saveEmployees();
+    renderEmployeeCards();
+  });
+}
+
+// ── 右键菜单 ──────────────────────────────────────────────────────────────
+let _cardMenuEl = null;
+
+function _showCardMenu(event, empId) {
+  _hideCardMenu();
+  const emp = getEmployee(empId);
+  if (!emp) return;
+
+  const menu = document.createElement('div');
+  menu.className = 'emp-card-menu';
+  menu.innerHTML = `
+    <div class="emp-menu-item" onclick="selectEmployee('${empId}');_hideCardMenu()">${li('message-square',13)} 打开对话</div>
+    <div class="emp-menu-item" onclick="_showEmployeeSkillConfig('${empId}');_hideCardMenu()">${li('book-open',13)} 配置技能</div>
+    <div class="emp-menu-item" onclick="showEditEmployeeDialog('${empId}');_hideCardMenu()">${li('pencil',13)} 编辑员工</div>
+    <div class="emp-menu-sep"></div>
+    <div class="emp-menu-item emp-menu-danger" onclick="deleteEmployee('${empId}');_hideCardMenu()">${li('trash-2',13)} 删除员工</div>
+  `;
+
+  // 定位
+  const rect = event.target.closest('.emp-card').getBoundingClientRect();
+  menu.style.left = rect.left + 'px';
+  menu.style.top = (rect.bottom + 4) + 'px';
+  document.body.appendChild(menu);
+  _cardMenuEl = menu;
+
+  // 点击外部关闭
+  setTimeout(() => {
+    document.addEventListener('click', _hideCardMenu, { once: true });
+  }, 10);
+}
+
+function _hideCardMenu() {
+  if (_cardMenuEl) { _cardMenuEl.remove(); _cardMenuEl = null; }
+}
+
+// ── 员工创建对话框 ────────────────────────────────────────────────────────
+function showEmployeeDialog() {
+  _showEmployeeFormDialog(null);
+}
+
+function showEditEmployeeDialog(empId) {
+  const emp = getEmployee(empId);
+  if (!emp) return;
+  _showEmployeeFormDialog(emp);
+}
+
+function _showEmployeeFormDialog(existing) {
+  _hideCardMenu();
+  const overlay = document.createElement('div');
+  overlay.className = 'emp-dialog-overlay';
+
+  const avatarOptions = EMPLOYEE_AVATARS.map(a =>
+    `<button type="button" class="emp-avatar-opt${existing && existing.avatar === a ? ' emp-avatar-selected' : (!existing && a === EMPLOYEE_AVATARS[0] ? ' emp-avatar-selected' : '')}" data-avatar="${a}">${a}</button>`
+  ).join('');
+
+  const roleOptions = EMPLOYEE_ROLES.map(r =>
+    `<option value="${esc(r)}"${existing && existing.role === r ? ' selected' : ''}>${esc(r)}</option>`
+  ).join('');
+
+  overlay.innerHTML = `
+    <div class="emp-dialog">
+      <div class="emp-dialog-header">
+        <h3>${existing ? '编辑员工' : '创建新员工'}</h3>
+        <button class="panel-icon-btn" onclick="this.closest('.emp-dialog-overlay').remove()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="emp-dialog-body">
+        <label class="emp-dialog-label">头像</label>
+        <div class="emp-avatar-picker" id="empAvatarPicker">${avatarOptions}</div>
+        <label class="emp-dialog-label">名称</label>
+        <input class="emp-dialog-input" id="empFormName" placeholder="员工名称" value="${existing ? esc(existing.name) : ''}">
+        <label class="emp-dialog-label">角色</label>
+        <select class="emp-dialog-select" id="empFormRole">${roleOptions}</select>
+      </div>
+      <div class="emp-dialog-footer">
+        <button class="cron-btn" onclick="this.closest('.emp-dialog-overlay').remove()">取消</button>
+        <button class="cron-btn run" id="empFormSubmit">${existing ? '保存' : '创建'}</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // 头像选择
+  overlay.querySelectorAll('.emp-avatar-opt').forEach(btn => {
+    btn.onclick = () => {
+      overlay.querySelectorAll('.emp-avatar-opt').forEach(b => b.classList.remove('emp-avatar-selected'));
+      btn.classList.add('emp-avatar-selected');
+    };
+  });
+
+  // 提交
+  overlay.querySelector('#empFormSubmit').onclick = () => {
+    const name = overlay.querySelector('#empFormName').value.trim();
+    if (!name) { overlay.querySelector('#empFormName').style.borderColor = 'var(--accent)'; return; }
+    const role = overlay.querySelector('#empFormRole').value;
+    const avatarEl = overlay.querySelector('.emp-avatar-selected');
+    const avatar = avatarEl ? avatarEl.dataset.avatar : EMPLOYEE_AVATARS[0];
+
+    if (existing) {
+      updateEmployee(existing.id, { name, role, avatar });
+    } else {
+      const emp = createEmployee({ name, role, avatar });
+      selectEmployee(emp.id);
+    }
+    overlay.remove();
+  };
+
+  // Enter 提交
+  overlay.querySelector('#empFormName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') overlay.querySelector('#empFormSubmit').click();
+  });
+
+  setTimeout(() => overlay.querySelector('#empFormName').focus(), 50);
+}
+
+// ── 员工技能配置 ──────────────────────────────────────────────────────────
+function _showEmployeeSkillConfig(empId) {
+  const emp = getEmployee(empId);
+  if (!emp) return;
+
+  // 在右侧面板显示技能配置
+  showEmployeeSkillPanel(empId);
+}
+
+function assignSkillToEmployee(empId, skillName) {
+  const emp = getEmployee(empId);
+  if (!emp) return;
+  if (!emp.skills.find(s => (s.name || s) === skillName)) {
+    emp.skills.push({ name: skillName, enabled: true });
+    _saveEmployees();
+    renderEmployeeCards();
+  }
+}
+
+// ── 技能沉淀（对话 → 技能）────────────────────────────────────────────────
+async function condenseConversationToSkill() {
+  const emp = getEmployee(EMPLOYEE_STORE.selectedId);
+  if (!emp || !emp.sessionId) {
+    showToast('当前没有活跃的对话可以沉淀');
+    return;
+  }
+
+  // 获取对话内容
+  try {
+    const data = await api(`/api/session?session_id=${encodeURIComponent(emp.sessionId)}`);
+    const msgs = (data.session.messages || []).filter(m => m.role === 'user' || m.role === 'assistant');
+    if (!msgs.length) { showToast('对话为空，无法沉淀'); return; }
+
+    // 生成技能内容
+    let skillContent = `---\nname: ${emp.name}-skill\ncreated: ${new Date().toISOString()}\nsource: employee-${emp.id}\n---\n\n`;
+    for (const m of msgs) {
+      const role = m.role === 'user' ? '用户' : '助手';
+      let content = m.content || '';
+      if (Array.isArray(content)) content = content.filter(p => p.type === 'text').map(p => p.text || '').join('\n');
+      skillContent += `### ${role}\n${String(content).trim()}\n\n`;
+    }
+
+    // 保存为技能
+    const skillName = `${emp.name}-skill-${Date.now().toString(36)}`;
+    await api('/api/skill/save', {
+      method: 'POST',
+      body: JSON.stringify({ name: skillName, category: 'condensed', content: skillContent })
+    });
+
+    // 自动分配给该员工
+    assignSkillToEmployee(emp.id, skillName);
+    showToast(`已沉淀为技能: ${skillName}`);
+  } catch(e) {
+    showToast('沉淀失败: ' + e.message);
+  }
+}
+
+// ── 初始化 ─────────────────────────────────────────────────────────────────
+function initEmployees() {
+  _loadEmployees();
+  renderEmployeeCards();
+}

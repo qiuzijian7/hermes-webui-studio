@@ -407,33 +407,11 @@ async function openSkill(name, el) {
   if (el) el.classList.add('active');
   try {
     const data = await api(`/api/skills/content?name=${encodeURIComponent(name)}`);
-    // Show skill content in right panel preview
-    $('previewPathText').textContent = name + '.md';
-    $('previewBadge').textContent = 'skill';
-    $('previewBadge').className = 'preview-badge md';
-    showPreview('md');
-    let html = renderMd(data.content || '(no content)');
-    // Render linked files section if present
-    const lf = data.linked_files || {};
-    const categories = Object.entries(lf).filter(([,files]) => files && files.length > 0);
-    if (categories.length) {
-      html += '<div class="skill-linked-files"><div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Linked Files</div>';
-      for (const [cat, files] of categories) {
-        html += `<div class="skill-linked-section"><h4>${esc(cat)}</h4>`;
-        for (const f of files) {
-          html += `<a class="skill-linked-file" href="#" data-skill-name="${esc(name)}" data-skill-file="${esc(f)}">${esc(f)}</a>`;
-        }
-        html += '</div>';
-      }
-      html += '</div>';
+    const category = data.category || '(general)';
+    // 在右侧面板显示技能详情
+    if (typeof openSkillDetail === 'function') {
+      openSkillDetail(name, category, data.content || '');
     }
-    $('previewMd').innerHTML = html;
-    // Wire linked-file clicks via data attributes (avoids inline JS XSS with apostrophes)
-    $('previewMd').querySelectorAll('.skill-linked-file').forEach(a=>{
-      a.addEventListener('click',e=>{e.preventDefault();openSkillFile(a.dataset.skillName,a.dataset.skillFile);});
-    });
-    $('previewArea').classList.add('visible');
-    $('fileTree').style.display = 'none';
   } catch(e) { setStatus('Could not load skill: ' + e.message); }
 }
 

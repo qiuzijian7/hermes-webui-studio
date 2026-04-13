@@ -37,6 +37,10 @@ async function send(){
   S.toolCalls=[];  // clear tool calls from previous turn
   clearLiveToolCards();  // clear any leftover live cards from last turn
   S.messages.push(userMsg);renderMessages();appendThinking();setBusy(true);
+  // 更新员工状态为思考中
+  if(typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof setEmployeeStatus==='function'){
+    setEmployeeStatus(EMPLOYEE_STORE.selectedId,'thinking');
+  }
   INFLIGHT[activeSid]={messages:[...S.messages],uploaded};
   startApprovalPolling(activeSid);
   S.activeStreamId = null;  // will be set after stream starts
@@ -77,6 +81,10 @@ async function send(){
     if(!_approvalSessionId || _approvalSessionId===activeSid) hideApprovalCard(true);removeThinking();
     S.messages.push({role:'assistant',content:`**Error:** ${e.message}`});
     renderMessages();setBusy(false);setComposerStatus(`Error: ${e.message}`);
+    // 更新员工状态为出错
+    if(typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof setEmployeeStatus==='function'){
+      setEmployeeStatus(EMPLOYEE_STORE.selectedId,'error');
+    }
     return;
   }
 
@@ -94,16 +102,18 @@ async function send(){
     if(assistantRow)return;
     removeThinking();
     const tr=$('toolRunningRow');if(tr)tr.remove();
-    $('emptyState').style.display='none';
-    assistantRow=document.createElement('div');assistantRow.className='msg-row';
-    assistantBody=document.createElement('div');assistantBody.className='msg-body';
-    const role=document.createElement('div');role.className='msg-role assistant';
-    const _bn=window._botName||'Hermes';
-    const icon=document.createElement('div');icon.className='role-icon assistant';icon.textContent=_bn.charAt(0).toUpperCase();
-    const lbl=document.createElement('span');lbl.style.fontSize='12px';lbl.textContent=_bn;
-    role.appendChild(icon);role.appendChild(lbl);
+    const emp = typeof EMPLOYEE_STORE!=='undefined'?getEmployee(EMPLOYEE_STORE.selectedId):null;
+    const avatar = emp?emp.avatar:'🤖';
+    const name = emp?emp.name:(window._botName||'Hermes');
+    assistantRow=document.createElement('div');assistantRow.className='rp-msg-row';
+    assistantBody=document.createElement('div');assistantBody.className='rp-msg-body';
+    const role=document.createElement('div');role.className='rp-msg-role assistant';
+    const iconSpan=document.createElement('span');iconSpan.className='rp-msg-icon';iconSpan.textContent=avatar;
+    const lbl=document.createElement('span');lbl.className='rp-msg-name';lbl.textContent=name;
+    role.appendChild(iconSpan);role.appendChild(lbl);
     assistantRow.appendChild(role);assistantRow.appendChild(assistantBody);
-    $('msgInner').appendChild(assistantRow);
+    const inner = $('rpMsgInner');
+    if(inner) inner.appendChild(assistantRow);
   }
 
   // ── Shared SSE handler wiring (used for initial connection and reconnect) ──
@@ -149,10 +159,16 @@ async function send(){
   }
 
   function _wireSSE(source){
+    let _firstToken = true;
     source.addEventListener('token',e=>{
       if(!S.session||S.session.session_id!==activeSid) return;
       const d=JSON.parse(e.data);
       assistantText+=d.text;
+      // 第一个 token 时更新员工状态为工作中
+      if(_firstToken&&typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof setEmployeeStatus==='function'){
+        setEmployeeStatus(EMPLOYEE_STORE.selectedId,'working');
+        _firstToken = false;
+      }
       ensureAssistantRow();
       _scheduleRender();
     });
@@ -208,6 +224,10 @@ async function send(){
       }
       renderSessionList();setBusy(false);setStatus('');
       setComposerStatus('');
+      // 更新员工状态为空闲
+      if(typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof setEmployeeStatus==='function'){
+        setEmployeeStatus(EMPLOYEE_STORE.selectedId,'idle');
+      }
       playNotificationSound();
       sendBrowserNotification('Response complete',assistantText?assistantText.slice(0,100):'Task finished');
     });
