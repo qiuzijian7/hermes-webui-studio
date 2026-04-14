@@ -3,16 +3,18 @@
  */
 
 // ── 面板视图切换 ────────────────────────────────────────────────────────────
-let _rpView = 'empty'; // 'empty' | 'chat' | 'skill'
+let _rpView = 'empty'; // 'empty' | 'chat' | 'skill' | 'file'
 
 function _setRightPanelView(view) {
   _rpView = view;
   const chatView = $('rpChatView');
   const skillView = $('rpSkillView');
+  const fileView = $('rpFileView');
   const emptyView = $('rpEmpty');
 
   if (chatView) chatView.style.display = view === 'chat' ? 'flex' : 'none';
   if (skillView) skillView.style.display = view === 'skill' ? 'flex' : 'none';
+  if (fileView) fileView.style.display = view === 'file' ? 'flex' : 'none';
   if (emptyView) emptyView.style.display = view === 'empty' ? 'flex' : 'none';
 
   // 右侧面板始终显示（不再折叠）
@@ -64,7 +66,8 @@ async function openEmployeeChat(empId) {
   const avatarEl = $('rpEmployeeAvatar');
   if (avatarEl) {
     if (emp.characterImg) {
-      avatarEl.innerHTML = `<img src="/static/img/characters/${emp.characterImg}_frame32x32.png" class="rp-employee-avatar-img" alt="${emp.name}" onerror="this.remove();this.parentElement.textContent='${emp.avatar}'">`;
+      const fb = (emp.avatar||'').replace(/'/g, "\\'");
+      avatarEl.innerHTML = `<div class="rp-employee-avatar-sprite" style="background-image:url('/static/img/characters/${emp.characterImg}_frame32x32.png');background-size:300% 400%;background-position:0 0;background-repeat:no-repeat" data-fallback="${fb}" onerror="this.remove();this.parentElement.textContent='${fb}'"></div>`;
     } else {
       avatarEl.textContent = emp.avatar;
     }
@@ -107,9 +110,13 @@ async function openEmployeeChat(empId) {
     }
   }
 
-  // 更新 topbar
-  $('topbarTitle').textContent = emp.name;
-  $('topbarMeta').textContent = emp.role + ' · ' + (STATUS_MAP[emp.status]?.label || '空闲');
+  // 更新 topbar — 显示工作区信息
+  const ws = S.session?.workspace || '';
+  const wsName = ws ? (typeof getWorkspaceFriendlyName === 'function' ? getWorkspaceFriendlyName(ws) : ws.split(/[\/\\]/).filter(Boolean).pop()) : '';
+  $('topbarTitle').textContent = wsName || 'Hermes Studio';
+  $('topbarMeta').textContent = ws ? ws : '员工工作台 — 点击员工卡片开始对话';
+  // 同步工作区选择器标签
+  if (typeof syncWsSelectorLabel === 'function') syncWsSelectorLabel();
 }
 
 function _renderRpMessages() {
@@ -303,7 +310,7 @@ function initRightPanel() {
     if (avatarEl) {
       if (firstEmployee.characterImg) {
         const fb2 = (firstEmployee.avatar||'').replace(/'/g, "\\'");
-        avatarEl.innerHTML = `<img src="/static/img/characters/${firstEmployee.characterImg}_frame32x32.png" class="rp-employee-avatar-img" alt="${firstEmployee.name}" onerror="this.remove();this.parentElement.textContent='${fb2}'">`;
+        avatarEl.innerHTML = `<div class="rp-employee-avatar-sprite" style="background-image:url('/static/img/characters/${firstEmployee.characterImg}_frame32x32.png');background-size:300% 400%;background-position:0 0;background-repeat:no-repeat" data-fallback="${fb2}" onerror="this.remove();this.parentElement.textContent='${fb2}'"></div>`;
       } else {
         avatarEl.textContent = firstEmployee.avatar;
       }
@@ -325,4 +332,268 @@ function initRightPanel() {
   }
   
   console.log('[initRightPanel] 面板初始化完成, panel display:', panel?.style.display, 'panel width:', panel?.style.width);
+}
+
+// ── 文件预览模式（右侧面板）────────────────────────────────────────────────
+
+let _rpFileCurrentPath = '';
+let _rpFileCurrentMode = '';  // 'code' | 'md' | 'image'
+let _rpFileRawContent = '';
+let _rpFileDirty = false;
+
+// 文件扩展名分类（与 workspace.js 保持一致）
+const _RP_IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.svg','.webp','.ico','.bmp']);
+const _RP_MD_EXTS = new Set(['.md','.markdown','.mdown']);
+const _RP_DOWNLOAD_EXTS = new Set([
+  '.docx','.doc','.xlsx','.xls','.pptx','.ppt','.odt','.ods','.odp',
+  '.pdf','.zip','.tar','.gz','.bz2','.7z','.rar',
+  '.mp3','.mp4','.wav','.m4a','.ogg','.flac','.mov','.avi','.mkv','.webm',
+  '.exe','.dmg','.pkg','.deb','.rpm',
+  '.woff','.woff2','.ttf','.otf','.eot',
+  '.bin','.dat','.db','.sqlite','.pyc','.class','.so','.dylib','.dll',
+]);
+
+function _rpFileExt(p) {
+  const i = p.lastIndexOf('.');
+  return i >= 0 ? p.slice(i).toLowerCase() : '';
+}
+
+/** 在右侧面板中打开文件预览 */
+async function openFileInRightPanel(path) {
+  console.log('[openFileInRightPanel] 被调用, path:', path);
+  const ext = _rpFileExt(path);
+  const sid = (S.session && S.session.session_id) ? encodeURIComponent(S.session.session_id) : '';
+  console.log('[openFileInRightPanel] ext:', ext, 'sid:', sid);
+
+  // 二进制文件直接下载
+  if (_RP_DOWNLOAD_EXTS.has(ext)) {
+    console.log('[openFileInRightPanel] 二进制文件，触发下载');
+    if (typeof downloadFile === 'function') downloadFile(path);
+    return;
+  }
+
+  _rpFileCurrentPath = path;
+  _rpFileDirty = false;
+
+  // 切换到文件视图
+  console.log('[openFileInRightPanel] 切换到 file 视图');
+  _setRightPanelView('file');
+
+  // 更新头部信息
+  const fileName = path.split('/').pop();
+  const rpFileName = $('rpFileName');
+  if (rpFileName) rpFileName.textContent = fileName;
+  const rpFilePath = $('rpFilePath');
+  if (rpFilePath) rpFilePath.textContent = path;
+
+  // 重置内容区
+  const codeEl = $('rpFileCode');
+  const mdEl = $('rpFileMd');
+  const imgWrap = $('rpFileImgWrap');
+  const editArea = $('rpFileEditArea');
+  const badge = $('rpFileBadge');
+  const editBtn = $('rpFileEditBtn');
+
+  console.log('[openFileInRightPanel] DOM 元素检查: codeEl=', !!codeEl, 'mdEl=', !!mdEl, 'imgWrap=', !!imgWrap);
+
+  if (codeEl) codeEl.style.display = 'none';
+  if (mdEl) mdEl.style.display = 'none';
+  if (imgWrap) imgWrap.style.display = 'none';
+  if (editArea) editArea.style.display = 'none';
+
+  // 构建 API 查询字符串（session_id 可选）
+  const _fileQs = sid ? `session_id=${sid}&path=${encodeURIComponent(path)}` : `path=${encodeURIComponent(path)}`;
+  console.log('[openFileInRightPanel] 请求 URL:', `/api/file?${_fileQs}`);
+
+  if (_RP_IMAGE_EXTS.has(ext)) {
+    // 图片预览
+    _rpFileCurrentMode = 'image';
+    if (badge) { badge.textContent = 'image'; badge.className = 'rp-file-badge image'; }
+    if (editBtn) editBtn.style.display = 'none';
+    if (imgWrap) imgWrap.style.display = '';
+    const url = `/api/file/raw?${_fileQs}`;
+    const img = $('rpFileImg');
+    if (img) {
+      img.alt = path;
+      img.src = url;
+      img.onerror = () => { if (typeof showToast === 'function') showToast('图片加载失败'); };
+    }
+  } else if (_RP_MD_EXTS.has(ext)) {
+    // Markdown 预览
+    _rpFileCurrentMode = 'md';
+    if (badge) { badge.textContent = 'md'; badge.className = 'rp-file-badge md'; }
+    if (editBtn) editBtn.style.display = '';
+    try {
+      const _apiUrlMd = `/api/file?${_fileQs}`;
+      console.log('[openFileInRightPanel] 正在请求 md 文件... URL:', _apiUrlMd);
+      // 用 raw fetch 直接看服务端返回
+      const _rawResMd = await fetch(_apiUrlMd, {credentials:'include',headers:{'Content-Type':'application/json'}});
+      const _rawTextMd = await _rawResMd.text();
+      console.log('[openFileInRightPanel] MD RAW响应 status:', _rawResMd.status, 'content-type:', _rawResMd.headers.get('content-type'), 'body前300:', _rawTextMd.substring(0, 300));
+      let data;
+      try { data = JSON.parse(_rawTextMd); } catch(pe) { data = {content: _rawTextMd}; }
+      console.log('[openFileInRightPanel] MD 解析后 keys:', Object.keys(data), 'content存在:', 'content' in data, 'content类型:', typeof data.content, 'content长度:', (data.content||'').length);
+      _rpFileRawContent = data.content || '';
+      if (mdEl) {
+        mdEl.style.display = '';
+        mdEl.innerHTML = typeof renderMd === 'function' ? renderMd(data.content || '') : (data.content || '');
+      }
+      // 语法高亮
+      requestAnimationFrame(() => {
+        if (typeof highlightCode === 'function' && mdEl) highlightCode(mdEl);
+        if (typeof addCopyButtons === 'function' && mdEl) addCopyButtons(mdEl);
+      });
+    } catch (e) {
+      console.error('[openFileInRightPanel] md 请求失败:', e);
+      if (mdEl) { mdEl.style.display = ''; mdEl.innerHTML = '<p style="color:var(--muted)">文件加载失败</p>'; }
+    }
+  } else {
+    // 代码/文本预览
+    _rpFileCurrentMode = 'code';
+    if (badge) { badge.textContent = ext || 'text'; badge.className = 'rp-file-badge'; }
+    if (editBtn) editBtn.style.display = '';
+    try {
+      const _apiUrl = `/api/file?${_fileQs}`;
+      const _fullUrl = new URL(_apiUrl, window.location.origin).href;
+      console.log('[openFileInRightPanel] 正在请求代码文件... URL:', _apiUrl, '完整URL:', _fullUrl, 'origin:', window.location.origin);
+      // 先用 raw fetch 来看真实响应
+      const _rawRes = await fetch(_apiUrl, {credentials:'include',headers:{'Content-Type':'application/json'}});
+      const _rawText = await _rawRes.text();
+      console.log('[openFileInRightPanel] RAW响应 status:', _rawRes.status, 'content-type:', _rawRes.headers.get('content-type'), 'url:', _rawRes.url, 'body全部:', _rawText);
+      // 手动解析 JSON
+      let data;
+      try { data = JSON.parse(_rawText); } catch(pe) { data = {content: _rawText}; }
+      console.log('[openFileInRightPanel] 解析后 keys:', Object.keys(data), 'content存在:', 'content' in data, 'content类型:', typeof data.content, 'content长度:', (data.content||'').length);
+      if (data.binary) {
+        if (typeof downloadFile === 'function') downloadFile(path);
+        closeRpFilePreview();
+        return;
+      }
+      _rpFileRawContent = data.content || '';
+      if (codeEl) {
+        codeEl.style.display = '';
+        codeEl.textContent = data.content || '';
+        console.log('[openFileInRightPanel] 已设置 codeEl.textContent, 长度:', (data.content||'').length);
+      }
+      // 语法高亮
+      requestAnimationFrame(() => {
+        if (typeof highlightCode === 'function' && codeEl) highlightCode(codeEl);
+      });
+    } catch (e) {
+      console.error('[openFileInRightPanel] 代码请求失败:', e);
+      // 请求失败时在面板内显示错误，而不是下载
+      if (codeEl) {
+        codeEl.style.display = '';
+        codeEl.textContent = `// 无法加载文件: ${path}\n// ${e.message || '请求失败'}`;
+      }
+    }
+  }
+
+  // 高亮当前选中的文件
+  document.querySelectorAll('#mainFileTree .file-item').forEach(el => {
+    el.classList.remove('file-item-active');
+  });
+  document.querySelectorAll('#mainFileTree .file-item').forEach(el => {
+    const nameEl = el.querySelector('.file-name');
+    if (nameEl && nameEl.textContent === fileName) {
+      el.classList.add('file-item-active');
+    }
+  });
+}
+
+/** 关闭文件预览，返回之前的视图 */
+function closeRpFilePreview() {
+  _rpFileCurrentPath = '';
+  _rpFileCurrentMode = '';
+  _rpFileRawContent = '';
+  _rpFileDirty = false;
+  // 如果有选中的员工，回到对话视图；否则显示空状态
+  if (EMPLOYEE_STORE.selectedId) {
+    _setRightPanelView('chat');
+  } else {
+    _setRightPanelView('empty');
+  }
+  // 移除文件选中高亮
+  document.querySelectorAll('#mainFileTree .file-item').forEach(el => {
+    el.classList.remove('file-item-active');
+  });
+}
+
+/** 切换编辑模式 */
+function toggleRpFileEdit() {
+  const editArea = $('rpFileEditArea');
+  const codeEl = $('rpFileCode');
+  const mdEl = $('rpFileMd');
+  const editBtn = $('rpFileEditBtn');
+  if (!editArea) return;
+
+  const editing = editArea.style.display !== 'none';
+
+  if (editing) {
+    // 保存
+    if (!_rpFileCurrentPath) return;
+    const content = editArea.value;
+    const savePayload = { path: _rpFileCurrentPath, content };
+    if (S.session && S.session.session_id) savePayload.session_id = S.session.session_id;
+    api('/api/file/save', {
+      method: 'POST',
+      body: JSON.stringify(savePayload)
+    }).then(() => {
+      _rpFileDirty = false;
+      _rpFileRawContent = content;
+      editArea.style.display = 'none';
+      if (_rpFileCurrentMode === 'code' && codeEl) {
+        codeEl.textContent = content;
+        codeEl.style.display = '';
+        requestAnimationFrame(() => { if (typeof highlightCode === 'function') highlightCode(codeEl); });
+      } else if (_rpFileCurrentMode === 'md' && mdEl) {
+        mdEl.innerHTML = typeof renderMd === 'function' ? renderMd(content) : content;
+        mdEl.style.display = '';
+        requestAnimationFrame(() => {
+          if (typeof highlightCode === 'function') highlightCode(mdEl);
+          if (typeof addCopyButtons === 'function') addCopyButtons(mdEl);
+        });
+      }
+      if (editBtn) editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+      if (editBtn) editBtn.style.color = '';
+      if (typeof showToast === 'function') showToast('已保存');
+    }).catch(e => {
+      if (typeof showToast === 'function') showToast('保存失败: ' + e.message);
+    });
+  } else {
+    // 进入编辑模式
+    editArea.value = _rpFileRawContent;
+    editArea.style.display = '';
+    if (codeEl) codeEl.style.display = 'none';
+    if (mdEl) mdEl.style.display = 'none';
+    if (editBtn) editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+    if (editBtn) editBtn.style.color = 'var(--blue)';
+    editArea.focus();
+    editArea.onkeydown = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); _cancelRpFileEdit(); }
+    };
+    editArea.oninput = () => { _rpFileDirty = true; };
+  }
+}
+
+function _cancelRpFileEdit() {
+  const editArea = $('rpFileEditArea');
+  const codeEl = $('rpFileCode');
+  const mdEl = $('rpFileMd');
+  const editBtn = $('rpFileEditBtn');
+  if (editArea) editArea.style.display = 'none';
+  if (_rpFileCurrentMode === 'code' && codeEl) codeEl.style.display = '';
+  if (_rpFileCurrentMode === 'md' && mdEl) mdEl.style.display = '';
+  _rpFileDirty = false;
+  if (editBtn) {
+    editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    editBtn.style.color = '';
+  }
+}
+
+/** 下载当前预览的文件 */
+function downloadRpFile() {
+  if (_rpFileCurrentPath && typeof downloadFile === 'function') {
+    downloadFile(_rpFileCurrentPath);
+  }
 }

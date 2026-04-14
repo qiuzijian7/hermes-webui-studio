@@ -1,9 +1,311 @@
 /**
- * workspace-tabs.js — 中间工作区页签切换、画布自由拖动、文件目录
+ * workspace-tabs.js — 中间工作区页签切换、画布自由拖动、文件目录、画布缩放
  */
 
 // ── 页签切换 ─────────────────────────────────────────────────────────────────
 let _activeWorkspaceTab = 'canvas';
+
+// ── 无限画布 — 缩放 + 平移 ──────────────────────────────────────────────────
+// 通过 transform: translate(panX, panY) scale(zoom) 实现，不依赖浏览器 scrollbar。
+// panX/panY 是 **视口像素** 级别的偏移量（layer 左上角相对于 canvas 左上角的像素偏移）。
+let _canvasZoomLevel = 1;
+let _canvasPanX = 0;   // layer 左上角在视口中的 X 偏移（像素）
+let _canvasPanY = 0;   // layer 左上角在视口中的 Y 偏移（像素）
+const _ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+const _ZOOM_MIN = 0.25;
+const _ZOOM_MAX = 3;
+
+/** 获取当前画布工作区路径（与 employee.js 共用） */
+function _currentWsKey() {
+  return (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '') || '__default__';
+}
+
+/** 保存当前画布视觉状态到 localStorage（按工作区） */
+function _saveCanvasState() {
+  const key = 'hermes-canvas-state:' + _currentWsKey();
+  try {
+    localStorage.setItem(key, JSON.stringify({
+      zoom: _canvasZoomLevel,
+      panX: _canvasPanX,
+      panY: _canvasPanY
+    }));
+  } catch(e) {}
+}
+
+/** 加载指定工作区的画布视觉状态 */
+function _loadCanvasState() {
+  const key = 'hermes-canvas-state:' + _currentWsKey();
+  try {
+    let raw = localStorage.getItem(key);
+    // 旧版全局数据迁移
+    if (!raw) {
+      const oldZoom = localStorage.getItem('hermes-canvas-zoom');
+      const oldPanX = localStorage.getItem('hermes-canvas-panX');
+      const oldPanY = localStorage.getItem('hermes-canvas-panY');
+      if (oldZoom || oldPanX || oldPanY) {
+        const migrated = {
+          zoom: parseFloat(oldZoom) || 1,
+          panX: parseFloat(oldPanX) || 0,
+          panY: parseFloat(oldPanY) || 0
+        };
+        localStorage.setItem(key, JSON.stringify(migrated));
+        localStorage.removeItem('hermes-canvas-zoom');
+        localStorage.removeItem('hermes-canvas-panX');
+        localStorage.removeItem('hermes-canvas-panY');
+        raw = localStorage.getItem(key);
+      }
+    }
+    if (raw) {
+      const st = JSON.parse(raw);
+      _canvasZoomLevel = st.zoom || 1;
+      _canvasPanX = st.panX || 0;
+      _canvasPanY = st.panY || 0;
+    } else {
+      _canvasZoomLevel = 1;
+      _canvasPanX = 0;
+      _canvasPanY = 0;
+    }
+  } catch(e) {
+    _canvasZoomLevel = 1;
+    _canvasPanX = 0;
+    _canvasPanY = 0;
+  }
+  _applyCanvasTransform();
+}
+
+/** 应用当前 pan + zoom 到 canvasZoomLayer 的 transform */
+function _applyCanvasTransform() {
+  const layer = $('canvasZoomLayer');
+  if (layer) {
+    // translate 在 scale 之前，所以 translate 是像素级别
+    layer.style.transform = `translate(${_canvasPanX}px, ${_canvasPanY}px) scale(${_canvasZoomLevel})`;
+    layer.style.transformOrigin = '0 0';
+  }
+  // 背景网格跟随 pan/zoom
+  const canvas = $('employeeCanvas');
+  if (canvas) {
+    const gridBase = 24;
+    const gridSize = gridBase * _canvasZoomLevel;
+    canvas.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+    canvas.style.backgroundPosition = `${_canvasPanX}px ${_canvasPanY}px`;
+  }
+  const label = $('canvasZoomLabel');
+  if (label) label.textContent = Math.round(_canvasZoomLevel * 100) + '%';
+  // 持久化（按工作区）
+  _saveCanvasState();
+}
+
+/** 以某一视口像素点 (pivotX, pivotY) 为中心，从 oldZoom 缩放到 newZoom */
+function _zoomAroundPoint(pivotX, pivotY, oldZoom, newZoom) {
+  // pivotX/pivotY: 鼠标（或视口中心）相对于 canvas 容器左上角的像素坐标
+  // 该点对应的逻辑坐标 = (pivotX - panX) / oldZoom
+  // 缩放后要让同一逻辑点仍在 (pivotX, pivotY)：
+  //   pivotX = panX_new + logicalX * newZoom
+  //   => panX_new = pivotX - logicalX * newZoom
+  const logicalX = (pivotX - _canvasPanX) / oldZoom;
+  const logicalY = (pivotY - _canvasPanY) / oldZoom;
+  _canvasPanX = pivotX - logicalX * newZoom;
+  _canvasPanY = pivotY - logicalY * newZoom;
+}
+
+/** 纯粹改变 zoom 级别（不 apply，不改 pan） */
+function _stepZoomLevel(direction) {
+  if (direction === 0) {
+    _canvasZoomLevel = 1;
+  } else {
+    const idx = _ZOOM_STEPS.findIndex(s => s >= _canvasZoomLevel);
+    if (direction > 0) {
+      _canvasZoomLevel = _ZOOM_STEPS[Math.min(idx + 1, _ZOOM_STEPS.length - 1)];
+    } else {
+      _canvasZoomLevel = _ZOOM_STEPS[Math.max(idx - 1, 0)];
+    }
+  }
+}
+
+/** 公共接口：按钮点击缩放，以画布视口中心为基准 */
+function canvasZoom(direction) {
+  const canvas = $('employeeCanvas');
+  const oldZoom = _canvasZoomLevel;
+
+  if (direction === 0) {
+    // 重置：zoom=1, pan 让内容左上角在 (0,0)
+    _canvasZoomLevel = 1;
+    _canvasPanX = 0;
+    _canvasPanY = 0;
+    _applyCanvasTransform();
+    return;
+  }
+
+  _stepZoomLevel(direction);
+  const newZoom = _canvasZoomLevel;
+
+  if (oldZoom !== newZoom && canvas) {
+    const vpCX = canvas.clientWidth / 2;
+    const vpCY = canvas.clientHeight / 2;
+    _zoomAroundPoint(vpCX, vpCY, oldZoom, newZoom);
+  }
+  _applyCanvasTransform();
+}
+
+function _initCanvasZoom() {
+  // 恢复保存的状态（按工作区）
+  _loadCanvasState();
+
+  const canvas = $('employeeCanvas');
+  if (!canvas) return;
+
+  // ── 滚轮缩放 — 以鼠标位置为中心 ──
+  canvas.addEventListener('wheel', (e) => {
+    if (e.target.closest('.main-file-tree')) return;
+    e.preventDefault();
+
+    const delta = e.deltaY > 0 ? -1 : 1;
+    const oldZoom = _canvasZoomLevel;
+    _stepZoomLevel(delta);
+    const newZoom = _canvasZoomLevel;
+
+    if (oldZoom !== newZoom) {
+      const rect = canvas.getBoundingClientRect();
+      const pivotX = e.clientX - rect.left;
+      const pivotY = e.clientY - rect.top;
+      _zoomAroundPoint(pivotX, pivotY, oldZoom, newZoom);
+      _applyCanvasTransform();
+    }
+  }, { passive: false });
+
+  // ── 右键拖动平移画布 ──
+  let _panning = false;
+  let _panStartX = 0, _panStartY = 0;
+  let _panOriginX = 0, _panOriginY = 0;
+
+  canvas.addEventListener('contextmenu', (e) => {
+    if (!e.target.closest('.emp-card')) {
+      e.preventDefault();
+    }
+  });
+
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button === 2 && !e.target.closest('.emp-card')) {
+      _panning = true;
+      _panStartX = e.clientX;
+      _panStartY = e.clientY;
+      _panOriginX = _canvasPanX;
+      _panOriginY = _canvasPanY;
+      canvas.style.cursor = 'grabbing';
+      e.preventDefault();
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!_panning) return;
+    const dx = e.clientX - _panStartX;
+    const dy = e.clientY - _panStartY;
+    _canvasPanX = _panOriginX + dx;
+    _canvasPanY = _panOriginY + dy;
+    _applyCanvasTransform();
+  });
+
+  document.addEventListener('mouseup', (e) => {
+    if (e.button === 2 && _panning) {
+      _panning = false;
+      canvas.style.cursor = '';
+    }
+  });
+
+  // ── 中键拖动平移画布 ──
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button === 1) {
+      _panning = true;
+      _panStartX = e.clientX;
+      _panStartY = e.clientY;
+      _panOriginX = _canvasPanX;
+      _panOriginY = _canvasPanY;
+      canvas.style.cursor = 'grabbing';
+      e.preventDefault();
+    }
+  });
+
+  document.addEventListener('mouseup', (e) => {
+    if (e.button === 1 && _panning) {
+      _panning = false;
+      canvas.style.cursor = '';
+    }
+  });
+}
+
+// ── 工作区选择下拉框 ──────────────────────────────────────────────────────────
+let _wsSelectorList = [];
+
+function toggleWsSelector() {
+  const dd = $('wsSelectorDropdown');
+  if (!dd) return;
+  const open = dd.classList.contains('open');
+  if (open) {
+    dd.classList.remove('open');
+  } else {
+    loadWorkspaceList().then(data => {
+      _wsSelectorList = data.workspaces || [];
+      _renderWsSelectorDropdown(dd);
+      dd.classList.add('open');
+    });
+  }
+}
+
+function closeWsSelector() {
+  const dd = $('wsSelectorDropdown');
+  if (dd) dd.classList.remove('open');
+}
+
+function _renderWsSelectorDropdown(dd) {
+  if (!dd) return;
+  const currentWs = (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '') || S.session?.workspace || '';
+  dd.innerHTML = '';
+
+  for (const w of _wsSelectorList) {
+    const opt = document.createElement('div');
+    opt.className = 'ws-opt' + (w.path === currentWs ? ' active' : '');
+    opt.innerHTML = `<span class="ws-opt-name">${esc(w.name)}</span><span class="ws-opt-path" title="${esc(w.path)}">${esc(w.path)}</span>`;
+    opt.onclick = () => {
+      closeWsSelector();
+      if (w.path !== currentWs && typeof switchToWorkspace === 'function') {
+        switchToWorkspace(w.path, w.name);
+      }
+    };
+    dd.appendChild(opt);
+  }
+
+  // 添加工作区选项
+  dd.appendChild(Object.assign(document.createElement('div'), { className: 'ws-divider' }));
+  const addAction = document.createElement('div');
+  addAction.className = 'ws-opt ws-opt-action';
+  addAction.innerHTML = `<span class="ws-opt-name">+ 添加工作区路径</span>`;
+  addAction.onclick = () => {
+    closeWsSelector();
+    setTimeout(() => {
+      if (typeof promptWorkspacePath === 'function') promptWorkspacePath();
+    }, 50);
+  };
+  dd.appendChild(addAction);
+}
+
+function syncWsSelectorLabel() {
+  const label = $('wsSelectorLabel');
+  if (!label) return;
+  const ws = (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '') || S.session?.workspace || '';
+  if (ws && ws !== '__default__') {
+    const name = typeof getWorkspaceFriendlyName === 'function' ? getWorkspaceFriendlyName(ws) : ws.split(/[\/\\]/).filter(Boolean).pop();
+    label.textContent = name;
+    label.title = ws;
+  } else {
+    label.textContent = '工作区';
+    label.title = '';
+  }
+}
+
+// 点击外部关闭下拉
+document.addEventListener('click', e => {
+  if (!e.target.closest('#wsSelectorWrap')) closeWsSelector();
+});
 
 function switchWorkspaceTab(tab) {
   _activeWorkspaceTab = tab;
@@ -23,11 +325,15 @@ function switchWorkspaceTab(tab) {
     if (filesContent) filesContent.classList.remove('active');
     if (empToolbarInline) empToolbarInline.style.display = '';
     if (fileToolbarInline) fileToolbarInline.style.display = 'none';
+    const zoomControls = $('canvasZoomControls');
+    if (zoomControls) zoomControls.style.display = '';
   } else {
     if (canvasContent) canvasContent.classList.remove('active');
     if (filesContent) filesContent.classList.add('active');
     if (empToolbarInline) empToolbarInline.style.display = 'none';
     if (fileToolbarInline) fileToolbarInline.style.display = '';
+    const zoomControls = $('canvasZoomControls');
+    if (zoomControls) zoomControls.style.display = 'none';
     // 加载文件目录
     _renderMainFileTree();
   }
@@ -74,19 +380,17 @@ function _initFreeDrag(card, emp) {
   function onTouchMove(e) { e.preventDefault(); const t = e.touches[0]; moveDrag(t.clientX, t.clientY); }
 
   function moveDrag(clientX, clientY) {
-    const dx = clientX - startX;
-    const dy = clientY - startY;
-    if (!isDragging && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+    const zoom = _canvasZoomLevel || 1;
+    const dx = (clientX - startX) / zoom;
+    const dy = (clientY - startY) / zoom;
+    if (!isDragging && (Math.abs(clientX - startX) > 3 || Math.abs(clientY - startY) > 3)) {
       isDragging = true;
       card.classList.add('emp-dragging-free');
     }
     if (!isDragging) return;
 
-    const canvas = $('employeeCanvas');
-    const maxX = Math.max(0, canvas.scrollWidth - card.offsetWidth);
-    const maxY = Math.max(0, canvas.scrollHeight - card.offsetHeight);
-    const newX = Math.max(0, Math.min(maxX, origX + dx));
-    const newY = Math.max(0, Math.min(maxY, origY + dy));
+    const newX = Math.max(0, origX + dx);
+    const newY = Math.max(0, origY + dy);
 
     card.style.left = newX + 'px';
     card.style.top = newY + 'px';
@@ -128,7 +432,8 @@ function _positionCard(card, emp) {
   } else {
     // 自动布局：根据数组索引排列
     const idx = EMPLOYEE_STORE.employees.indexOf(emp);
-    const cols = Math.max(1, Math.floor(($('employeeCanvas')?.clientWidth || 800) / 264));
+    const canvasEl = $('employeeCanvas');
+    const cols = Math.max(1, Math.floor((canvasEl?.clientWidth || 800) / 264));
     const col = idx % cols;
     const row = Math.floor(idx / cols);
     card.style.left = (col * 264 + 16) + 'px';
@@ -143,13 +448,11 @@ function _renderMainFileTree() {
   const container = $('mainFileTree');
   if (!container) return;
 
-  // 如果没有会话，显示空状态
-  if (!S.session) {
-    container.innerHTML = `
-      <div class="main-file-empty">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-        <span>请先创建或选择会话</span>
-      </div>`;
+  // 文件列表为空时，自动加载工作目录（不再强制要求 session）
+  if (!S.entries || S.entries.length === 0) {
+    if (typeof loadDir === 'function') {
+      loadDir('.');
+    }
     return;
   }
 
@@ -203,7 +506,10 @@ function _renderMainBreadcrumb() {
   }
 }
 
+const _MAX_TREE_DEPTH = 20;  // 防止无限递归
+
 function _renderMainTreeItems(container, entries, depth) {
+  if (depth > _MAX_TREE_DEPTH) return;  // 超过最大深度，停止渲染
   for (const item of entries) {
     const el = document.createElement('div');
     el.className = 'file-item';
@@ -240,8 +546,12 @@ function _renderMainTreeItems(container, entries, depth) {
           if (!S._dirCache) S._dirCache = {};
           if (!S._dirCache[item.path]) {
             try {
-              const data = await api(`/api/list?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(item.path)}`);
-              S._dirCache[item.path] = data.entries || [];
+              const _sid = (S.session && S.session.session_id) ? encodeURIComponent(S.session.session_id) : '';
+              const _qs = _sid ? `session_id=${_sid}&path=${encodeURIComponent(item.path)}` : `path=${encodeURIComponent(item.path)}`;
+              const data = await api(`/api/list?${_qs}`);
+              // 过滤掉 path 与父目录相同的自引用条目，防止无限递归
+              const raw = data.entries || [];
+              S._dirCache[item.path] = raw.filter(e => e.path !== item.path);
             } catch (e) { S._dirCache[item.path] = []; }
           }
         }
@@ -250,8 +560,9 @@ function _renderMainTreeItems(container, entries, depth) {
       };
     } else {
       el.onclick = () => {
-        // 切换到画布视图并打开文件预览
-        if (typeof openFile === 'function') openFile(item.path);
+        // 在右侧面板中打开文件预览
+        if (typeof openFileInRightPanel === 'function') openFileInRightPanel(item.path);
+        else if (typeof openFile === 'function') openFile(item.path);
       };
     }
 
@@ -277,7 +588,7 @@ function _renderMainTreeItems(container, entries, depth) {
 const _originalRenderEmployeeCards = typeof renderEmployeeCards === 'function' ? renderEmployeeCards : null;
 
 function renderEmployeeCards() {
-  const canvas = $('employeeCanvas');
+  const canvas = $('canvasZoomLayer') || $('employeeCanvas');
   const empty = $('employeeEmptyState');
   if (!canvas) return;
 
@@ -344,4 +655,8 @@ function initWorkspaceTabs() {
   if (saved === 'files') {
     switchWorkspaceTab('files');
   }
+  // 初始化画布缩放
+  _initCanvasZoom();
+  // 初始化工作区选择器标签
+  syncWsSelectorLabel();
 }

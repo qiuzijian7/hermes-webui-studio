@@ -31,21 +31,23 @@ function _restoreExpandedDirs(){
 }
 
 async function loadDir(path){
-  if(!S.session)return;
+  const sid=(S.session&&S.session.session_id)?encodeURIComponent(S.session.session_id):'';
   try{
     if(!path||path==='.'){
       S._dirCache={};
       _restoreExpandedDirs();  // restore per-workspace expanded state on root load
     }
     S.currentDir=path||'.';
-    const data=await api(`/api/list?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(path)}`);
+    const listQs=sid?`session_id=${sid}&path=${encodeURIComponent(path)}`:`path=${encodeURIComponent(path)}`;
+    const data=await api(`/api/list?${listQs}`);
     S.entries=data.entries||[];renderBreadcrumb();renderFileTree();
     // Pre-fetch contents of restored expanded dirs so they render without a second click
     if(!path||path==='.'){
       for(const dirPath of (S._expandedDirs||[])){
         if(!S._dirCache[dirPath]){
           try{
-            const dc=await api(`/api/list?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(dirPath)}`);
+            const dcQs=sid?`session_id=${sid}&path=${encodeURIComponent(dirPath)}`:`path=${encodeURIComponent(dirPath)}`;
+            const dc=await api(`/api/list?${dcQs}`);
             S._dirCache[dirPath]=dc.entries||[];
           }catch(e2){S._dirCache[dirPath]=[];}
         }
@@ -86,7 +88,7 @@ async function _refreshGitBadge(){
 }
 
 function navigateUp(){
-  if(!S.session||S.currentDir==='.')return;
+  if(S.currentDir==='.')return;
   const parts=S.currentDir.split('/');
   parts.pop();
   loadDir(parts.length?parts.join('/'):'.');

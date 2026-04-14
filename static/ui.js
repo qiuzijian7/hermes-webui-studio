@@ -474,13 +474,14 @@ function _isAppDialogOpen(){
 }
 
 function _getAppDialogFocusable(){
-  return [$('appDialogInput'), $('appDialogCancel'), $('appDialogConfirm'), $('appDialogClose')]
-    .filter(el=>el&&el.style.display!=='none'&&!el.disabled);
+  return [$('appDialogInput'), $('appDialogBrowseBtn'), $('appDialogCancel'), $('appDialogConfirm'), $('appDialogClose')]
+    .filter(el=>el&&el.style.display!=='none'&&el.offsetParent!==null&&!el.disabled);
 }
 
 function _finishAppDialog(result, restoreFocus=true){
   const overlay=$('appDialogOverlay');
   const dialog=$('appDialog');
+  const inputRow=$('appDialogInputRow');
   const input=$('appDialogInput');
   const confirmBtn=$('appDialogConfirm');
   const resolve=APP_DIALOG.resolve;
@@ -490,7 +491,9 @@ function _finishAppDialog(result, restoreFocus=true){
   APP_DIALOG.lastFocus=null;
   if(overlay){overlay.style.display='none';overlay.setAttribute('aria-hidden','true');}
   if(dialog) dialog.setAttribute('role','dialog');
-  if(input){input.value='';input.style.display='none';input.placeholder='';}
+  if(inputRow) inputRow.style.display='none';
+  if(input){input.value='';input.placeholder='';if(input._browseKeyHandler){input.removeEventListener('keydown',input._browseKeyHandler);input._browseKeyHandler=null;}}
+  const browse=$('appDialogBrowse');if(browse) browse.style.display='none';
   if(confirmBtn){confirmBtn.classList.remove('danger');confirmBtn.textContent=t('dialog_confirm_btn');}
   if(restoreFocus&&lastFocus&&typeof lastFocus.focus==='function'){setTimeout(()=>lastFocus.focus(),0);}
   if(resolve) resolve(result);
@@ -530,6 +533,12 @@ function _ensureAppDialogBindings(){
     if(e.key==='Enter'){
       const target=e.target;
       const isTextarea=target&&target.tagName==='TEXTAREA';
+      // 如果输入框处于浏览模式（有 _browseKeyHandler），让浏览处理器优先
+      const dialogInput=$('appDialogInput');
+      if(target===dialogInput&&dialogInput._browseKeyHandler&&dialogInput.value){
+        // 不拦截，让 input 的 keydown 事件处理器处理（浏览到指定路径）
+        return;
+      }
       if(!isTextarea){
         e.preventDefault();
         if(target===cancelBtn||target===closeBtn){
@@ -561,10 +570,12 @@ function showConfirmDialog(opts={}){
   if(APP_DIALOG.resolve) _finishAppDialog(false,false);
   const overlay=$('appDialogOverlay'),dialog=$('appDialog'),title=$('appDialogTitle'),
     desc=$('appDialogDesc'),input=$('appDialogInput'),cancelBtn=$('appDialogCancel'),confirmBtn=$('appDialogConfirm');
+  const browseEl2=$('appDialogBrowse');if(browseEl2) browseEl2.style.display='none';
+  const inputRow2=$('appDialogInputRow');if(inputRow2) inputRow2.style.display='none';
   APP_DIALOG.resolve=null;APP_DIALOG.kind='confirm';APP_DIALOG.lastFocus=document.activeElement;
   if(title) title.textContent=opts.title||t('dialog_confirm_title');
   if(desc) desc.textContent=opts.message||'';
-  if(input){input.style.display='none';input.value='';}
+  if(input){input.value='';}
   if(cancelBtn) cancelBtn.textContent=opts.cancelLabel||t('cancel');
   if(confirmBtn){
     confirmBtn.textContent=opts.confirmLabel||t('dialog_confirm_btn');
@@ -583,11 +594,14 @@ function showPromptDialog(opts={}){
   if(APP_DIALOG.resolve) _finishAppDialog(null,false);
   const overlay=$('appDialogOverlay'),dialog=$('appDialog'),title=$('appDialogTitle'),
     desc=$('appDialogDesc'),input=$('appDialogInput'),cancelBtn=$('appDialogCancel'),confirmBtn=$('appDialogConfirm');
+  const browseEl=$('appDialogBrowse');if(browseEl) browseEl.style.display='none';
+  const inputRow=$('appDialogInputRow');if(inputRow) inputRow.style.display='';
+  const browseBtn2=$('appDialogBrowseBtn');if(browseBtn2) browseBtn2.style.display='none';
   APP_DIALOG.resolve=null;APP_DIALOG.kind='prompt';APP_DIALOG.lastFocus=document.activeElement;
   if(title) title.textContent=opts.title||t('dialog_prompt_title');
   if(desc) desc.textContent=opts.message||'';
   if(input){
-    input.type=opts.inputType||'text';input.style.display='';
+    input.type=opts.inputType||'text';
     input.value=opts.value||'';input.placeholder=opts.placeholder||'';
     input.autocomplete='off';input.spellcheck=false;
   }
@@ -597,7 +611,7 @@ function showPromptDialog(opts={}){
   if(overlay){overlay.style.display='flex';overlay.setAttribute('aria-hidden','false');}
   return new Promise(resolve=>{
     APP_DIALOG.resolve=resolve;
-    setTimeout(()=>{if(input&&input.style.display!=='none')input.focus();else if(confirmBtn)confirmBtn.focus();},0);
+    setTimeout(()=>{if(inputRow&&inputRow.style.display!=='none'&&input)input.focus();else if(confirmBtn)confirmBtn.focus();},0);
   });
 }
 
@@ -759,6 +773,13 @@ function syncTopbar(){
   if(clearBtn) clearBtn.style.display=(S.messages&&S.messages.filter(msg=>msg.role!=='tool').length>0)?'':'none';
   if(typeof _syncHermesPanelSessionActions==='function') _syncHermesPanelSessionActions();
   if(typeof syncWorkspaceDisplays==='function') syncWorkspaceDisplays();
+  // 员工模式下，topbar 显示工作区信息
+  if(typeof syncWsSelectorLabel==='function') syncWsSelectorLabel();
+  if(S.session && S.session.workspace){
+    const wsName = typeof getWorkspaceFriendlyName==='function' ? getWorkspaceFriendlyName(S.session.workspace) : S.session.workspace.split(/[\/\\]/).filter(Boolean).pop();
+    $('topbarTitle').textContent = wsName || $('topbarTitle').textContent;
+    $('topbarMeta').textContent = S.session.workspace;
+  }
   // modelSelect already set above
   // Update profile chip label
   const profileLabel=$('profileChipLabel');
@@ -1319,6 +1340,7 @@ function renderFileTree(){
 }
 
 function _renderTreeItems(container, entries, depth){
+  if(depth>20)return; // 防止无限递归
   for(const item of entries){
     const el=document.createElement('div');el.className='file-item';
     el.style.paddingLeft=(8+depth*16)+'px';
@@ -1405,15 +1427,23 @@ function _renderTreeItems(container, entries, depth){
           // Fetch children if not cached
           if(!S._dirCache[item.path]){
             try{
-              const data=await api(`/api/list?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(item.path)}`);
-              S._dirCache[item.path]=data.entries||[];
+              const _sid2=(S.session&&S.session.session_id)?encodeURIComponent(S.session.session_id):'';
+              const _qs2=_sid2?`session_id=${_sid2}&path=${encodeURIComponent(item.path)}`:`path=${encodeURIComponent(item.path)}`;
+              const data=await api(`/api/list?${_qs2}`);
+              // 过滤掉 path 与父目录相同的自引用条目，防止无限递归
+              const raw=data.entries||[];
+              S._dirCache[item.path]=raw.filter(e=>e.path!==item.path);
             }catch(e2){S._dirCache[item.path]=[];}
           }
           renderFileTree();
         }
       };
     }else{
-      el.onclick=async()=>openFile(item.path);
+      el.onclick=async()=>{
+        // 优先在右侧面板中打开文件预览
+        if(typeof openFileInRightPanel==='function') openFileInRightPanel(item.path);
+        else openFile(item.path);
+      };
     }
 
     container.appendChild(el);

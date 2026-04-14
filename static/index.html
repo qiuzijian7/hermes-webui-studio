@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hermes</title>
 <script>(function(){var t=localStorage.getItem('hermes-theme');if(t&&t!=='dark')document.documentElement.dataset.theme=t;})()</script>
-<link rel="stylesheet" href="/static/style.css?v=20260414c">
+<link rel="stylesheet" href="/static/style.css?v=20260414f">
   <!-- Prism.js syntax highlighting (loaded async, non-blocking) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" integrity="sha384-wFjoQjtV1y5jVHbt0p35Ui8aV8GVpEZkyF99OXWqP/eNJDU93D3Ugxkoyh6Y2I4A" crossorigin="anonymous">
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js" integrity="sha384-MXybTpajaBV0AkcBaCPT4KIvo0FzoCiWXgcihYsw4FUkEz0Pv3JGV6tk2G8vJtDc" crossorigin="anonymous" defer></script>
@@ -200,6 +200,15 @@
     <div class="employee-panel" id="employeePanel">
       <!-- 页签栏 -->
       <div class="workspace-tabs" id="workspaceTabs">
+        <!-- 工作区选择下拉框 -->
+        <div class="ws-selector-wrap" id="wsSelectorWrap">
+          <button class="ws-selector-btn" id="wsSelectorBtn" onclick="toggleWsSelector()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span id="wsSelectorLabel">工作区</span>
+            <svg width="10" height="6" viewBox="0 0 10 6" style="opacity:.5"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          </button>
+          <div class="ws-selector-dropdown" id="wsSelectorDropdown"></div>
+        </div>
         <button class="chip add-employee-btn" id="btnAddEmployee" onclick="showEmployeeDialog()" title="添加新员工">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/><circle cx="12" cy="7" r="4" fill="none"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
           <span>添加员工</span>
@@ -218,10 +227,19 @@
         <div class="file-toolbar-inline" id="fileToolbarInline" style="display:none">
           <div class="breadcrumb-bar" id="mainBreadcrumb"></div>
         </div>
+        <!-- 画布缩放控件 -->
+        <div class="canvas-zoom-controls" id="canvasZoomControls">
+          <button class="canvas-zoom-btn" onclick="canvasZoom(-1)" title="缩小">−</button>
+          <span class="canvas-zoom-label" id="canvasZoomLabel">100%</span>
+          <button class="canvas-zoom-btn" onclick="canvasZoom(1)" title="放大">+</button>
+          <button class="canvas-zoom-btn" onclick="canvasZoom(0)" title="重置">↺</button>
+        </div>
       </div>
       <!-- 工作画布 -->
       <div class="workspace-tab-content active" id="canvasContent">
         <div class="employee-canvas" id="employeeCanvas">
+          <div class="canvas-zoom-layer" id="canvasZoomLayer">
+          </div>
           <div class="employee-empty-state" id="employeeEmptyState">
             <div class="emp-empty-icon">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
@@ -353,6 +371,32 @@
       <div class="rp-skill-content" id="rpSkillContent">
         <div class="rp-skill-meta" id="rpSkillMeta"></div>
         <div class="rp-skill-body" id="rpSkillBody"></div>
+      </div>
+    </div>
+    <!-- 文件预览模式 -->
+    <div class="rp-file-view" id="rpFileView" style="display:none">
+      <div class="rp-header">
+        <div class="rp-employee-info">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <div class="rp-employee-meta">
+            <span class="rp-employee-name" id="rpFileName">文件名</span>
+            <span class="rp-employee-role" id="rpFilePath">路径</span>
+          </div>
+        </div>
+        <div class="rp-header-actions">
+          <button class="panel-icon-btn" id="rpFileEditBtn" title="编辑文件" onclick="toggleRpFileEdit()" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          <button class="panel-icon-btn" id="rpFileDownloadBtn" title="下载文件" onclick="downloadRpFile()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+          <button class="panel-icon-btn close-preview" onclick="closeRpFilePreview()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+      </div>
+      <div class="rp-file-content" id="rpFileContent">
+        <div class="rp-file-badge" id="rpFileBadge">text</div>
+        <div class="rp-file-code" id="rpFileCode" style="display:none"></div>
+        <div class="rp-file-md" id="rpFileMd" style="display:none"></div>
+        <div class="rp-file-img-wrap" id="rpFileImgWrap" style="display:none">
+          <img id="rpFileImg" alt="" style="max-width:100%;border-radius:6px">
+        </div>
+        <textarea class="rp-file-edit" id="rpFileEditArea" style="display:none" spellcheck="false"></textarea>
       </div>
     </div>
     <!-- 空状态：未选择任何内容 -->
@@ -566,7 +610,19 @@
       </button>
     </div>
     <div class="app-dialog-desc" id="appDialogDesc"></div>
-    <input class="app-dialog-input" id="appDialogInput" type="text" style="display:none">
+    <div class="app-dialog-input-row" id="appDialogInputRow" style="display:none">
+      <input class="app-dialog-input" id="appDialogInput" type="text">
+      <button class="app-dialog-browse-btn" id="appDialogBrowseBtn" type="button" title="浏览本地文件夹">...</button>
+    </div>
+    <div class="app-dialog-browse" id="appDialogBrowse" style="display:none">
+      <div class="app-dialog-browse-bar">
+        <button class="app-dialog-browse-up" id="appDialogBrowseUp" type="button" title="上级目录">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+        </button>
+        <span class="app-dialog-browse-path" id="appDialogBrowsePath"></span>
+      </div>
+      <div class="app-dialog-browse-list" id="appDialogBrowseList"></div>
+    </div>
     <div class="app-dialog-actions">
       <button class="app-dialog-btn" id="appDialogCancel" type="button" data-i18n="cancel">Cancel</button>
       <button class="app-dialog-btn confirm" id="appDialogConfirm" type="button">Confirm</button>
@@ -576,17 +632,17 @@
 <div class="toast" id="toast"></div>
 <script src="/static/i18n.js?v=20260414"></script>
 <script src="/static/icons.js?v=20260414"></script>
-<script src="/static/ui.js?v=20260414"></script>
+<script src="/static/ui.js?v=20260414g"></script>
 <script src="/static/workspace.js?v=20260414"></script>
 <script src="/static/sessions.js?v=20260414"></script>
 <script src="/static/commands.js?v=20260414"></script>
 <script src="/static/messages.js?v=20260414"></script>
-<script src="/static/panels.js?v=20260414"></script>
-<script src="/static/employee.js?v=20260414b"></script>
-<script src="/static/agent-presets.js?v=20260414b"></script>
-<script src="/static/workspace-tabs.js?v=20260414b"></script>
-<script src="/static/right-panel.js?v=20260414"></script>
+<script src="/static/panels.js?v=20260414k"></script>
+<script src="/static/employee.js?v=20260414c"></script>
+<script src="/static/agent-presets.js?v=20260414c"></script>
+<script src="/static/workspace-tabs.js?v=20260414i"></script>
+<script src="/static/right-panel.js?v=20260414g"></script>
 <script src="/static/onboarding.js?v=20260414"></script>
-<script src="/static/boot.js?v=20260414"></script>
+<script src="/static/boot.js?v=20260414b"></script>
 </body>
 </html>

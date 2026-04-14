@@ -168,8 +168,22 @@
   .app-dialog-close{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:none;border-radius:10px;background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;transition:background .15s,color .15s;}
   .app-dialog-close:hover{background:rgba(255,255,255,.09);color:var(--text);}
   .app-dialog-desc{font-size:13px;line-height:1.6;color:var(--muted);white-space:pre-wrap;}
-  .app-dialog-input{width:100%;margin-top:14px;padding:11px 12px;background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:14px;outline:none;box-sizing:border-box;}
+  .app-dialog-input-row{display:flex;gap:6px;margin-top:14px;align-items:stretch;}
+  .app-dialog-input{flex:1;padding:11px 12px;background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:14px;outline:none;box-sizing:border-box;min-width:0;}
   .app-dialog-input:focus{border-color:rgba(124,185,255,.55);box-shadow:0 0 0 3px rgba(124,185,255,.12);}
+  .app-dialog-browse-btn{flex-shrink:0;padding:0 12px;background:rgba(255,255,255,.06);border:1px solid var(--border2);border-radius:10px;color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;transition:background .12s,color .12s,border-color .12s;letter-spacing:1px;}
+  .app-dialog-browse-btn:hover{background:rgba(124,185,255,.12);border-color:rgba(124,185,255,.35);color:var(--blue);}
+  .app-dialog-browse{margin-top:10px;border:1px solid var(--border2);border-radius:10px;overflow:hidden;background:rgba(255,255,255,.02);}
+  .app-dialog-browse-bar{display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid var(--border2);background:rgba(255,255,255,.03);}
+  .app-dialog-browse-up{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;border-radius:6px;background:rgba(255,255,255,.06);color:var(--muted);cursor:pointer;transition:background .12s,color .12s;flex-shrink:0;}
+  .app-dialog-browse-up:hover{background:rgba(255,255,255,.12);color:var(--text);}
+  .app-dialog-browse-path{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;}
+  .app-dialog-browse-list{max-height:200px;overflow-y:auto;padding:4px;}
+  .app-dialog-browse-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:pointer;transition:background .1s;font-size:13px;color:var(--text);}
+  .app-dialog-browse-item:hover{background:rgba(255,255,255,.07);}
+  .app-dialog-browse-item.selected{background:rgba(124,185,255,.12);color:var(--blue);}
+  .app-dialog-browse-item svg{flex-shrink:0;opacity:.6;}
+  .app-dialog-browse-empty{padding:14px;text-align:center;color:var(--muted);font-size:12px;}
   .app-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;flex-wrap:wrap;}
   .app-dialog-btn{display:inline-flex;align-items:center;justify-content:center;min-width:104px;padding:10px 14px;border-radius:10px;border:1px solid var(--border2);background:rgba(255,255,255,.05);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;transition:transform .15s,background .15s,border-color .15s;}
   .app-dialog-btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.1);}
@@ -1121,6 +1135,109 @@ body.resizing{user-select:none;cursor:col-resize;}
 .workspace-tab svg { flex-shrink: 0; }
 
 /* 添加员工按钮（在 workspace-tabs 内） */
+
+/* ── 工作区选择下拉框 ──────────────────────────────────────────────────── */
+.ws-selector-wrap {
+  position: relative;
+  margin-right: 6px;
+}
+.ws-selector-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .15s;
+  max-width: 200px;
+  white-space: nowrap;
+}
+.ws-selector-btn:hover {
+  background: rgba(255,255,255,.08);
+  border-color: rgba(124,185,255,.3);
+}
+.ws-selector-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+.ws-selector-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 240px;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  z-index: 200;
+  padding: 4px;
+}
+.ws-selector-dropdown.open { display: block; }
+.ws-selector-dropdown .ws-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .1s;
+  font-size: 12px;
+}
+.ws-selector-dropdown .ws-opt:hover { background: rgba(255,255,255,.06); }
+.ws-selector-dropdown .ws-opt.active { background: rgba(124,185,255,.1); }
+.ws-selector-dropdown .ws-opt-name { color: var(--text); font-weight: 500; }
+.ws-selector-dropdown .ws-opt-path { color: var(--muted); font-size: 10px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-selector-dropdown .ws-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+.ws-selector-dropdown .ws-opt-action { color: var(--blue); }
+
+/* ── 画布缩放控件 ────────────────────────────────────────────────────── */
+.canvas-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.canvas-zoom-btn {
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--muted);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .15s;
+  line-height: 1;
+}
+.canvas-zoom-btn:hover { color: var(--text); background: rgba(255,255,255,.08); border-color: var(--border2); }
+.canvas-zoom-label {
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 36px;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* ── 画布缩放图层（无限画布）────────────────────────────────────────── */
+.canvas-zoom-layer {
+  transform-origin: 0 0;
+  /* 不使用 transition：滚轮缩放需要 transform 立即生效 */
+  position: absolute;
+  left: 0; top: 0;
+  /* 不设宽高，由子元素撑开；transform 处理所有平移和缩放 */
+}
+
 .add-employee-btn {
   display: inline-flex;
   align-items: center;
@@ -1181,15 +1298,15 @@ body.resizing{user-select:none;cursor:col-resize;}
 .workspace-tab-content { display: none; flex: 1; overflow: hidden; flex-direction: column; }
 .workspace-tab-content.active { display: flex; }
 
-/* ── 工作画布（自由拖动）──────────────────────────────────────────────────── */
+/* ── 工作画布（无限画布 — 不使用 scrollbar）──────────────────────────────── */
 .employee-canvas {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   padding: 0;
   position: relative;
   min-height: 200px;
   min-width: 100%;
-  /* 点阵网格背景 */
+  /* 点阵网格背景：JS 会动态设置 background-position 和 background-size 跟随 pan/zoom */
   background-image:
     radial-gradient(circle, rgba(124,185,255,.06) 1px, transparent 1px);
   background-size: 24px 24px;
@@ -1236,7 +1353,7 @@ body.resizing{user-select:none;cursor:col-resize;}
   min-width: 0;
 }
 .main-file-tree .file-item:hover { background: rgba(255,255,255,.07); color: var(--text); }
-.main-file-tree .file-item.active { background: rgba(124,185,255,.12); color: var(--blue); }
+.main-file-tree .file-item.active, .main-file-tree .file-item.file-item-active { background: rgba(124,185,255,.12); color: var(--blue); }
 .main-file-tree .file-tree-toggle { font-size: 10px; color: var(--muted); flex-shrink: 0; width: 10px; text-align: center; line-height: 1; }
 .main-file-tree .file-item.file-empty { color: var(--muted); opacity: .5; font-style: italic; cursor: default; font-size: 11px; }
 .main-file-tree .file-item.file-empty:hover { background: none; color: var(--muted); }
@@ -1298,8 +1415,8 @@ body.resizing{user-select:none;cursor:col-resize;}
 
 .employee-empty-state {
   position: absolute;
-  left: 50%; top: 50%;
-  transform: translate(-50%, -50%);
+  left: 0; top: 0;
+  width: 100%; height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1307,12 +1424,14 @@ body.resizing{user-select:none;cursor:col-resize;}
   gap: 12px;
   color: var(--muted);
   padding: 40px 20px;
+  box-sizing: border-box;
   animation: emp-fade-in .4s ease-out;
   pointer-events: none;
+  z-index: 5;
 }
 @keyframes emp-fade-in {
-  from { opacity: 0; transform: translate(-50%, -50%) translateY(12px); }
-  to { opacity: 1; transform: translate(-50%, -50%) translateY(0); }
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .emp-empty-icon {
   margin-bottom: 8px;
@@ -1427,10 +1546,8 @@ body.resizing{user-select:none;cursor:col-resize;}
   transition: background .3s, box-shadow .3s;
   box-shadow: 0 2px 8px rgba(0,0,0,.15);
 }
-.emp-avatar-img { padding: 4px; }
-.emp-avatar-img img {
-  width: 100%; height: 100%;
-  object-fit: contain;
+.emp-avatar-sprite {
+  padding: 4px;
   image-rendering: pixelated;
   border-radius: 6px;
 }
@@ -1983,6 +2100,91 @@ body.resizing{user-select:none;cursor:col-resize;}
 .rp-skill-body pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
 .rp-skill-body pre code { background: none; padding: 0; color: var(--pre-text); }
 
+/* ── 文件预览视图（右侧面板）──────────────────────────────────────────── */
+.rp-file-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+.rp-file-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  position: relative;
+}
+.rp-file-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  background: rgba(124,185,255,.1);
+  color: var(--blue);
+}
+.rp-file-badge.image { background: rgba(76,175,80,.1); color: #66bb6a; }
+.rp-file-badge.md { background: rgba(171,71,188,.1); color: #ce93d8; }
+.rp-file-code {
+  font-family: "SF Mono", ui-monospace, "Cascadia Code", "Fira Code", monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--pre-text, var(--text));
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  tab-size: 4;
+}
+.rp-file-md {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+}
+.rp-file-md h1, .rp-file-md h2, .rp-file-md h3 { margin: 14px 0 6px; font-weight: 600; }
+.rp-file-md h2 { font-size: 15px; }
+.rp-file-md h3 { font-size: 13px; }
+.rp-file-md code { font-family: "SF Mono",ui-monospace,monospace; font-size: 11.5px; background: var(--code-inline-bg); padding: 1px 4px; border-radius: 3px; color: var(--code-text); }
+.rp-file-md pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
+.rp-file-md pre code { background: none; padding: 0; color: var(--pre-text); }
+.rp-file-md img { max-width: 100%; border-radius: 6px; }
+.rp-file-img-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0;
+}
+.rp-file-img-wrap img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 6px;
+  background: repeating-conic-gradient(rgba(255,255,255,.04) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px;
+}
+.rp-file-edit {
+  width: 100%;
+  min-height: 300px;
+  flex: 1;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+  tab-size: 4;
+}
+.rp-file-edit:focus { border-color: rgba(124,185,255,.4); }
+
 /* 技能列表（员工技能配置视图）*/
 .rp-skill-list { display: flex; flex-direction: column; gap: 6px; }
 .rp-skill-item {
@@ -2143,6 +2345,10 @@ body.resizing{user-select:none;cursor:col-resize;}
   image-rendering: pixelated; object-fit: contain;
   padding: 3px;
 }
+.preset-avatar-sprite {
+  background-color: rgba(124,185,255,.1);
+  object-fit: unset;
+}
 .preset-avatar-fallback {
   width: 32px; height: 32px; border-radius: 8px;
   background: rgba(124,185,255,.1); flex-shrink: 0;
@@ -2187,6 +2393,11 @@ body.resizing{user-select:none;cursor:col-resize;}
   image-rendering: pixelated;
   object-fit: contain;
   width: 100%; height: 100%;
+  border-radius: inherit;
+}
+.rp-employee-avatar-sprite {
+  width: 100%; height: 100%;
+  image-rendering: pixelated;
   border-radius: inherit;
 }
 

@@ -1,0 +1,4 @@
+Serving hermes-webui-studio at http://127.0.0.1:8788
+  Root directory: g:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio
+  Open: http://127.0.0.1:8788/static/index.html
+  Mock API enabled ¡ª POST requests return stub data

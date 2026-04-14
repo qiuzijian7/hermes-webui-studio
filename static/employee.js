@@ -29,21 +29,66 @@ const STATUS_MAP = {
   offline:  { label: '离线',   color: 'var(--muted)',   bg: 'rgba(255,255,255,.02)', dot: 'rgba(255,255,255,.2)', animated: false },
 };
 
-// ── 持久化 ────────────────────────────────────────────────────────────────
+// ── 当前画布绑定的工作区路径 ──────────────────────────────────────────────
+// 每个工作区拥有独立的员工画布。切换工作区时保存/加载对应数据。
+let _currentCanvasWorkspace = '';  // 当前画布绑定的工作区路径
+
+/** 返回带工作区前缀的 localStorage key */
+function _wsEmployeeKey(wsPath) {
+  const ws = wsPath || _currentCanvasWorkspace || '__default__';
+  return 'hermes-employees:' + ws;
+}
+function _wsNextIdKey(wsPath) {
+  const ws = wsPath || _currentCanvasWorkspace || '__default__';
+  return 'hermes-employees-nextid:' + ws;
+}
+
+// ── 持久化（按工作区） ──────────────────────────────────────────────────────
 function _saveEmployees() {
   try {
-    localStorage.setItem('hermes-employees', JSON.stringify(EMPLOYEE_STORE.employees));
-    localStorage.setItem('hermes-employee-next-id', String(EMPLOYEE_STORE._nextId));
+    localStorage.setItem(_wsEmployeeKey(), JSON.stringify(EMPLOYEE_STORE.employees));
+    localStorage.setItem(_wsNextIdKey(), String(EMPLOYEE_STORE._nextId));
   } catch(e) {}
 }
 
 function _loadEmployees() {
   try {
-    const raw = localStorage.getItem('hermes-employees');
-    if (raw) EMPLOYEE_STORE.employees = JSON.parse(raw);
-    const nid = localStorage.getItem('hermes-employee-next-id');
+    const raw = localStorage.getItem(_wsEmployeeKey());
+    if (raw) {
+      EMPLOYEE_STORE.employees = JSON.parse(raw);
+    } else {
+      EMPLOYEE_STORE.employees = [];
+    }
+    const nid = localStorage.getItem(_wsNextIdKey());
     if (nid) EMPLOYEE_STORE._nextId = parseInt(nid, 10);
-  } catch(e) {}
+    else EMPLOYEE_STORE._nextId = 1;
+  } catch(e) {
+    EMPLOYEE_STORE.employees = [];
+    EMPLOYEE_STORE._nextId = 1;
+  }
+}
+
+/** 切换画布工作区：保存当前画布 → 切换 → 加载新画布 */
+function switchCanvasWorkspace(newWsPath) {
+  const newWs = newWsPath || '__default__';
+  const oldWs = _currentCanvasWorkspace || '__default__';
+  if (newWs === oldWs) return;
+  // 1. 保存当前工作区的员工数据
+  _saveEmployees();
+  // 2. 保存当前画布视觉状态（zoom/pan）
+  if (typeof _saveCanvasState === 'function') _saveCanvasState();
+  // 3. 切换
+  _currentCanvasWorkspace = newWs;
+  localStorage.setItem('hermes-canvas-workspace', newWs);
+  // 4. 加载新工作区的员工数据
+  _loadEmployees();
+  EMPLOYEE_STORE.selectedId = null;
+  // 5. 关闭右侧面板（旧工作区的对话不再显示）
+  if (typeof closeRightPanel === 'function') closeRightPanel();
+  // 6. 重新渲染
+  renderEmployeeCards();
+  // 7. 恢复新工作区的画布视觉状态
+  if (typeof _loadCanvasState === 'function') _loadCanvasState();
 }
 
 // ── CRUD ──────────────────────────────────────────────────────────────────
@@ -217,10 +262,10 @@ function _buildCard(emp) {
       (emp.skills.length > 3 ? `<span class="emp-skill-more">+${emp.skills.length - 3}</span>` : '')
     : '';
 
-  // 头像：如果有 characterImg 则显示精灵图，否则显示 emoji
+  // 头像：如果有 characterImg 则显示精灵图（3×4 sprite sheet 裁剪首帧），否则显示 emoji
   const avatarFallback = esc(emp.avatar).replace(/'/g, "\\'");
   const avatarHtml = emp.characterImg
-    ? `<div class="emp-avatar emp-avatar-img" style="background:${st.bg}"><img src="/static/img/characters/${emp.characterImg}_frame32x32.png" alt="${esc(emp.name)}" onerror="this.style.display='none';this.parentElement.textContent='${avatarFallback}'"></div>`
+    ? `<div class="emp-avatar emp-avatar-sprite" style="background-color:${st.bg};background-image:url('/static/img/characters/${emp.characterImg}_frame32x32.png');background-size:300% 400%;background-position:0 0;background-repeat:no-repeat" data-fallback="${avatarFallback}" onerror="this.style.backgroundImage='none';this.textContent=this.dataset.fallback"></div>`
     : `<div class="emp-avatar" style="background:${st.bg}">${emp.avatar}</div>`;
 
   card.innerHTML = `
@@ -503,6 +548,34 @@ async function condenseConversationToSkill() {
 
 // ── 初始化 ─────────────────────────────────────────────────────────────────
 function initEmployees() {
+  // 确定当前画布工作区
+  const savedWs = localStorage.getItem('hermes-canvas-workspace');
+  if (savedWs) {
+    _currentCanvasWorkspace = savedWs;
+  } else if (S.session && S.session.workspace) {
+    _currentCanvasWorkspace = S.session.workspace;
+  } else {
+    _currentCanvasWorkspace = '__default__';
+  }
+  // 兼容旧版全局数据 → 迁移到当前工作区（一次性）
+  _migrateGlobalEmployees();
   _loadEmployees();
   renderEmployeeCards();
+}
+
+/** 一次性迁移：如果旧版全局 key 有数据但当前工作区 key 没有，则迁移 */
+function _migrateGlobalEmployees() {
+  const oldKey = 'hermes-employees';
+  const newKey = _wsEmployeeKey();
+  if (localStorage.getItem(newKey)) return; // 新 key 已有数据，不迁移
+  const oldData = localStorage.getItem(oldKey);
+  if (!oldData) return; // 旧数据也没有
+  try {
+    localStorage.setItem(newKey, oldData);
+    const oldNextId = localStorage.getItem('hermes-employee-next-id');
+    if (oldNextId) localStorage.setItem(_wsNextIdKey(), oldNextId);
+    // 迁移完成后删除旧 key（避免重复迁移）
+    localStorage.removeItem(oldKey);
+    localStorage.removeItem('hermes-employee-next-id');
+  } catch(e) {}
 }

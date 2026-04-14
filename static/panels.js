@@ -693,6 +693,7 @@ async function addWorkspace(){
   try{
     const data=await api('/api/workspaces/add',{method:'POST',body:JSON.stringify({path})});
     _workspaceList=data.workspaces;
+    if(typeof _wsSelectorList!=='undefined') _wsSelectorList=_workspaceList.slice();
     renderWorkspacesPanel(data.workspaces);
     if(input)input.value='';
     showToast('Workspace added');
@@ -705,39 +706,145 @@ async function removeWorkspace(path){
   try{
     const data=await api('/api/workspaces/remove',{method:'POST',body:JSON.stringify({path})});
     _workspaceList=data.workspaces;
+    if(typeof _wsSelectorList!=='undefined') _wsSelectorList=_workspaceList.slice();
     renderWorkspacesPanel(data.workspaces);
     showToast('Workspace removed');
   }catch(e){setStatus('Remove failed: '+e.message);}
 }
 
 async function promptWorkspacePath(){
-  if(!S.session)return;
-  const value=await showPromptDialog({
-    title:'Switch workspace',
-    message:'Enter an absolute workspace path to add and switch this conversation to.',
-    confirmLabel:'Switch',
-    placeholder:'/Users/you/project',
-    value:S.session.workspace||''
+  const result=await _showBrowsePathDialog({
+    title:'设置工作区路径',
+    message:'输入或浏览选择工作区路径，将自动创建并切换到该工作区。',
+    confirmLabel:'确定',
+    value:S.session?S.session.workspace||'':''
   });
-  const path=(value||'').trim();
+  const path=(result||'').trim();
   if(!path)return;
   try{
+    // 确保有活跃会话
+    if(!S.session){
+      if(typeof newSession==='function'){
+        await newSession(false);
+        if(typeof renderSessionList==='function') await renderSessionList();
+      }else{
+        showToast('无法创建会话');
+        return;
+      }
+    }
     const data=await api('/api/workspaces/add',{method:'POST',body:JSON.stringify({path})});
     _workspaceList=data.workspaces||[];
+    // 同步中间工作区选择器的缓存
+    if(typeof _wsSelectorList!=='undefined') _wsSelectorList=_workspaceList.slice();
     const target=_workspaceList[_workspaceList.length-1];
     if(!target) throw new Error('Workspace was not added');
     await switchToWorkspace(target.path,target.name);
+    showToast('工作区已切换到 '+path);
   }catch(e){
     if(String(e.message||'').includes('Workspace already in list')){
-      showToast('Workspace already saved — choose it from the list');
+      // 已存在则刷新列表并直接切换
+      await loadWorkspaceList();
+      if(typeof _wsSelectorList!=='undefined') _wsSelectorList=_workspaceList.slice();
+      const existing=_workspaceList.find(w=>w.path===path);
+      if(existing) await switchToWorkspace(existing.path,existing.name);
+      else showToast('工作区已存在 — 请从列表中选择');
       return;
     }
-    showToast('Workspace switch failed: '+e.message);
+    showToast('工作区切换失败: '+e.message);
   }
 }
 
+let _browseDirCache={};
+async function _browseDir(path){
+  const cacheKey=path||'__home__';
+  if(_browseDirCache[cacheKey]&&Date.now()-_browseDirCache[cacheKey]._ts<5000)
+    return _browseDirCache[cacheKey];
+  try{
+    const url='/api/browse-dir'+(path?'?path='+encodeURIComponent(path):'');
+    const data=await api(url);
+    data._ts=Date.now();
+    _browseDirCache[cacheKey]=data;
+    return data;
+  }catch(e){return {path:path||'',parent:null,dirs:[]};}
+}
+
+async function _showBrowsePathDialog(opts={}){
+  _ensureAppDialogBindings();
+  if(APP_DIALOG.resolve) _finishAppDialog(null,false);
+  const overlay=$('appDialogOverlay'),dialog=$('appDialog'),title=$('appDialogTitle'),
+    desc=$('appDialogDesc'),inputRow=$('appDialogInputRow'),input=$('appDialogInput'),
+    cancelBtn=$('appDialogCancel'),confirmBtn=$('appDialogConfirm'),
+    browseBtn=$('appDialogBrowseBtn'),
+    browseEl=$('appDialogBrowse');
+  APP_DIALOG.resolve=null;APP_DIALOG.kind='prompt';APP_DIALOG.lastFocus=document.activeElement;
+  if(title) title.textContent=opts.title||'';
+  if(desc) desc.textContent=opts.message||'';
+  if(inputRow) inputRow.style.display='';
+  if(browseBtn) browseBtn.style.display='';
+  if(input){
+    input.type='text';
+    input.value=opts.value||'';input.placeholder=opts.placeholder||'输入工作区路径';
+    input.autocomplete='off';input.spellcheck=false;
+  }
+  if(cancelBtn) cancelBtn.textContent=opts.cancelLabel||t('cancel');
+  if(confirmBtn){confirmBtn.textContent=opts.confirmLabel||t('create');confirmBtn.classList.remove('danger');}
+  // 隐藏子目录浏览面板（不再使用内嵌目录浏览）
+  if(browseEl) browseEl.style.display='none';
+  // "..." 按钮：调用后端弹出系统原生文件夹选择对话框
+  if(browseBtn){
+    browseBtn.onclick=async()=>{
+      browseBtn.disabled=true;
+      browseBtn.textContent='…';
+      try{
+        const initial=(input?input.value.trim():'')||'';
+        const url='/api/pick-folder'+(initial?'?initial='+encodeURIComponent(initial):'');
+        const data=await api(url);
+        if(data.path){
+          if(input) input.value=data.path;
+        }
+      }catch(e){
+        showToast('无法打开文件夹选择器');
+      }finally{
+        browseBtn.disabled=false;
+        browseBtn.textContent='...';
+      }
+    };
+  }
+  // 清理旧的 keydown 处理器
+  if(input&&input._browseKeyHandler){
+    input.removeEventListener('keydown',input._browseKeyHandler);
+    input._browseKeyHandler=null;
+  }
+  if(dialog) dialog.setAttribute('role','dialog');
+  if(overlay){overlay.style.display='flex';overlay.setAttribute('aria-hidden','false');}
+  return new Promise(resolve=>{
+    APP_DIALOG.resolve=resolve;
+    setTimeout(()=>{if(inputRow&&inputRow.style.display!=='none')input.focus();else if(confirmBtn)confirmBtn.focus();},0);
+  });
+}
+
+function Path_parent(p){
+  // 简单的路径父级计算（跨平台）
+  if(!p) return null;
+  const sep=p.includes('\\')?'\\':'/';
+  const parts=p.replace(/[\/\\]+$/,'').split(/[\/\\]/).filter(Boolean);
+  if(parts.length<=1) return null;
+  const parentParts=parts.slice(0,-1);
+  let parent=parentParts.join(sep);
+  // Windows: C: → C:\
+  if(p.match(/^[A-Za-z]:/)&&!parent.includes(sep)) parent+=sep;
+  if(!parent||parent===p) return null;
+  return parent;
+}
+
 async function switchToWorkspace(path,name){
-  if(!S.session)return;
+  // ★ 即使没有 session 也切换画布工作区
+  if(typeof switchCanvasWorkspace==='function') switchCanvasWorkspace(path);
+  if(typeof syncWsSelectorLabel==='function') syncWsSelectorLabel();
+  if(!S.session){
+    showToast(`Switched canvas to ${name||getWorkspaceFriendlyName(path)}`);
+    return;
+  }
   if(S.busy){
     showToast('Cannot switch workspace while agent is running');
     return;
@@ -760,6 +867,7 @@ async function switchToWorkspace(path,name){
     })});
     S.session.workspace=path;
     syncTopbar();
+    if(typeof syncWsSelectorLabel==='function') syncWsSelectorLabel();
     await loadDir('.');
     showToast(`Switched to ${name||getWorkspaceFriendlyName(path)}`);
   }catch(e){setStatus('Switch failed: '+e.message);}

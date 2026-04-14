@@ -55,14 +55,16 @@ function syncWorkspacePanelState(){
     return;
   }
   if(!S.session){
-    _setWorkspacePanelMode('closed');
+    // 没有 session 时不关闭面板，保持当前状态（dev 模式可用）
     return;
   }
   _setWorkspacePanelMode(_workspacePanelMode==='preview'?'closed':_workspacePanelMode);
 }
 
 function openWorkspacePanel(mode='browse'){
-  if(mode==='browse'&&!S.session&&!_hasWorkspacePreviewVisible())return;
+  if(mode==='browse'&&!S.session&&!_hasWorkspacePreviewVisible()){
+    // 即使没有 session，也允许打开（dev 模式）
+  }
   if(mode==='preview'&&_workspacePanelMode==='browse'){
     syncWorkspacePanelUI();
     return;

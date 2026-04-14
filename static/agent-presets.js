@@ -257,8 +257,7 @@ function _buildPresetCard(preset) {
     <div class="preset-card" draggable="true" data-preset-id="${preset.id}"
          ondragstart="onPresetDragStart(event, '${preset.id}')"
          onclick="onPresetClick('${preset.id}')">
-      <img class="preset-avatar" src="${getCharacterImgUrl(preset.characterImg)}" alt="${preset.name}"
-           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="preset-avatar preset-avatar-sprite" style="background-image:url('${getCharacterImgUrl(preset.characterImg)}');background-size:300% 400%;background-position:0 0;background-repeat:no-repeat" onerror="this.style.backgroundImage='none';this.nextElementSibling.style.display='flex'"></div>
       <div class="preset-avatar-fallback" style="display:none">${preset.name[0]}</div>
       <div class="preset-info">
         <div class="preset-name">${preset.name}</div>
@@ -355,10 +354,11 @@ function initCanvasDropZone() {
       const preset = AGENT_PRESETS.find(p => p.id === data.presetId);
       if (!preset) return;
 
-      // 计算放置位置（相对于画布）
+      // 计算放置位置（相对于画布，考虑缩放）
       const rect = canvas.getBoundingClientRect();
-      const x = Math.max(0, e.clientX - rect.left + canvas.scrollLeft - 120);
-      const y = Math.max(0, e.clientY - rect.top + canvas.scrollTop - 80);
+      const zoom = typeof _canvasZoomLevel !== 'undefined' ? _canvasZoomLevel : 1;
+      const x = Math.max(0, (e.clientX - rect.left + canvas.scrollLeft) / zoom - 120);
+      const y = Math.max(0, (e.clientY - rect.top + canvas.scrollTop) / zoom - 80);
 
       // 创建员工实例并设定位置
       const emp = createEmployee({

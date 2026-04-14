@@ -349,6 +349,12 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/list":
         return _handle_list_dir(handler, parsed)
 
+    if parsed.path == "/api/browse-dir":
+        return _handle_browse_dir(handler, parsed)
+
+    if parsed.path == "/api/pick-folder":
+        return _handle_pick_folder(handler, parsed)
+
     if parsed.path == "/api/personalities":
         # Read personalities from config.yaml agent.personalities section
         # (matches hermes-agent CLI behavior, not filesystem SOUL.md approach)
@@ -1150,6 +1156,69 @@ def _handle_list_dir(handler, parsed):
         )
     except (FileNotFoundError, ValueError) as e:
         return bad(handler, _sanitize_error(e), 404)
+
+
+def _handle_browse_dir(handler, parsed):
+    """Browse directories on the server filesystem for workspace path selection.
+    Returns only directories (no files) for navigation. Requires authentication."""
+    qs = parse_qs(parsed.query)
+    raw_path = qs.get("path", [""])[0]
+    if not raw_path:
+        # Default to home directory
+        raw_path = str(Path.home())
+    try:
+        target = Path(raw_path).resolve()
+        if not target.is_dir():
+            return bad(handler, "Not a directory", 400)
+        dirs = []
+        try:
+            for item in sorted(target.iterdir(), key=lambda p: p.name.lower()):
+                if item.is_dir() and not item.name.startswith('.'):
+                    try:
+                        dirs.append({
+                            "name": item.name,
+                            "path": str(item),
+                        })
+                    except (PermissionError, OSError):
+                        pass
+        except (PermissionError, OSError):
+            pass  # cannot list directory contents
+        return j(handler, {"path": str(target), "parent": str(target.parent) if str(target) != str(target.parent) else None, "dirs": dirs[:200]})
+    except (PermissionError, OSError) as e:
+        return bad(handler, _sanitize_error(e), 403)
+
+
+def _handle_pick_folder(handler, parsed):
+    """Open system native folder picker dialog using tkinter.
+    Returns the selected folder path, or null if cancelled."""
+    import threading
+
+    qs = parse_qs(parsed.query)
+    initial_dir = qs.get("initial", [""])[0] or str(Path.home())
+
+    result = {"path": None}
+
+    def _pick():
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes('-topmost', True)
+            folder = filedialog.askdirectory(
+                title="选择工作区文件夹",
+                initialdir=initial_dir,
+            )
+            root.destroy()
+            result["path"] = folder if folder else None
+        except Exception:
+            result["path"] = None
+
+    # tkinter must run on a thread (the HTTP handler thread is OK on most platforms)
+    t = threading.Thread(target=_pick)
+    t.start()
+    t.join(timeout=120)  # 2 min timeout
+    return j(handler, {"path": result["path"]})
 
 
 def _handle_sse_stream(handler, parsed):
