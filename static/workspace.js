@@ -32,6 +32,8 @@ function _restoreExpandedDirs(){
 
 async function loadDir(path){
   const sid=(S.session&&S.session.session_id)?encodeURIComponent(S.session.session_id):'';
+  // Reset the auto-load guard so _renderMainFileTree knows a load was triggered externally
+  S._dirLoadAttempted = true;
   try{
     if(!path||path==='.'){
       S._dirCache={};
@@ -63,7 +65,18 @@ async function loadDir(path){
     }
     // Fetch git info for workspace root (non-blocking)
     if(!path||path==='.') _refreshGitBadge();
-  }catch(e){console.warn('loadDir',e);}
+  }catch(e){
+    console.warn('loadDir',e);
+    // If session not found (server restart), clear stale session reference
+    if(e.message&&e.message.includes('not found')&&S.session){
+      console.warn('[loadDir] Session not found, clearing stale session');
+      S.session=null;
+      localStorage.removeItem('hermes-webui-session');
+      S.entries=[];
+      if(typeof renderBreadcrumb==='function')renderBreadcrumb();
+      if(typeof renderFileTree==='function')renderFileTree();
+    }
+  }
 }
 
 async function _refreshGitBadge(){

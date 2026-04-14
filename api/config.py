@@ -88,8 +88,11 @@ def _discover_agent_dir() -> Path:
     candidates.append(HOME / "hermes-agent")
 
     for path in candidates:
-        if path.exists() and (path / "run_agent.py").exists():
-            return path.resolve()
+        try:
+            if path.exists() and (path / "run_agent.py").exists():
+                return path.resolve()
+        except OSError:
+            continue
 
     return None
 
@@ -108,19 +111,29 @@ def _discover_python(agent_dir: Path) -> str:
         return os.getenv("HERMES_WEBUI_PYTHON")
 
     if agent_dir:
-        venv_py = agent_dir / "venv" / "bin" / "python"
-        if venv_py.exists():
-            return str(venv_py)
+        # Unix venv layout
+        try:
+            venv_py = agent_dir / "venv" / "bin" / "python"
+            if venv_py.exists():
+                return str(venv_py)
+        except OSError:
+            pass
 
-        # Windows layout
-        venv_py_win = agent_dir / "venv" / "Scripts" / "python.exe"
-        if venv_py_win.exists():
-            return str(venv_py_win)
+        # Windows venv layout
+        try:
+            venv_py_win = agent_dir / "venv" / "Scripts" / "python.exe"
+            if venv_py_win.exists():
+                return str(venv_py_win)
+        except OSError:
+            pass
 
     # Local .venv inside this repo
-    local_venv = REPO_ROOT / ".venv" / "bin" / "python"
-    if local_venv.exists():
-        return str(local_venv)
+    try:
+        local_venv = REPO_ROOT / ".venv" / "bin" / "python"
+        if local_venv.exists():
+            return str(local_venv)
+    except OSError:
+        pass
 
     # Fall back to system python3
     import shutil

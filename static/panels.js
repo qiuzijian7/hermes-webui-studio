@@ -842,7 +842,19 @@ async function switchToWorkspace(path,name){
   if(typeof switchCanvasWorkspace==='function') switchCanvasWorkspace(path);
   if(typeof syncWsSelectorLabel==='function') syncWsSelectorLabel();
   if(!S.session){
-    showToast(`Switched canvas to ${name||getWorkspaceFriendlyName(path)}`);
+    // No session — create one with the selected workspace so files can load
+    try{
+      const data=await api('/api/session/new',{method:'POST',body:JSON.stringify({workspace:path,model:$('modelSelect')?.value||''})});
+      S.session=data.session;
+      S.messages=[];
+      localStorage.setItem('hermes-webui-session',S.session.session_id);
+      syncTopbar();
+      await loadDir('.');
+      showToast(`Switched to ${name||getWorkspaceFriendlyName(path)}`);
+    }catch(e){
+      console.error('[switchToWorkspace] create session failed:', e);
+      showToast(`Switched canvas to ${name||getWorkspaceFriendlyName(path)}`);
+    }
     return;
   }
   if(S.busy){
@@ -870,7 +882,9 @@ async function switchToWorkspace(path,name){
     if(typeof syncWsSelectorLabel==='function') syncWsSelectorLabel();
     await loadDir('.');
     showToast(`Switched to ${name||getWorkspaceFriendlyName(path)}`);
-  }catch(e){setStatus('Switch failed: '+e.message);}
+  }catch(e){
+    setStatus('Switch failed: '+e.message);
+  }
 }
 
 // ── Profile panel + dropdown ──

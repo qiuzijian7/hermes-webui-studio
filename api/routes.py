@@ -736,6 +736,9 @@ def handle_post(handler, parsed) -> bool:
     if parsed.path == "/api/file/create-dir":
         return _handle_create_dir(handler, body)
 
+    if parsed.path == "/api/file/reveal":
+        return _handle_file_reveal(handler, body)
+
     # ── Workspace management (POST) ──
     if parsed.path == "/api/workspaces/add":
         return _handle_workspace_add(handler, body)
@@ -1147,11 +1150,14 @@ def _handle_list_dir(handler, parsed):
         except Exception:
             return bad(handler, "Session not found", 404)
     try:
+        ws_path = Path(workspace)
+        target_path = qs.get("path", ["."])[0]
+        entries = list_dir(ws_path, target_path)
         return j(
             handler,
             {
-                "entries": list_dir(Path(workspace), qs.get("path", ["."])[0]),
-                "path": qs.get("path", ["."])[0],
+                "entries": entries,
+                "path": target_path,
             },
         )
     except (FileNotFoundError, ValueError) as e:
@@ -1752,8 +1758,10 @@ def _handle_file_delete(handler, body):
         if not target.exists():
             return bad(handler, "File not found", 404)
         if target.is_dir():
-            return bad(handler, "Cannot delete directories via this endpoint")
-        target.unlink()
+            import shutil
+            shutil.rmtree(target)
+        else:
+            target.unlink()
         return j(handler, {"ok": True, "path": body["path"]})
     except (ValueError, PermissionError) as e:
         return bad(handler, _sanitize_error(e))
@@ -1848,6 +1856,47 @@ def _handle_create_dir(handler, body):
             handler, {"ok": True, "path": str(target.relative_to(Path(s.workspace)))}
         )
     except (ValueError, PermissionError, OSError) as e:
+        return bad(handler, _sanitize_error(e))
+
+
+def _handle_file_reveal(handler, body):
+    """Reveal a file or directory in the system file manager."""
+    import subprocess
+    import platform
+    try:
+        require(body, "session_id", "path")
+    except ValueError as e:
+        return bad(handler, str(e))
+    try:
+        s = get_session(body["session_id"])
+    except KeyError:
+        return bad(handler, "Session not found", 404)
+    try:
+        workspace = Path(s.workspace)
+        target = safe_resolve(workspace, body["path"])
+        if not target.exists():
+            return bad(handler, f"Path not found: {body['path']} (resolved={target}, workspace={workspace})", 404)
+        system = platform.system()
+        try:
+            if system == "Windows":
+                if target.is_file():
+                    subprocess.Popen(
+                        ['explorer', '/select,', str(target)],
+                        creationflags=0x08000000,  # CREATE_NO_WINDOW
+                    )
+                else:
+                    subprocess.Popen(
+                        ['explorer', str(target)],
+                        creationflags=0x08000000,
+                    )
+            elif system == "Darwin":
+                subprocess.Popen(['open', '-R', str(target)])
+            else:
+                subprocess.Popen(['xdg-open', str(target.parent if target.is_file() else target)])
+            return j(handler, {"ok": True, "path": body["path"]})
+        except (OSError, FileNotFoundError) as e:
+            return bad(handler, f"Failed to open file manager: {e}")
+    except (ValueError, PermissionError) as e:
         return bad(handler, _sanitize_error(e))
 
 

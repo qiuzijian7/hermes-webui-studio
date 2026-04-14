@@ -1333,7 +1333,7 @@ if(!S._expandedDirs) S._expandedDirs=new Set();
 if(!S._dirCache) S._dirCache={};
 
 function renderFileTree(){
-  const box=$('fileTree');box.innerHTML='';
+  const box=$('fileTree');if(!box)return;box.innerHTML='';
   // Cache current dir entries
   S._dirCache[S.currentDir||'.']=S.entries;
   _renderTreeItems(box, S.entries, 0);
@@ -1405,13 +1405,19 @@ function _renderTreeItems(container, entries, depth){
       el.appendChild(sizeEl);
     }
 
-    // Delete button -- for files
+    // Delete button -- for files (also available via right-click)
     if(item.type==='file'){
       const del=document.createElement('button');
       del.className='file-del-btn';del.title=t('delete_title');del.textContent='\u00d7';
       del.onclick=async(e)=>{e.stopPropagation();await deleteWorkspaceFile(item.path,item.name);};
       el.appendChild(del);
     }
+
+    // Right-click context menu
+    el.oncontextmenu=(e)=>{
+      e.preventDefault();e.stopPropagation();
+      _showFileCtxMenu(e.clientX, e.clientY, item);
+    };
 
     if(item.type==='dir'){
       // Single-click toggles expand/collapse
@@ -1462,6 +1468,59 @@ function _renderTreeItems(container, entries, depth){
       }
     }
   }
+}
+
+// ── File context menu (right-click) ──────────────────────────────────
+function _closeFileCtxMenu(){
+  const m=document.getElementById('fileCtxMenu');
+  if(m)m.remove();
+}
+
+function _showFileCtxMenu(x, y, item){
+  _closeFileCtxMenu();
+  const menu=document.createElement('div');
+  menu.id='fileCtxMenu';
+  menu.className='file-ctx-menu';
+  // Position: keep within viewport
+  menu.style.left=Math.min(x, window.innerWidth-200)+'px';
+  menu.style.top=Math.min(y, window.innerHeight-100)+'px';
+
+  // Open in file manager
+  const revealItem=document.createElement('div');
+  revealItem.className='file-ctx-item';
+  revealItem.innerHTML='📂 '+t('reveal_in_explorer','在资源管理器中打开');
+  revealItem.onclick=async()=>{
+    _closeFileCtxMenu();
+    if(!S.session)return;
+    try{
+      await api('/api/file/reveal',{method:'POST',body:JSON.stringify({session_id:S.session.session_id,path:item.path})});
+      showToast(t('revealed','已打开'));
+    }catch(e){showToast(t('reveal_failed','打开失败')+': '+e.message);}
+  };
+  menu.appendChild(revealItem);
+
+  // Separator
+  const sep=document.createElement('div');
+  sep.className='file-ctx-sep';
+  menu.appendChild(sep);
+
+  // Delete
+  const delItem=document.createElement('div');
+  delItem.className='file-ctx-item danger';
+  delItem.innerHTML='🗑️ '+t('delete_title','删除');
+  delItem.onclick=async()=>{
+    _closeFileCtxMenu();
+    await deleteWorkspaceFile(item.path, item.name);
+  };
+  menu.appendChild(delItem);
+
+  document.body.appendChild(menu);
+  // Close on any click outside
+  setTimeout(()=>{
+    const close=()=>{_closeFileCtxMenu();document.removeEventListener('click',close);document.removeEventListener('contextmenu',close);};
+    document.addEventListener('click',close);
+    document.addEventListener('contextmenu',close);
+  },0);
 }
 
 async function deleteWorkspaceFile(relPath, name){

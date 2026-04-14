@@ -360,14 +360,11 @@ function _rpFileExt(p) {
 
 /** 在右侧面板中打开文件预览 */
 async function openFileInRightPanel(path) {
-  console.log('[openFileInRightPanel] 被调用, path:', path);
   const ext = _rpFileExt(path);
   const sid = (S.session && S.session.session_id) ? encodeURIComponent(S.session.session_id) : '';
-  console.log('[openFileInRightPanel] ext:', ext, 'sid:', sid);
 
   // 二进制文件直接下载
   if (_RP_DOWNLOAD_EXTS.has(ext)) {
-    console.log('[openFileInRightPanel] 二进制文件，触发下载');
     if (typeof downloadFile === 'function') downloadFile(path);
     return;
   }
@@ -376,7 +373,6 @@ async function openFileInRightPanel(path) {
   _rpFileDirty = false;
 
   // 切换到文件视图
-  console.log('[openFileInRightPanel] 切换到 file 视图');
   _setRightPanelView('file');
 
   // 更新头部信息
@@ -394,16 +390,13 @@ async function openFileInRightPanel(path) {
   const badge = $('rpFileBadge');
   const editBtn = $('rpFileEditBtn');
 
-  console.log('[openFileInRightPanel] DOM 元素检查: codeEl=', !!codeEl, 'mdEl=', !!mdEl, 'imgWrap=', !!imgWrap);
-
   if (codeEl) codeEl.style.display = 'none';
   if (mdEl) mdEl.style.display = 'none';
   if (imgWrap) imgWrap.style.display = 'none';
   if (editArea) editArea.style.display = 'none';
 
-  // 构建 API 查询字符串（session_id 可选）
+  // 构建 API 查询字符串
   const _fileQs = sid ? `session_id=${sid}&path=${encodeURIComponent(path)}` : `path=${encodeURIComponent(path)}`;
-  console.log('[openFileInRightPanel] 请求 URL:', `/api/file?${_fileQs}`);
 
   if (_RP_IMAGE_EXTS.has(ext)) {
     // 图片预览
@@ -424,15 +417,7 @@ async function openFileInRightPanel(path) {
     if (badge) { badge.textContent = 'md'; badge.className = 'rp-file-badge md'; }
     if (editBtn) editBtn.style.display = '';
     try {
-      const _apiUrlMd = `/api/file?${_fileQs}`;
-      console.log('[openFileInRightPanel] 正在请求 md 文件... URL:', _apiUrlMd);
-      // 用 raw fetch 直接看服务端返回
-      const _rawResMd = await fetch(_apiUrlMd, {credentials:'include',headers:{'Content-Type':'application/json'}});
-      const _rawTextMd = await _rawResMd.text();
-      console.log('[openFileInRightPanel] MD RAW响应 status:', _rawResMd.status, 'content-type:', _rawResMd.headers.get('content-type'), 'body前300:', _rawTextMd.substring(0, 300));
-      let data;
-      try { data = JSON.parse(_rawTextMd); } catch(pe) { data = {content: _rawTextMd}; }
-      console.log('[openFileInRightPanel] MD 解析后 keys:', Object.keys(data), 'content存在:', 'content' in data, 'content类型:', typeof data.content, 'content长度:', (data.content||'').length);
+      const data = await api(`/api/file?${_fileQs}`);
       _rpFileRawContent = data.content || '';
       if (mdEl) {
         mdEl.style.display = '';
@@ -444,7 +429,6 @@ async function openFileInRightPanel(path) {
         if (typeof addCopyButtons === 'function' && mdEl) addCopyButtons(mdEl);
       });
     } catch (e) {
-      console.error('[openFileInRightPanel] md 请求失败:', e);
       if (mdEl) { mdEl.style.display = ''; mdEl.innerHTML = '<p style="color:var(--muted)">文件加载失败</p>'; }
     }
   } else {
@@ -453,17 +437,7 @@ async function openFileInRightPanel(path) {
     if (badge) { badge.textContent = ext || 'text'; badge.className = 'rp-file-badge'; }
     if (editBtn) editBtn.style.display = '';
     try {
-      const _apiUrl = `/api/file?${_fileQs}`;
-      const _fullUrl = new URL(_apiUrl, window.location.origin).href;
-      console.log('[openFileInRightPanel] 正在请求代码文件... URL:', _apiUrl, '完整URL:', _fullUrl, 'origin:', window.location.origin);
-      // 先用 raw fetch 来看真实响应
-      const _rawRes = await fetch(_apiUrl, {credentials:'include',headers:{'Content-Type':'application/json'}});
-      const _rawText = await _rawRes.text();
-      console.log('[openFileInRightPanel] RAW响应 status:', _rawRes.status, 'content-type:', _rawRes.headers.get('content-type'), 'url:', _rawRes.url, 'body全部:', _rawText);
-      // 手动解析 JSON
-      let data;
-      try { data = JSON.parse(_rawText); } catch(pe) { data = {content: _rawText}; }
-      console.log('[openFileInRightPanel] 解析后 keys:', Object.keys(data), 'content存在:', 'content' in data, 'content类型:', typeof data.content, 'content长度:', (data.content||'').length);
+      const data = await api(`/api/file?${_fileQs}`);
       if (data.binary) {
         if (typeof downloadFile === 'function') downloadFile(path);
         closeRpFilePreview();
@@ -473,14 +447,12 @@ async function openFileInRightPanel(path) {
       if (codeEl) {
         codeEl.style.display = '';
         codeEl.textContent = data.content || '';
-        console.log('[openFileInRightPanel] 已设置 codeEl.textContent, 长度:', (data.content||'').length);
       }
       // 语法高亮
       requestAnimationFrame(() => {
         if (typeof highlightCode === 'function' && codeEl) highlightCode(codeEl);
       });
     } catch (e) {
-      console.error('[openFileInRightPanel] 代码请求失败:', e);
       // 请求失败时在面板内显示错误，而不是下载
       if (codeEl) {
         codeEl.style.display = '';

@@ -846,6 +846,29 @@
 .file-item:hover .file-del-btn{ width:16px;opacity:1;margin-left:2px; }
 .file-del-btn:hover{ color:var(--accent); }
 
+/* ── File context menu (right-click) ────────────────────────────────── */
+.file-ctx-menu{
+  position:fixed;
+  z-index:9999;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:4px 0;
+  min-width:180px;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);
+  font-size:12px;
+  color:var(--text);
+}
+.file-ctx-item{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 14px;cursor:pointer;
+  color:var(--text);transition:background .1s;
+}
+.file-ctx-item:hover{background:var(--hover-bg);}
+.file-ctx-item.danger{color:var(--accent);}
+.file-ctx-item.danger:hover{background:rgba(220,50,50,.1);}
+.file-ctx-sep{height:1px;background:var(--border);margin:4px 0;}
+
 /* file-name must be a flex child that can shrink to zero */
 .file-name{
   overflow:hidden;

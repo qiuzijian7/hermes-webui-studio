@@ -527,7 +527,19 @@ function applyBotName(){
   // 会话在点击员工卡片时加载到右侧面板
   const saved=localStorage.getItem('hermes-webui-session');
   if(saved){
-    try{S.session = {session_id: saved}; if(typeof startGatewaySSE==='function')startGatewaySSE();await checkInflightOnBoot(saved);}
+    try{
+      // Load full session data from API instead of just the ID
+      try{
+        const data=await api(`/api/session?session_id=${encodeURIComponent(saved)}`);
+        S.session=data.session;
+      }catch(e){
+        // Session no longer exists on server, clear stale reference
+        console.warn('[boot] Saved session not found, clearing:', e.message);
+        localStorage.removeItem('hermes-webui-session');
+      }
+      if(typeof startGatewaySSE==='function')startGatewaySSE();
+      if(S.session)await checkInflightOnBoot(saved);
+    }
     catch(e){localStorage.removeItem('hermes-webui-session');}
   }
   syncTopbar();

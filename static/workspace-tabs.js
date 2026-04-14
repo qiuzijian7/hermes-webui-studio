@@ -448,10 +448,25 @@ function _renderMainFileTree() {
   const container = $('mainFileTree');
   if (!container) return;
 
-  // 文件列表为空时，自动加载工作目录（不再强制要求 session）
+  // 文件列表为空时，自动加载工作目录（仅一次，防止无限循环）
   if (!S.entries || S.entries.length === 0) {
-    if (typeof loadDir === 'function') {
-      loadDir('.');
+    // Need a valid session with workspace to load files
+    if (typeof loadDir === 'function' && S.session && S.session.workspace) {
+      // Guard: only auto-load once per workspace. After that, accept empty results.
+      // Reset _dirLoadAttempted when workspace changes (detected via S.session.workspace).
+      const wsKey = S.session.workspace;
+      if (S._dirLoadWsKey !== wsKey) {
+        S._dirLoadWsKey = wsKey;
+        S._dirLoadAttempted = false;
+      }
+      if (!S._dirLoadAttempted) {
+        S._dirLoadAttempted = true;
+        loadDir('.');
+      }
+      container.innerHTML = '<div class="empty-tree-hint" style="padding:16px;color:var(--muted);font-size:12px">' +
+        (S._dirLoadAttempted && S.entries.length === 0 ? 'Empty directory' : 'Loading...') + '</div>';
+    } else {
+      container.innerHTML = '<div class="empty-tree-hint">Select a workspace to browse files</div>';
     }
     return;
   }
@@ -534,6 +549,12 @@ function _renderMainTreeItems(container, entries, depth) {
     nameEl.className = 'file-name';
     nameEl.textContent = item.name;
     el.appendChild(nameEl);
+
+    // Right-click context menu
+    el.oncontextmenu = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (typeof _showFileCtxMenu === 'function') _showFileCtxMenu(e.clientX, e.clientY, item);
+    };
 
     // Click handler
     if (item.type === 'dir') {
