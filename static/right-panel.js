@@ -15,21 +15,42 @@ function _setRightPanelView(view) {
   if (skillView) skillView.style.display = view === 'skill' ? 'flex' : 'none';
   if (emptyView) emptyView.style.display = view === 'empty' ? 'flex' : 'none';
 
-  // 右侧面板显示/隐藏
+  // 右侧面板始终显示（不再折叠）
   const panel = $('rightPanel');
+  const layout = document.querySelector('.layout');
   if (panel) {
-    if (view === 'empty') {
-      panel.classList.add('rp-collapsed');
-    } else {
-      panel.classList.remove('rp-collapsed');
+    // 强制面板可见 — 使用 inline style 覆盖所有 CSS 规则
+    panel.classList.remove('rp-collapsed');
+    panel.style.display = 'flex';
+    panel.style.opacity = '1';
+    panel.style.pointerEvents = '';
+    panel.style.width = panel.style.width || '440px';
+    panel.style.minWidth = panel.style.minWidth || '340px';
+    // 始终移除 workspace-panel-collapsed 确保面板可见
+    if (layout) {
+      layout.classList.remove('workspace-panel-collapsed');
+    }
+    // 移动端处理
+    if (typeof _isCompactWorkspaceViewport === 'function' && _isCompactWorkspaceViewport()) {
+      if (view !== 'empty') {
+        panel.classList.add('mobile-open');
+      }
     }
   }
 }
 
 function closeRightPanel() {
-  _setRightPanelView('empty');
   EMPLOYEE_STORE.selectedId = null;
   document.querySelectorAll('.emp-card').forEach(c => c.classList.remove('emp-selected'));
+  // 移动端滑出
+  const panel = $('rightPanel');
+  if (panel) panel.classList.remove('mobile-open');
+  // 如果还有其他员工，自动选第一个；否则显示空状态
+  if (EMPLOYEE_STORE.employees.length > 0) {
+    selectEmployee(EMPLOYEE_STORE.employees[0].id);
+  } else {
+    _setRightPanelView('empty');
+  }
 }
 
 // ── 员工对话模式 ────────────────────────────────────────────────────────────
@@ -41,7 +62,13 @@ async function openEmployeeChat(empId) {
 
   // 更新头部信息
   const avatarEl = $('rpEmployeeAvatar');
-  if (avatarEl) avatarEl.textContent = emp.avatar;
+  if (avatarEl) {
+    if (emp.characterImg) {
+      avatarEl.innerHTML = `<img src="/static/img/characters/${emp.characterImg}_frame32x32.png" class="rp-employee-avatar-img" alt="${emp.name}" onerror="this.remove();this.parentElement.textContent='${emp.avatar}'">`;
+    } else {
+      avatarEl.textContent = emp.avatar;
+    }
+  }
   const nameEl = $('rpEmployeeName');
   if (nameEl) nameEl.textContent = emp.name;
   const roleEl = $('rpEmployeeRole');
@@ -251,5 +278,51 @@ function toggleEmployeeSkill(empId, skillName, enabled) {
 
 // ── 初始化 ─────────────────────────────────────────────────────────────────
 function initRightPanel() {
-  _setRightPanelView('empty');
+  // 强制确保右侧面板可见（移除所有可能的隐藏类和样式）
+  const panel = $('rightPanel');
+  const layout = document.querySelector('.layout');
+  if (panel) {
+    panel.classList.remove('rp-collapsed');
+    panel.style.display = 'flex';
+    panel.style.width = '440px';
+    panel.style.minWidth = '340px';
+    panel.style.opacity = '1';
+  }
+  if (layout) {
+    layout.classList.remove('workspace-panel-collapsed');
+  }
+
+  // 如果有员工，自动选择第一个并打开聊天框
+  if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.employees.length > 0) {
+    const firstEmployee = EMPLOYEE_STORE.employees[0];
+    EMPLOYEE_STORE.selectedId = firstEmployee.id;
+    // 先设置面板视图为 chat（不依赖 API 调用）
+    _setRightPanelView('chat');
+    // 更新头部信息
+    const avatarEl = $('rpEmployeeAvatar');
+    if (avatarEl) {
+      if (firstEmployee.characterImg) {
+        const fb2 = (firstEmployee.avatar||'').replace(/'/g, "\\'");
+        avatarEl.innerHTML = `<img src="/static/img/characters/${firstEmployee.characterImg}_frame32x32.png" class="rp-employee-avatar-img" alt="${firstEmployee.name}" onerror="this.remove();this.parentElement.textContent='${fb2}'">`;
+      } else {
+        avatarEl.textContent = firstEmployee.avatar;
+      }
+    }
+    const nameEl = $('rpEmployeeName');
+    if (nameEl) nameEl.textContent = firstEmployee.name;
+    const roleEl = $('rpEmployeeRole');
+    if (roleEl) roleEl.textContent = firstEmployee.role;
+    // 异步加载会话（失败也不影响面板显示）
+    openEmployeeChat(firstEmployee.id).catch(() => {});
+    // 更新卡片选中状态（需要等卡片渲染完）
+    setTimeout(() => {
+      document.querySelectorAll('.emp-card').forEach(c => {
+        c.classList.toggle('emp-selected', c.dataset.id === firstEmployee.id);
+      });
+    }, 150);
+  } else {
+    _setRightPanelView('empty');
+  }
+  
+  console.log('[initRightPanel] 面板初始化完成, panel display:', panel?.style.display, 'panel width:', panel?.style.width);
 }

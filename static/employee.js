@@ -61,10 +61,19 @@ function createEmployee(opts = {}) {
     createdAt: Date.now(),
     lastActiveAt: Date.now(),
     metadata: {},
+    // 新增：预设相关字段
+    presetId: opts.presetId || null,       // 关联的 Agent 预设 ID
+    characterImg: opts.characterImg || null, // 角色精灵图标识
+    model: opts.model || 'sonnet',         // 使用的模型
+    _pos: opts._pos || null,               // 画布位置
   };
   EMPLOYEE_STORE.employees.push(emp);
   _saveEmployees();
   renderEmployeeCards();
+  // 如果是第一个员工或当前没有选中员工，自动选中新员工
+  if (EMPLOYEE_STORE.employees.length === 1 || !EMPLOYEE_STORE.selectedId) {
+    setTimeout(() => selectEmployee(emp.id), 100);
+  }
   return emp;
 }
 
@@ -208,11 +217,17 @@ function _buildCard(emp) {
       (emp.skills.length > 3 ? `<span class="emp-skill-more">+${emp.skills.length - 3}</span>` : '')
     : '';
 
+  // 头像：如果有 characterImg 则显示精灵图，否则显示 emoji
+  const avatarFallback = esc(emp.avatar).replace(/'/g, "\\'");
+  const avatarHtml = emp.characterImg
+    ? `<div class="emp-avatar emp-avatar-img" style="background:${st.bg}"><img src="/static/img/characters/${emp.characterImg}_frame32x32.png" alt="${esc(emp.name)}" onerror="this.style.display='none';this.parentElement.textContent='${avatarFallback}'"></div>`
+    : `<div class="emp-avatar" style="background:${st.bg}">${emp.avatar}</div>`;
+
   card.innerHTML = `
     <div class="emp-card-status-bar" data-status="${emp.status}"></div>
     <div class="emp-card-body">
       <div class="emp-card-header">
-        <div class="emp-avatar" style="background:${st.bg}">${emp.avatar}</div>
+        ${avatarHtml}
         <div class="emp-card-info">
           <div class="emp-card-name">${esc(emp.name)}</div>
           <div class="emp-card-role">${esc(emp.role)}</div>
@@ -235,8 +250,11 @@ function _buildCard(emp) {
   // 点击选中
   card.addEventListener('click', () => selectEmployee(emp.id));
 
-  // 拖拽交换
-  _initCardDrag(card, emp);
+  // 拖拽由外部初始化（card.dataset.dragInit 标记）
+  if (!card.dataset.dragInit) {
+    _initCardDrag(card, emp);
+    card.dataset.dragInit = 'grid';
+  }
 
   return card;
 }

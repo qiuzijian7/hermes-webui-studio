@@ -240,7 +240,7 @@ window.addEventListener('resize',()=>{
 
 async function renderSessionList(){
   try{
-    if(!($('sessionSearch').value||'').trim()) _contentSearchResults = [];
+    if(!($('sessionSearch')?.value||'').trim()) _contentSearchResults = [];
     const [sessData, projData] = await Promise.all([
       api('/api/sessions'),
       api('/api/projects'),
@@ -287,7 +287,7 @@ function filterSessions(){
   // Immediate client-side title filter (no flicker)
   renderSessionListFromCache();
   // Debounced content search via API for message text
-  const q = ($('sessionSearch').value || '').trim();
+  const q = ($('sessionSearch')?.value || '').trim();
   clearTimeout(_searchDebounceTimer);
   if (!q) { _contentSearchResults = []; return; }
   _searchDebounceTimer = setTimeout(async () => {
@@ -304,7 +304,7 @@ function renderSessionListFromCache(){
   // Don't re-render while user is actively renaming a session (would destroy the input)
   if(_renamingSid) return;
   closeSessionActionMenu();
-  const q=($('sessionSearch').value||'').toLowerCase();
+  const q=($('sessionSearch')?.value||'').toLowerCase();
   const titleMatches=q?_allSessions.filter(s=>(s.title||'Untitled').toLowerCase().includes(q)):_allSessions;
   // Merge content matches (deduped): content matches appended after title matches
   const titleIds=new Set(titleMatches.map(s=>s.session_id));
@@ -318,7 +318,7 @@ function renderSessionListFromCache(){
   // Filter archived unless toggle is on
   const sessions=_showArchived?projectFiltered:projectFiltered.filter(s=>!s.archived);
   const archivedCount=projectFiltered.filter(s=>s.archived).length;
-  const list=$('sessionList');list.innerHTML='';
+  const list=$('sessionList');if(!list)return;list.innerHTML='';
   // Project filter bar (only when projects exist)
   if(_allProjects.length>0){
     const bar=document.createElement('div');

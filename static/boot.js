@@ -36,18 +36,14 @@ function _hasWorkspacePreviewVisible(){
 }
 
 function _setWorkspacePanelMode(mode){
-  const {layout,panel}= _workspacePanelEls();
-  if(!layout||!panel)return;
+  const {layout}= _workspacePanelEls();
+  if(!layout)return;
   _workspacePanelMode=(mode==='browse'||mode==='preview')?mode:'closed';
   const open=_workspacePanelMode!=='closed';
   // Persist open/closed across refreshes (browse/preview → open; closed → closed)
   localStorage.setItem('hermes-webui-workspace-panel', open ? 'open' : 'closed');
-  layout.classList.toggle('workspace-panel-collapsed',!open);
-  if(_isCompactWorkspaceViewport()){
-    panel.classList.toggle('mobile-open',open);
-  }else{
-    panel.classList.remove('mobile-open');
-  }
+  // 不再操作 layout 的 workspace-panel-collapsed 类和 panel 的 mobile-open 类
+  // 因为右侧面板现在始终可见，不受 workspace panel 状态控制
   syncWorkspacePanelUI();
 }
 
@@ -257,7 +253,7 @@ $('btnAttach').onclick=()=>$('fileInput').click();
 })();
 window._micActive=window._micActive||false;
 $('fileInput').onchange=e=>{addFiles(Array.from(e.target.files));e.target.value='';};
-$('btnNewChat').onclick=async()=>{if(typeof showEmployeeDialog==='function')showEmployeeDialog();};
+if($('btnNewChat'))$('btnNewChat').onclick=async()=>{if(typeof showEmployeeDialog==='function')showEmployeeDialog();};
 $('btnDownload').onclick=()=>{
   if(!S.session)return;
   const blob=new Blob([transcript()],{type:'text/markdown'});
@@ -505,6 +501,8 @@ function applyBotName(){
   await loadWorkspaceList();
   // 初始化员工面板和右侧面板
   if (typeof initEmployees === 'function') initEmployees();
+  if (typeof initPresetPanel === 'function') initPresetPanel();
+  if (typeof initWorkspaceTabs === 'function') initWorkspaceTabs();
   if (typeof initRightPanel === 'function') initRightPanel();
   // 重定向 renderMessages 到右侧面板
   if (typeof _renderRpMessages === 'function') {
@@ -531,7 +529,9 @@ function applyBotName(){
     catch(e){localStorage.removeItem('hermes-webui-session');}
   }
   syncTopbar();
-  syncWorkspacePanelState();
+  // 右侧面板始终显示，不需要 syncWorkspacePanelState 来控制
+  // syncWorkspacePanelState();
+  syncWorkspacePanelUI();
   await renderSessionList();
   // Start real-time gateway session sync if setting is enabled
   if(typeof startGatewaySSE==='function') startGatewaySSE();

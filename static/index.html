@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hermes</title>
 <script>(function(){var t=localStorage.getItem('hermes-theme');if(t&&t!=='dark')document.documentElement.dataset.theme=t;})()</script>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v=20260414c">
   <!-- Prism.js syntax highlighting (loaded async, non-blocking) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" integrity="sha384-wFjoQjtV1y5jVHbt0p35Ui8aV8GVpEZkyF99OXWqP/eNJDU93D3Ugxkoyh6Y2I4A" crossorigin="anonymous">
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js" integrity="sha384-MXybTpajaBV0AkcBaCPT4KIvo0FzoCiWXgcihYsw4FUkEz0Pv3JGV6tk2G8vJtDc" crossorigin="anonymous" defer></script>
@@ -16,7 +16,7 @@
   <aside class="sidebar">
 
     <div class="sidebar-nav">
-      <button class="nav-tab active" data-panel="chat" data-label="Chat" onclick="switchPanel('chat')" title="Chat" data-i18n-title="tab_chat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+      <button class="nav-tab active" data-panel="chat" data-label="Agents" onclick="switchPanel('chat')" title="Agent Presets" data-i18n-title="tab_chat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>
       <button class="nav-tab" data-panel="tasks" data-label="Tasks" onclick="switchPanel('tasks')" title="Tasks" data-i18n-title="tab_tasks"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
       <button class="nav-tab" data-panel="skills" data-label="Skills" onclick="switchPanel('skills')" title="Skills" data-i18n-title="tab_skills"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></button>
       <button class="nav-tab" data-panel="memory" data-label="Memory" onclick="switchPanel('memory')" title="Memory" data-i18n-title="tab_memory"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.3 4.7-3.2 6H8.2C6.3 13.7 5 11.5 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="10" y1="20" x2="14" y2="20"/></svg></button>
@@ -24,16 +24,27 @@
       <button class="nav-tab" data-panel="profiles" data-label="Profiles" onclick="switchPanel('profiles')" title="Agent profiles" data-i18n-title="tab_profiles"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></button>
       <button class="nav-tab" data-panel="todos" data-label="Todos" onclick="switchPanel('todos')" title="Current task list" data-i18n-title="tab_todos"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg></button>
     </div>
-    <!-- Chat panel -->
+    <!-- Agent Presets panel (was Chat) -->
     <div class="panel-view active" id="panelChat">
-      <div class="sidebar-section">
-        <button class="new-chat-btn" id="btnNewChat">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span data-i18n="new_conversation">New conversation</span> <span style="font-size:10px;opacity:.5;margin-left:4px">Cmd+K</span>
-        </button>
+      <div class="sidebar-section" style="padding-bottom:6px">
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">员工预设</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.4">拖拽到工作画布或点击添加</div>
       </div>
-      <div class="session-search"><input id="sessionSearch" placeholder="Filter conversations..." data-i18n-placeholder="filter_conversations" oninput="filterSessions()"></div>
-      <div class="session-list" id="sessionList"></div>
+      <div class="preset-search-wrap">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="presetSearch" placeholder="搜索员工预设..." oninput="filterPresets()">
+      </div>
+      <div class="preset-cat-bar" id="presetCatBar">
+        <button class="preset-cat-btn active" data-cat="all" onclick="setPresetCategory('all',this)">全部</button>
+        <button class="preset-cat-btn" data-cat="directors" onclick="setPresetCategory('directors',this)">👑 总监</button>
+        <button class="preset-cat-btn" data-cat="leads" onclick="setPresetCategory('leads',this)">🎯 主管</button>
+        <button class="preset-cat-btn" data-cat="programmers" onclick="setPresetCategory('programmers',this)">💻 程序</button>
+        <button class="preset-cat-btn" data-cat="designers" onclick="setPresetCategory('designers',this)">🎨 设计</button>
+        <button class="preset-cat-btn" data-cat="engine_godot" onclick="setPresetCategory('engine_godot',this)">🎮 Godot</button>
+        <button class="preset-cat-btn" data-cat="engine_unity" onclick="setPresetCategory('engine_unity',this)">🕹️ Unity</button>
+        <button class="preset-cat-btn" data-cat="engine_ue" onclick="setPresetCategory('engine_ue',this)">🎬 UE5</button>
+      </div>
+      <div class="preset-list" id="presetList"></div>
     </div>
     <!-- Tasks (cron) panel -->
     <div class="panel-view" id="panelTasks">
@@ -166,44 +177,72 @@
     <div id="emptyState" style="display:none"></div>
     <div id="msgInner" style="display:none"></div>
     <div id="messages" style="display:none"></div>
+    <!-- 隐藏的后备元素（兼容原 JS 引用）-->
+    <button id="btnClearPreview" style="display:none"></button>
+    <div id="composerWrap" style="display:none"></div>
     <div class="topbar">
       <button class="mobile-hamburger" id="btnHamburger" onclick="toggleMobileSidebar()" title="Menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
       <div style="flex:1;min-width:0;overflow:hidden"><div class="topbar-title" id="topbarTitle">Hermes Studio</div><div class="topbar-meta" id="topbarMeta">员工工作台 — 点击员工卡片开始对话</div></div>
       <div class="topbar-chips">
-        <button class="chip" id="btnAddEmployee" onclick="showEmployeeDialog()" title="添加新员工"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/><circle cx="12" cy="7" r="4" fill="none"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg> <span>添加员工</span></button>
+        <button class="workspace-tab active chip" data-tab="canvas" onclick="switchWorkspaceTab('canvas')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          工作画布
+        </button>
+        <button class="workspace-tab chip" data-tab="files" onclick="switchWorkspaceTab('files')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          文件目录
+        </button>
       </div>
     </div>
     <!-- 员工面板（中间区域） -->
     <div class="employee-panel" id="employeePanel">
-      <!-- 搜索/筛选工具栏 -->
-      <div class="emp-toolbar" id="empToolbar">
-        <div class="emp-search-wrap">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input class="emp-search" id="empSearch" placeholder="搜索员工名称或技能..." oninput="filterEmployees()">
-        </div>
-        <button class="emp-filter-btn active" data-filter="all" onclick="setEmpFilter('all',this)">全部</button>
-        <button class="emp-filter-btn" data-filter="working" onclick="setEmpFilter('working',this)">工作中</button>
-        <button class="emp-filter-btn" data-filter="idle" onclick="setEmpFilter('idle',this)">空闲</button>
-      </div>
-      <div class="employee-canvas" id="employeeCanvas">
-        <div class="employee-empty-state" id="employeeEmptyState">
-          <div class="emp-empty-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
-              <defs><linearGradient id="emp-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#7cb9ff;stop-opacity:1"/><stop offset="100%" style="stop-color:#c9a84c;stop-opacity:1"/></linearGradient></defs>
-              <rect x="8" y="8" width="64" height="64" rx="16" fill="url(#emp-grad)" opacity="0.12"/>
-              <circle cx="32" cy="30" r="8" fill="url(#emp-grad)" opacity="0.6"/>
-              <path d="M18 56c0-7.7 6.3-14 14-14s14 6.3 14 14" fill="url(#emp-grad)" opacity="0.4"/>
-              <circle cx="52" cy="34" r="6" fill="url(#emp-grad)" opacity="0.35"/>
-              <path d="M42 56c0-5.5 4.5-10 10-10s10 4.5 10 10" fill="url(#emp-grad)" opacity="0.25"/>
-              <line x1="28" y1="52" x2="52" y2="52" stroke="url(#emp-grad)" stroke-width="1.5" opacity="0.2" stroke-dasharray="3 3"/>
-            </svg>
+      <!-- 页签栏 -->
+      <div class="workspace-tabs" id="workspaceTabs">
+        <button class="chip add-employee-btn" id="btnAddEmployee" onclick="showEmployeeDialog()" title="添加新员工">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/><circle cx="12" cy="7" r="4" fill="none"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
+          <span>添加员工</span>
+        </button>
+        <!-- 搜索/筛选工具栏（仅画布模式显示） -->
+        <div class="emp-toolbar-inline" id="empToolbarInline">
+          <div class="emp-search-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="emp-search" id="empSearch" placeholder="搜索员工..." oninput="filterEmployees()">
           </div>
-          <h2>还没有员工</h2>
-          <p>点击右上角"添加员工"按钮创建你的第一个 AI 员工</p>
-          <p style="font-size:12px;color:var(--muted);opacity:.6;margin-top:4px">每个员工可配置不同的技能，对话内容可沉淀为技能</p>
+          <button class="emp-filter-btn active" data-filter="all" onclick="setEmpFilter('all',this)">全部</button>
+          <button class="emp-filter-btn" data-filter="working" onclick="setEmpFilter('working',this)">工作中</button>
+          <button class="emp-filter-btn" data-filter="idle" onclick="setEmpFilter('idle',this)">空闲</button>
         </div>
+        <!-- 文件目录工具栏（仅文件模式显示） -->
+        <div class="file-toolbar-inline" id="fileToolbarInline" style="display:none">
+          <div class="breadcrumb-bar" id="mainBreadcrumb"></div>
+        </div>
+      </div>
+      <!-- 工作画布 -->
+      <div class="workspace-tab-content active" id="canvasContent">
+        <div class="employee-canvas" id="employeeCanvas">
+          <div class="employee-empty-state" id="employeeEmptyState">
+            <div class="emp-empty-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+                <defs><linearGradient id="emp-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#7cb9ff;stop-opacity:1"/><stop offset="100%" style="stop-color:#c9a84c;stop-opacity:1"/></linearGradient></defs>
+                <rect x="8" y="8" width="64" height="64" rx="16" fill="url(#emp-grad)" opacity="0.12"/>
+                <circle cx="32" cy="30" r="8" fill="url(#emp-grad)" opacity="0.6"/>
+                <path d="M18 56c0-7.7 6.3-14 14-14s14 6.3 14 14" fill="url(#emp-grad)" opacity="0.4"/>
+                <circle cx="52" cy="34" r="6" fill="url(#emp-grad)" opacity="0.35"/>
+                <path d="M42 56c0-5.5 4.5-10 10-10s10 4.5 10 10" fill="url(#emp-grad)" opacity="0.25"/>
+                <line x1="28" y1="52" x2="52" y2="52" stroke="url(#emp-grad)" stroke-width="1.5" opacity="0.2" stroke-dasharray="3 3"/>
+              </svg>
+            </div>
+            <h2>还没有员工</h2>
+            <p>点击右上角"添加员工"按钮创建你的第一个 AI 员工</p>
+            <p style="font-size:12px;color:var(--muted);opacity:.6;margin-top:4px">拖动员工卡片自由安排工作位置</p>
+          </div>
+        </div>
+      </div>
+      <!-- 文件目录 -->
+      <div class="workspace-tab-content" id="filesContent">
+        <div class="main-file-tree" id="mainFileTree"></div>
       </div>
     </div>
   </main>
@@ -318,9 +357,9 @@
     </div>
     <!-- 空状态：未选择任何内容 -->
     <div class="rp-empty" id="rpEmpty">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity:.15"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-      <p>点击左侧员工卡片开始对话</p>
-      <p style="font-size:11px;opacity:.5">或点击技能查看详情</p>
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity:.15"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/></svg>
+      <p>还没有员工可对话</p>
+      <p style="font-size:11px;opacity:.5">点击右上角"添加员工"创建你的第一个 AI 助手</p>
     </div>
   </aside>
 </div>
@@ -535,17 +574,19 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="/static/i18n.js"></script>
-<script src="/static/icons.js"></script>
-<script src="/static/ui.js"></script>
-<script src="/static/workspace.js"></script>
-<script src="/static/sessions.js"></script>
-<script src="/static/commands.js"></script>
-<script src="/static/messages.js"></script>
-<script src="/static/panels.js"></script>
-<script src="/static/employee.js"></script>
-<script src="/static/right-panel.js"></script>
-<script src="/static/onboarding.js"></script>
-<script src="/static/boot.js"></script>
+<script src="/static/i18n.js?v=20260414"></script>
+<script src="/static/icons.js?v=20260414"></script>
+<script src="/static/ui.js?v=20260414"></script>
+<script src="/static/workspace.js?v=20260414"></script>
+<script src="/static/sessions.js?v=20260414"></script>
+<script src="/static/commands.js?v=20260414"></script>
+<script src="/static/messages.js?v=20260414"></script>
+<script src="/static/panels.js?v=20260414"></script>
+<script src="/static/employee.js?v=20260414b"></script>
+<script src="/static/agent-presets.js?v=20260414b"></script>
+<script src="/static/workspace-tabs.js?v=20260414b"></script>
+<script src="/static/right-panel.js?v=20260414"></script>
+<script src="/static/onboarding.js?v=20260414"></script>
+<script src="/static/boot.js?v=20260414"></script>
 </body>
 </html>
