@@ -262,6 +262,7 @@ function _renderWsSelectorDropdown(dd) {
   dd.innerHTML = '';
 
   for (const w of _wsSelectorList) {
+
     const opt = document.createElement('div');
     opt.className = 'ws-opt' + (w.path === currentWs ? ' active' : '');
     opt.innerHTML = `<span class="ws-opt-name">${esc(w.name)}</span><span class="ws-opt-path" title="${esc(w.path)}">${esc(w.path)}</span>`;
@@ -451,10 +452,10 @@ function _renderMainFileTree() {
   // 文件列表为空时，自动加载工作目录（仅一次，防止无限循环）
   if (!S.entries || S.entries.length === 0) {
     // Need a valid session with workspace to load files
-    if (typeof loadDir === 'function' && S.session && S.session.workspace) {
+    if (typeof loadDir === 'function' && S.session && (_activeWorkspacePath())) {
       // Guard: only auto-load once per workspace. After that, accept empty results.
-      // Reset _dirLoadAttempted when workspace changes (detected via S.session.workspace).
-      const wsKey = S.session.workspace;
+      // Reset _dirLoadAttempted when workspace changes (detected via active workspace).
+      const wsKey = _activeWorkspacePath();
       if (S._dirLoadWsKey !== wsKey) {
         S._dirLoadWsKey = wsKey;
         S._dirLoadAttempted = false;

@@ -1872,7 +1872,8 @@ def _handle_file_reveal(handler, body):
     except KeyError:
         return bad(handler, "Session not found", 404)
     try:
-        workspace = Path(s.workspace)
+        # 优先使用前端传递的 workspace（画布工作区），回退到 session.workspace
+        workspace = Path(body.get("workspace") or s.workspace)
         target = safe_resolve(workspace, body["path"])
         if not target.exists():
             return bad(handler, f"Path not found: {body['path']} (resolved={target}, workspace={workspace})", 404)

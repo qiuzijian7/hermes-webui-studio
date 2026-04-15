@@ -80,7 +80,14 @@ async function openEmployeeChat(empId) {
   // 确保员工有会话
   if (!emp.sessionId) {
     try {
-      const data = await api('/api/session/new', { method: 'POST', body: JSON.stringify({ model: $('modelSelect')?.value || '' }) });
+      // 传递当前工作区路径，确保新 session 的 workspace 与画布工作区一致
+      const currentWs = (typeof _currentCanvasWorkspace !== 'undefined' && _currentCanvasWorkspace && _currentCanvasWorkspace !== '__default__')
+        ? _currentCanvasWorkspace
+        : (S.session?.workspace || '');
+      const data = await api('/api/session/new', { method: 'POST', body: JSON.stringify({
+        model: $('modelSelect')?.value || '',
+        workspace: currentWs || undefined,
+      }) });
       if (data.session) {
         emp.sessionId = data.session.session_id;
         _saveEmployees();
@@ -111,12 +118,16 @@ async function openEmployeeChat(empId) {
   }
 
   // 更新 topbar — 显示工作区信息
-  const ws = S.session?.workspace || '';
+  const ws = _activeWorkspacePath();
   const wsName = ws ? (typeof getWorkspaceFriendlyName === 'function' ? getWorkspaceFriendlyName(ws) : ws.split(/[\/\\]/).filter(Boolean).pop()) : '';
   $('topbarTitle').textContent = wsName || 'Hermes Studio';
   $('topbarMeta').textContent = ws ? ws : '员工工作台 — 点击员工卡片开始对话';
   // 同步工作区选择器标签
   if (typeof syncWsSelectorLabel === 'function') syncWsSelectorLabel();
+  // 如果 session workspace 与画布工作区不一致，刷新文件目录以显示正确的工作区内容
+  if (S.session && S.session.workspace !== ws && ws && typeof loadDir === 'function') {
+    loadDir('.');
+  }
 }
 
 function _renderRpMessages() {
@@ -330,8 +341,6 @@ function initRightPanel() {
   } else {
     _setRightPanelView('empty');
   }
-  
-  console.log('[initRightPanel] 面板初始化完成, panel display:', panel?.style.display, 'panel width:', panel?.style.width);
 }
 
 // ── 文件预览模式（右侧面板）────────────────────────────────────────────────

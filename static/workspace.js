@@ -14,7 +14,7 @@ async function api(path,opts={}){
 
 // Persist/restore expanded directory state per workspace in localStorage
 function _wsExpandKey(){
-  const ws=S.session&&S.session.workspace;
+  const ws=_activeWorkspacePath();
   return ws?'hermes-webui-expanded:'+ws:null;
 }
 function _saveExpandedDirs(){
@@ -30,7 +30,24 @@ function _restoreExpandedDirs(){
   }catch(e){S._expandedDirs=new Set();}
 }
 
+/** 获取当前活跃的工作区路径（画布工作区优先于 session.workspace） */
+function _activeWorkspacePath(){
+  const canvasWs=(typeof _currentCanvasWorkspace!=='undefined')?_currentCanvasWorkspace:'';
+  if(canvasWs&&canvasWs!=='__default__') return canvasWs;
+  return (S.session&&S.session.workspace)||'';
+}
+
 async function loadDir(path){
+  // 如果 session workspace 与画布工作区不一致，先同步
+  const activeWs=_activeWorkspacePath();
+  if(S.session&&S.session.workspace!==activeWs&&activeWs&&activeWs!=='__default__'){
+    try{
+      await api('/api/session/update',{method:'POST',body:JSON.stringify({
+        session_id:S.session.session_id,workspace:activeWs,model:S.session.model
+      })});
+      S.session.workspace=activeWs;
+    }catch(e){}
+  }
   const sid=(S.session&&S.session.session_id)?encodeURIComponent(S.session.session_id):'';
   // Reset the auto-load guard so _renderMainFileTree knows a load was triggered externally
   S._dirLoadAttempted = true;

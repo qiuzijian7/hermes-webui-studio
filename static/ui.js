@@ -1493,7 +1493,8 @@ function _showFileCtxMenu(x, y, item){
     _closeFileCtxMenu();
     if(!S.session)return;
     try{
-      await api('/api/file/reveal',{method:'POST',body:JSON.stringify({session_id:S.session.session_id,path:item.path})});
+      const ws=_activeWorkspacePath();
+      await api('/api/file/reveal',{method:'POST',body:JSON.stringify({session_id:S.session.session_id,path:item.path,workspace:ws||undefined})});
       showToast(t('revealed','已打开'));
     }catch(e){showToast(t('reveal_failed','打开失败')+': '+e.message);}
   };
