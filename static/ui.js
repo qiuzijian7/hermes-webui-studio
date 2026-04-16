@@ -1333,10 +1333,13 @@ if(!S._expandedDirs) S._expandedDirs=new Set();
 if(!S._dirCache) S._dirCache={};
 
 function renderFileTree(){
-  const box=$('fileTree');if(!box)return;box.innerHTML='';
+  const box=$('fileTree');if(!box)return;
   // Cache current dir entries
   S._dirCache[S.currentDir||'.']=S.entries;
-  _renderTreeItems(box, S.entries, 0);
+  const frag=document.createDocumentFragment();
+  _renderTreeItems(frag, S.entries, 0);
+  box.innerHTML='';
+  box.appendChild(frag);
 }
 
 function _renderTreeItems(container, entries, depth){

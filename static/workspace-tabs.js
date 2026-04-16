@@ -477,8 +477,10 @@ function _renderMainFileTree() {
 
   // 渲染文件树
   const entries = S.entries || [];
+  const frag = document.createDocumentFragment();
+  _renderMainTreeItems(frag, entries, 0);
   container.innerHTML = '';
-  _renderMainTreeItems(container, entries, 0);
+  container.appendChild(frag);
 }
 
 /** 在中间面板渲染面包屑导航 */
@@ -663,9 +665,11 @@ function renderEmployeeCards() {
 (function() {
   const _origRenderFileTree = typeof renderFileTree === 'function' ? renderFileTree : null;
   window.renderFileTree = function() {
-    if (_origRenderFileTree) _origRenderFileTree();
     if (_activeWorkspaceTab === 'files') {
+      // 主面板文件页签激活时，只渲染主面板树，跳过旧版侧边栏渲染
       _renderMainFileTree();
+    } else if (_origRenderFileTree) {
+      _origRenderFileTree();
     }
   };
 })();
