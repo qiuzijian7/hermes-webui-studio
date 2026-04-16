@@ -27,7 +27,7 @@ REPO_ROOT = Path(__file__).parent.parent.resolve()
 
 # ── Network config (env-overridable) ─────────────────────────────────────────
 HOST = os.getenv("HERMES_WEBUI_HOST", "127.0.0.1")
-PORT = int(os.getenv("HERMES_WEBUI_PORT", "8787"))
+PORT = int(os.getenv("HERMES_WEBUI_PORT", "18080"))
 
 # ── TLS/HTTPS config (optional, env-overridable) ────────────────────────────
 TLS_CERT = os.getenv("HERMES_WEBUI_TLS_CERT", "").strip() or None

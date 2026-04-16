@@ -55,11 +55,14 @@ def main() -> int:
     else:
         print(f"[!!] Warning: HERMES_HOME not found: {hermes_home}")
 
-    host = os.environ.get("HERMES_WEBUI_HOST", "0.0.0.0")
-    port = os.environ.get("HERMES_WEBUI_PORT", "8787")
+    host = os.environ.get("HERMES_WEBUI_HOST", "127.0.0.1")
+    port = os.environ.get("HERMES_WEBUI_PORT", "18080")
+    access_host = "127.0.0.1" if host in {"0.0.0.0", "::", "[::]"} else host
     print()
-    print(f"[ok] Starting Hermes WebUI on http://{host}:{port}")
+    print(f"[ok] Listening on http://{host}:{port}")
+    print(f"[ok] Open in browser: http://{access_host}:{port}")
     print()
+
 
     # Start server.py in the same process so env vars are inherited
     os.chdir(str(REPO_ROOT))

@@ -1,0 +1,1463 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - button "Chat" [ref=e5] [cursor=pointer]:
+          - img [ref=e6]
+        - button "Tasks" [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+        - button "Skills" [ref=e14] [cursor=pointer]:
+          - img [ref=e15]
+        - button "Memory" [ref=e19] [cursor=pointer]:
+          - img [ref=e20]
+        - button "Spaces" [ref=e22] [cursor=pointer]:
+          - img [ref=e23]
+        - button "Profiles" [ref=e25] [cursor=pointer]:
+          - img [ref=e26]
+        - button "Todos" [ref=e29] [cursor=pointer]:
+          - img [ref=e30]
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - generic [ref=e35]: 员工预设
+          - generic [ref=e36]: 拖拽到工作画布或点击添加
+        - generic [ref=e37]:
+          - img [ref=e38]
+          - textbox "搜索员工预设..." [ref=e41]
+        - generic [ref=e42]:
+          - button "全部" [ref=e43] [cursor=pointer]
+          - button "👑 总监" [ref=e44] [cursor=pointer]
+          - button "🎯 主管" [ref=e45] [cursor=pointer]
+          - button "💻 程序" [ref=e46] [cursor=pointer]
+          - button "🎨 设计" [ref=e47] [cursor=pointer]
+          - button "🎮 Godot" [ref=e48] [cursor=pointer]
+          - button "🕹️ Unity" [ref=e49] [cursor=pointer]
+          - button "🎬 UE5" [ref=e50] [cursor=pointer]
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - generic [ref=e53] [cursor=pointer]:
+              - generic [ref=e54]: 👑
+              - generic [ref=e55]: 总监层
+              - generic [ref=e56]: "3"
+              - img [ref=e57]
+            - generic [ref=e59]:
+              - generic [ref=e60]:
+                - generic [ref=e62]:
+                  - generic [ref=e63]: 创意总监
+                  - generic [ref=e64]: 最高创意权威，决定游戏愿景、基调和美学方向，解决部门间创意冲突
+                - generic [ref=e65]: Opus
+              - generic [ref=e66]:
+                - generic [ref=e68]:
+                  - generic [ref=e69]: 技术总监
+                  - generic [ref=e70]: 负责引擎架构、技术选型、性能策略和技术风险管理
+                - generic [ref=e71]: Opus
+              - generic [ref=e72]:
+                - generic [ref=e74]:
+                  - generic [ref=e75]: 制作人
+                  - generic [ref=e76]: 确保项目按时交付，管理冲刺计划、范围和跨部门协调
+                - generic [ref=e77]: Opus
+          - generic [ref=e78]:
+            - generic [ref=e79] [cursor=pointer]:
+              - generic [ref=e80]: 🎯
+              - generic [ref=e81]: 部门主管
+              - generic [ref=e82]: "8"
+              - img [ref=e83]
+            - generic [ref=e85]:
+              - generic [ref=e86]:
+                - generic [ref=e88]:
+                  - generic [ref=e89]: 游戏设计师
+                  - generic [ref=e90]: 设计核心机制、系统和玩家体验，维护游戏设计文档
+                - generic [ref=e91]: Sonnet
+              - generic [ref=e92]:
+                - generic [ref=e94]:
+                  - generic [ref=e95]: 主程序员
+                  - generic [ref=e96]: 代码架构、编码标准、代码审查和编程任务分配
+                - generic [ref=e97]: Sonnet
+              - generic [ref=e98]:
+                - generic [ref=e100]:
+                  - generic [ref=e101]: 艺术总监
+                  - generic [ref=e102]: 视觉标识、风格指南、艺术圣经和美术生产管线
+                - generic [ref=e103]: Sonnet
+              - generic [ref=e104]:
+                - generic [ref=e106]:
+                  - generic [ref=e107]: 音频总监
+                  - generic [ref=e108]: 音频愿景、风格指南和音频生产管线管理
+                - generic [ref=e109]: Sonnet
+              - generic [ref=e110]:
+                - generic [ref=e112]:
+                  - generic [ref=e113]: 叙事总监
+                  - generic [ref=e114]: 故事愿景、世界观和叙事一致性管理
+                - generic [ref=e115]: Sonnet
+              - generic [ref=e116]:
+                - generic [ref=e118]:
+                  - generic [ref=e119]: QA 负责人
+                  - generic [ref=e120]: 测试策略、质量标准和缺陷分级管理
+                - generic [ref=e121]: Sonnet
+              - generic [ref=e122]:
+                - generic [ref=e124]:
+                  - generic [ref=e125]: 发布经理
+                  - generic [ref=e126]: 发布流程、版本管理和构建管线
+                - generic [ref=e127]: Sonnet
+              - generic [ref=e128]:
+                - generic [ref=e130]:
+                  - generic [ref=e131]: 本地化负责人
+                  - generic [ref=e132]: 翻译策略、文化适配和本地化管线
+                - generic [ref=e133]: Sonnet
+          - generic [ref=e134]:
+            - generic [ref=e135] [cursor=pointer]:
+              - generic [ref=e136]: 💻
+              - generic [ref=e137]: 程序员
+              - generic [ref=e138]: "6"
+              - img [ref=e139]
+            - generic [ref=e141]:
+              - generic [ref=e142]:
+                - generic [ref=e144]:
+                  - generic [ref=e145]: 游戏逻辑程序员
+                  - generic [ref=e146]: 实现游戏机制、玩家系统、战斗和交互功能
+                - generic [ref=e147]: Sonnet
+              - generic [ref=e148]:
+                - generic [ref=e150]:
+                  - generic [ref=e151]: 引擎程序员
+                  - generic [ref=e152]: 核心引擎系统、渲染管线和底层架构
+                - generic [ref=e153]: Sonnet
+              - generic [ref=e154]:
+                - generic [ref=e156]:
+                  - generic [ref=e157]: AI 程序员
+                  - generic [ref=e158]: AI 行为系统、决策树和行为树实现
+                - generic [ref=e159]: Sonnet
+              - generic [ref=e160]:
+                - generic [ref=e162]:
+                  - generic [ref=e163]: 网络程序员
+                  - generic [ref=e164]: 多人游戏网络功能、同步和复制系统
+                - generic [ref=e165]: Sonnet
+              - generic [ref=e166]:
+                - generic [ref=e168]:
+                  - generic [ref=e169]: 工具程序员
+                  - generic [ref=e170]: 开发工具、编辑器扩展和自动化脚本
+                - generic [ref=e171]: Sonnet
+              - generic [ref=e172]:
+                - generic [ref=e174]:
+                  - generic [ref=e175]: UI 程序员
+                  - generic [ref=e176]: 用户界面系统、HUD 和交互反馈
+                - generic [ref=e177]: Sonnet
+          - generic [ref=e178]:
+            - generic [ref=e179] [cursor=pointer]:
+              - generic [ref=e180]: 🎨
+              - generic [ref=e181]: 设计师
+              - generic [ref=e182]: "5"
+              - img [ref=e183]
+            - generic [ref=e185]:
+              - generic [ref=e186]:
+                - generic [ref=e188]:
+                  - generic [ref=e189]: 系统设计师
+                  - generic [ref=e190]: 设计游戏系统、经济模型和进度机制
+                - generic [ref=e191]: Sonnet
+              - generic [ref=e192]:
+                - generic [ref=e194]:
+                  - generic [ref=e195]: 关卡设计师
+                  - generic [ref=e196]: 关卡布局、节奏和玩家引导设计
+                - generic [ref=e197]: Sonnet
+              - generic [ref=e198]:
+                - generic [ref=e200]:
+                  - generic [ref=e201]: 经济系统设计师
+                  - generic [ref=e202]: 游戏内经济、货币系统和价值平衡
+                - generic [ref=e203]: Sonnet
+              - generic [ref=e204]:
+                - generic [ref=e206]:
+                  - generic [ref=e207]: UX 设计师
+                  - generic [ref=e208]: 交互设计、用户流程和可用性测试
+                - generic [ref=e209]: Sonnet
+              - generic [ref=e210]:
+                - generic [ref=e212]:
+                  - generic [ref=e213]: 原型制作师
+                  - generic [ref=e214]: 快速原型验证概念和交互方案
+                - generic [ref=e215]: Sonnet
+          - generic [ref=e216]:
+            - generic [ref=e217] [cursor=pointer]:
+              - generic [ref=e218]: 🎭
+              - generic [ref=e219]: 美术/音频
+              - generic [ref=e220]: "2"
+              - img [ref=e221]
+            - generic [ref=e223]:
+              - generic [ref=e224]:
+                - generic [ref=e226]:
+                  - generic [ref=e227]: 技术美术
+                  - generic [ref=e228]: 着色器实现、VFX 创建和美术管线优化
+                - generic [ref=e229]: Sonnet
+              - generic [ref=e230]:
+                - generic [ref=e232]:
+                  - generic [ref=e233]: 音效设计师
+                  - generic [ref=e234]: 音效设计、音频实现和空间音频
+                - generic [ref=e235]: Sonnet
+          - generic [ref=e236]:
+            - generic [ref=e237] [cursor=pointer]:
+              - generic [ref=e238]: 📝
+              - generic [ref=e239]: 叙事/内容
+              - generic [ref=e240]: "2"
+              - img [ref=e241]
+            - generic [ref=e243]:
+              - generic [ref=e244]:
+                - generic [ref=e246]:
+                  - generic [ref=e247]: 编剧
+                  - generic [ref=e248]: 对话文本、剧情脚本和叙事内容创作
+                - generic [ref=e249]: Sonnet
+              - generic [ref=e250]:
+                - generic [ref=e252]:
+                  - generic [ref=e253]: 世界构建师
+                  - generic [ref=e254]: 世界观设定、背景故事和环境叙事
+                - generic [ref=e255]: Sonnet
+          - generic [ref=e256]:
+            - generic [ref=e257] [cursor=pointer]:
+              - generic [ref=e258]: 🔍
+              - generic [ref=e259]: QA/运维
+              - generic [ref=e260]: "8"
+              - img [ref=e261]
+            - generic [ref=e263]:
+              - generic [ref=e264]:
+                - generic [ref=e266]:
+                  - generic [ref=e267]: 性能分析师
+                  - generic [ref=e268]: 性能剖析、瓶颈定位和优化建议
+                - generic [ref=e269]: Sonnet
+              - generic [ref=e270]:
+                - generic [ref=e272]:
+                  - generic [ref=e273]: 运维工程师
+                  - generic [ref=e274]: CI/CD 管线、基础设施和部署自动化
+                - generic [ref=e275]: Sonnet
+              - generic [ref=e276]:
+                - generic [ref=e278]:
+                  - generic [ref=e279]: 数据分析工程师
+                  - generic [ref=e280]: 遥测系统、数据管道和玩家行为分析
+                - generic [ref=e281]: Sonnet
+              - generic [ref=e282]:
+                - generic [ref=e284]:
+                  - generic [ref=e285]: 安全工程师
+                  - generic [ref=e286]: 安全审计、反作弊和漏洞修复
+                - generic [ref=e287]: Sonnet
+              - generic [ref=e288]:
+                - generic [ref=e290]:
+                  - generic [ref=e291]: QA 测试员
+                  - generic [ref=e292]: 功能测试、回归测试和缺陷报告
+                - generic [ref=e293]: Haiku
+              - generic [ref=e294]:
+                - generic [ref=e296]:
+                  - generic [ref=e297]: 无障碍专家
+                  - generic [ref=e298]: 无障碍标准、辅助功能和包容性设计
+                - generic [ref=e299]: Sonnet
+              - generic [ref=e300]:
+                - generic [ref=e302]:
+                  - generic [ref=e303]: 运营设计师
+                  - generic [ref=e304]: 实时运营活动、赛季设计和玩家留存
+                - generic [ref=e305]: Sonnet
+              - generic [ref=e306]:
+                - generic [ref=e308]:
+                  - generic [ref=e309]: 社区经理
+                  - generic [ref=e310]: 社区管理、玩家反馈收集和社区活动
+                - generic [ref=e311]: Sonnet
+          - generic [ref=e312]:
+            - generic [ref=e313] [cursor=pointer]:
+              - generic [ref=e314]: 🎮
+              - generic [ref=e315]: Godot 专家
+              - generic [ref=e316]: "5"
+              - img [ref=e317]
+            - generic [ref=e319]:
+              - generic [ref=e320]:
+                - generic [ref=e322]:
+                  - generic [ref=e323]: Godot 专家
+                  - generic [ref=e324]: Godot 4 引擎全局专家，协调 Godot 子专家
+                - generic [ref=e325]: Sonnet
+              - generic [ref=e326]:
+                - generic [ref=e328]:
+                  - generic [ref=e329]: GDScript 专家
+                  - generic [ref=e330]: GDScript 脚本编写、最佳实践和性能优化
+                - generic [ref=e331]: Sonnet
+              - generic [ref=e332]:
+                - generic [ref=e334]:
+                  - generic [ref=e335]: Godot Shader 专家
+                  - generic [ref=e336]: Godot 着色器编写、视觉特效和渲染管线
+                - generic [ref=e337]: Sonnet
+              - generic [ref=e338]:
+                - generic [ref=e340]:
+                  - generic [ref=e341]: GDExtension 专家
+                  - generic [ref=e342]: GDExtension/C++ 扩展开发和原生模块集成
+                - generic [ref=e343]: Sonnet
+              - generic [ref=e344]:
+                - generic [ref=e346]:
+                  - generic [ref=e347]: Godot C# 专家
+                  - generic [ref=e348]: Godot C# 脚本开发、.NET 集成和类型安全架构
+                - generic [ref=e349]: Sonnet
+          - generic [ref=e350]:
+            - generic [ref=e351] [cursor=pointer]:
+              - generic [ref=e352]: 🕹️
+              - generic [ref=e353]: Unity 专家
+              - generic [ref=e354]: "5"
+              - img [ref=e355]
+            - generic [ref=e357]:
+              - generic [ref=e358]:
+                - generic [ref=e360]:
+                  - generic [ref=e361]: Unity 专家
+                  - generic [ref=e362]: Unity 引擎全局专家，协调 Unity 子专家
+                - generic [ref=e363]: Sonnet
+              - generic [ref=e364]:
+                - generic [ref=e366]:
+                  - generic [ref=e367]: DOTS/ECS 专家
+                  - generic [ref=e368]: Unity DOTS、ECS 架构和数据导向设计
+                - generic [ref=e369]: Sonnet
+              - generic [ref=e370]:
+                - generic [ref=e372]:
+                  - generic [ref=e373]: Unity Shader 专家
+                  - generic [ref=e374]: Shader Graph、URP/HDRP 和视觉特效
+                - generic [ref=e375]: Sonnet
+              - generic [ref=e376]:
+                - generic [ref=e378]:
+                  - generic [ref=e379]: Addressables 专家
+                  - generic [ref=e380]: 资源管理、Addressables 系统和异步加载
+                - generic [ref=e381]: Sonnet
+              - generic [ref=e382]:
+                - generic [ref=e384]:
+                  - generic [ref=e385]: UI Toolkit 专家
+                  - generic [ref=e386]: UI Toolkit、USS 样式和自定义控件
+                - generic [ref=e387]: Sonnet
+          - generic [ref=e388]:
+            - generic [ref=e389] [cursor=pointer]:
+              - generic [ref=e390]: 🎬
+              - generic [ref=e391]: UE5 专家
+              - generic [ref=e392]: "5"
+              - img [ref=e393]
+            - generic [ref=e395]:
+              - generic [ref=e396]:
+                - generic [ref=e398]:
+                  - generic [ref=e399]: UE5 专家
+                  - generic [ref=e400]: Unreal Engine 5 全局专家，协调 UE 子专家
+                - generic [ref=e401]: Sonnet
+              - generic [ref=e402]:
+                - generic [ref=e404]:
+                  - generic [ref=e405]: GAS 专家
+                  - generic [ref=e406]: Gameplay Ability System、能力系统和游戏玩法标签
+                - generic [ref=e407]: Sonnet
+              - generic [ref=e408]:
+                - generic [ref=e410]:
+                  - generic [ref=e411]: Blueprint 专家
+                  - generic [ref=e412]: 蓝图可视化脚本、宏库和组件开发
+                - generic [ref=e413]: Sonnet
+              - generic [ref=e414]:
+                - generic [ref=e416]:
+                  - generic [ref=e417]: Replication 专家
+                  - generic [ref=e418]: 网络复制、多人同步和延迟补偿
+                - generic [ref=e419]: Sonnet
+              - generic [ref=e420]:
+                - generic [ref=e422]:
+                  - generic [ref=e423]: UMG/CommonUI 专家
+                  - generic [ref=e424]: UMG 界面、CommonUI 框架和 UI 优化
+                - generic [ref=e425]: Sonnet
+      - button "Hermes WebUI Preferences, imports, exports" [ref=e427] [cursor=pointer]:
+        - img [ref=e429]
+        - generic [ref=e439]:
+          - generic [ref=e440]: Hermes WebUI
+          - generic [ref=e441]: Preferences, imports, exports
+        - img [ref=e443]
+    - main [ref=e446]:
+      - generic [ref=e447]:
+        - generic [ref=e448]:
+          - generic [ref=e449]: hermes-webui-studio
+          - generic [ref=e450]: G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio
+        - generic [ref=e451]:
+          - button "工作画布" [ref=e452] [cursor=pointer]:
+            - img [ref=e453]
+            - text: 工作画布
+          - button "文件目录" [ref=e458] [cursor=pointer]:
+            - img [ref=e459]
+            - text: 文件目录
+      - generic [ref=e461]:
+        - generic [ref=e462]:
+          - button "hermes-webui-studio" [ref=e589] [cursor=pointer]:
+            - img [ref=e465]
+            - generic "G:\\CustomWorkspaces\\AIProjects\\hermes-agent-studio\\hermes-webui-studio" [ref=e590]: hermes-webui-studio
+            - img [ref=e468]
+          - button "添加员工" [ref=e470] [cursor=pointer]:
+            - img [ref=e471]
+            - generic [ref=e474]: 添加员工
+          - generic [ref=e591]: ~
+        - generic [ref=e497]:
+          - generic [ref=e592] [cursor=pointer]:
+            - generic [ref=e593]: ▸
+            - img [ref=e595]
+            - generic [ref=e597]: .git
+          - generic [ref=e598] [cursor=pointer]:
+            - generic [ref=e599]: ▸
+            - img [ref=e601]
+            - generic [ref=e603]: .github
+          - generic [ref=e604] [cursor=pointer]:
+            - generic [ref=e605]: ▸
+            - img [ref=e607]
+            - generic [ref=e609]: .playwright-cli
+          - generic [ref=e610] [cursor=pointer]:
+            - generic [ref=e611]: ▸
+            - img [ref=e613]
+            - generic [ref=e615]: __pycache__
+          - generic [ref=e616] [cursor=pointer]:
+            - generic [ref=e617]: ▸
+            - img [ref=e619]
+            - generic [ref=e621]: api
+          - generic [ref=e622] [cursor=pointer]:
+            - generic [ref=e623]: ▸
+            - img [ref=e625]
+            - generic [ref=e627]: docs
+          - generic [ref=e628] [cursor=pointer]:
+            - generic [ref=e629]: ▸
+            - img [ref=e631]
+            - generic [ref=e633]: resource
+          - generic [ref=e634] [cursor=pointer]:
+            - generic [ref=e635]: ▸
+            - img [ref=e637]
+            - generic [ref=e639]: static
+          - generic [ref=e640] [cursor=pointer]:
+            - generic [ref=e641]: ▸
+            - img [ref=e643]
+            - generic [ref=e645]: tests
+          - generic [ref=e646] [cursor=pointer]:
+            - img [ref=e648]
+            - generic [ref=e651]: $null
+          - generic [ref=e652] [cursor=pointer]:
+            - img [ref=e654]
+            - generic [ref=e657]: .dockerignore
+          - generic [ref=e658] [cursor=pointer]:
+            - img [ref=e660]
+            - generic [ref=e663]: .env
+          - generic [ref=e664] [cursor=pointer]:
+            - img [ref=e666]
+            - generic [ref=e669]: .env.example
+          - generic [ref=e670] [cursor=pointer]:
+            - img [ref=e672]
+            - generic [ref=e675]: .gitignore
+          - generic [ref=e676] [cursor=pointer]:
+            - img [ref=e678]
+            - generic [ref=e683]: _launch_webui_detached.py
+          - generic [ref=e684] [cursor=pointer]:
+            - img [ref=e686]
+            - generic [ref=e691]: _ping2.py
+          - generic [ref=e692] [cursor=pointer]:
+            - img [ref=e694]
+            - generic [ref=e699]: _run_test.py
+          - generic [ref=e700] [cursor=pointer]:
+            - img [ref=e702]
+            - generic [ref=e707]: _run_test2.py
+          - generic [ref=e708] [cursor=pointer]:
+            - img [ref=e710]
+            - generic [ref=e715]: _start.py
+          - generic [ref=e716] [cursor=pointer]:
+            - img [ref=e718]
+            - generic [ref=e723]: _start_test.py
+          - generic [ref=e724] [cursor=pointer]:
+            - img [ref=e726]
+            - generic [ref=e731]: _test_import.py
+          - generic [ref=e732] [cursor=pointer]:
+            - img [ref=e734]
+            - generic [ref=e739]: _test_server.py
+          - generic [ref=e740] [cursor=pointer]:
+            - img [ref=e742]
+            - generic [ref=e747]: _test_server2.py
+          - generic [ref=e748] [cursor=pointer]:
+            - img [ref=e750]
+            - generic [ref=e755]: _test_server3.py
+          - generic [ref=e756] [cursor=pointer]:
+            - img [ref=e758]
+            - generic [ref=e763]: _test_server4.py
+          - generic [ref=e764] [cursor=pointer]:
+            - img [ref=e766]
+            - generic [ref=e771]: _test_server5.py
+          - generic [ref=e772] [cursor=pointer]:
+            - img [ref=e774]
+            - generic [ref=e779]: _test_server6.py
+          - generic [ref=e780] [cursor=pointer]:
+            - img [ref=e782]
+            - generic [ref=e785]: after-file-open.yml
+          - generic [ref=e786] [cursor=pointer]:
+            - img [ref=e788]
+            - generic [ref=e791]: AGENTS.md
+          - generic [ref=e792] [cursor=pointer]:
+            - img [ref=e794]
+            - generic [ref=e797]: ARCHITECTURE.md
+          - generic [ref=e798] [cursor=pointer]:
+            - img [ref=e800]
+            - generic [ref=e805]: bootstrap.py
+          - generic [ref=e806] [cursor=pointer]:
+            - img [ref=e808]
+            - generic [ref=e811]: BUGS.md
+          - generic [ref=e812] [cursor=pointer]:
+            - img [ref=e814]
+            - generic [ref=e817]: CHANGELOG.md
+          - generic [ref=e818] [cursor=pointer]:
+            - img [ref=e820]
+            - generic [ref=e823]: current-page.yml
+          - generic [ref=e824] [cursor=pointer]:
+            - img [ref=e826]
+            - generic [ref=e831]: dev_server.py
+          - generic [ref=e832] [cursor=pointer]:
+            - img [ref=e834]
+            - generic [ref=e837]: dev_server_err.log
+          - generic [ref=e838] [cursor=pointer]:
+            - img [ref=e840]
+            - generic [ref=e843]: dev_server_out.log
+          - generic [ref=e844] [cursor=pointer]:
+            - img [ref=e846]
+            - generic [ref=e849]: docker-compose.two-container.yml
+          - generic [ref=e850] [cursor=pointer]:
+            - img [ref=e852]
+            - generic [ref=e855]: docker-compose.yml
+          - generic [ref=e856] [cursor=pointer]:
+            - img [ref=e858]
+            - generic [ref=e860]: docker_init.bash
+          - generic [ref=e861] [cursor=pointer]:
+            - img [ref=e863]
+            - generic [ref=e866]: Dockerfile
+          - generic [ref=e867] [cursor=pointer]:
+            - img [ref=e869]
+            - generic [ref=e872]: HERMES.md
+          - generic [ref=e873] [cursor=pointer]:
+            - img [ref=e875]
+            - generic [ref=e878]: LICENSE
+          - generic [ref=e879] [cursor=pointer]:
+            - img [ref=e881]
+            - generic [ref=e884]: README.md
+          - generic [ref=e885] [cursor=pointer]:
+            - img [ref=e887]
+            - generic [ref=e890]: requirements.txt
+          - generic [ref=e891] [cursor=pointer]:
+            - img [ref=e893]
+            - generic [ref=e896]: ROADMAP.md
+          - generic [ref=e897] [cursor=pointer]:
+            - img [ref=e899]
+            - generic [ref=e904]: server.py
+          - generic [ref=e905] [cursor=pointer]:
+            - img [ref=e907]
+            - generic [ref=e910]: SPRINTS.md
+          - generic [ref=e911] [cursor=pointer]:
+            - img [ref=e913]
+            - generic [ref=e916]: start.bat
+          - generic [ref=e917] [cursor=pointer]:
+            - img [ref=e919]
+            - generic [ref=e922]: start.ps1
+          - generic [ref=e923] [cursor=pointer]:
+            - img [ref=e925]
+            - generic [ref=e927]: start.sh
+          - generic [ref=e928] [cursor=pointer]:
+            - img [ref=e930]
+            - generic [ref=e935]: start_local.py
+          - generic [ref=e936] [cursor=pointer]:
+            - img [ref=e938]
+            - generic [ref=e941]: TESTING.md
+          - generic [ref=e942] [cursor=pointer]:
+            - img [ref=e944]
+            - generic [ref=e947]: THEMES.md
+    - complementary [ref=e488]:
+      - generic [ref=e540]:
+        - generic [ref=e541]:
+          - generic [ref=e542]:
+            - img [ref=e543]
+            - generic [ref=e546]:
+              - generic [ref=e547]: README.md
+              - generic [ref=e548]: README.md
+          - generic [ref=e549]:
+            - button "编辑文件" [ref=e550] [cursor=pointer]:
+              - img [ref=e948]
+            - button "下载文件" [ref=e554] [cursor=pointer]:
+              - img [ref=e555]
+            - button [ref=e558] [cursor=pointer]:
+              - img [ref=e559]
+        - generic [ref=e951]:
+          - heading "Hermes Web UI" [level=1] [ref=e952]
+          - paragraph [ref=e953]:
+            - link "https://hermes-agent.nousresearch.com/" [ref=e954] [cursor=pointer]:
+              - /url: <a href=
+            - text: "\" target=\"_blank\" rel=\"noopener\">Hermes Agent is a sophisticated autonomous agent that lives on your server, accessed via a terminal or messaging apps, that remembers what it learns and gets more capable the longer it runs."
+          - paragraph [ref=e955]:
+            - text: Hermes WebUI is a lightweight, dark-themed web app interface in your browser for
+            - link "https://hermes-agent.nousresearch.com/" [ref=e956] [cursor=pointer]:
+              - /url: <a href=
+            - text: "\" target=\"_blank\" rel=\"noopener\">Hermes Agent."
+            - text: Full parity with the CLI experience - everything you can do from a terminal,
+            - text: you can do from this UI. No build step, no framework, no bundler. Just Python
+            - text: and vanilla JS.
+          - paragraph [ref=e957]:
+            - text: "Layout: three-panel. Left sidebar for sessions and navigation, center for chat,"
+            - text: right for workspace file browsing. Model, profile, and workspace controls live in
+            - text: the
+            - strong [ref=e958]: composer footer
+            - text: — always visible while composing. A circular context ring
+            - text: shows token usage at a glance. All settings and session tools are in the
+            - strong [ref=e959]: Hermes Control Center
+            - text: (launcher at the sidebar bottom).
+          - paragraph [ref=e960]:
+            - text: <img alt="Hermes Web UI — three-panel layout" width="1417" height="867" alt="image" src="
+            - link "https://github.com/user-attachments/assets/51adff98-53ee-4800-8508-78b6c34dd3dc&quot" [ref=e961] [cursor=pointer]:
+              - /url: https://github.com/user-attachments/assets/51adff98-53ee-4800-8508-78b6c34dd3dc&quot
+            - text: ; />
+          - paragraph
+          - table [ref=e962]:
+            - rowgroup [ref=e963]:
+              - row "<img alt=\"Light mode with full profile support\" src=\"https://github.com/user-attachments/assets/9b68142f-d974-4493-a8d1-fd73e622c7fd&quot; /> <sub>Light mode with full profile support</sub> <img alt=\"Customize your settings, configure a password\" src=\"https://github.com/user-attachments/assets/941f3156-21e3-41fd-bcc8-f975d5000cb8&quot; /> <sub>Customize your settings, configure a password</sub>" [ref=e964]:
+                - cell "<img alt=\"Light mode with full profile support\" src=\"https://github.com/user-attachments/assets/9b68142f-d974-4493-a8d1-fd73e622c7fd&quot; /> <sub>Light mode with full profile support</sub>" [ref=e965]:
+                  - text: <img alt="Light mode with full profile support" src="
+                  - link "https://github.com/user-attachments/assets/9b68142f-d974-4493-a8d1-fd73e622c7fd&quot" [ref=e966] [cursor=pointer]:
+                    - /url: https://github.com/user-attachments/assets/9b68142f-d974-4493-a8d1-fd73e622c7fd&quot
+                  - text: ; />
+                  - text: <sub>Light mode with full profile support</sub>
+                - cell "<img alt=\"Customize your settings, configure a password\" src=\"https://github.com/user-attachments/assets/941f3156-21e3-41fd-bcc8-f975d5000cb8&quot; /> <sub>Customize your settings, configure a password</sub>" [ref=e967]:
+                  - text: <img alt="Customize your settings, configure a password" src="
+                  - link "https://github.com/user-attachments/assets/941f3156-21e3-41fd-bcc8-f975d5000cb8&quot" [ref=e968] [cursor=pointer]:
+                    - /url: https://github.com/user-attachments/assets/941f3156-21e3-41fd-bcc8-f975d5000cb8&quot
+                  - text: ; />
+                  - text: <sub>Customize your settings, configure a password</sub>
+          - paragraph
+          - paragraph
+          - table [ref=e969]:
+            - rowgroup [ref=e970]:
+              - row "<img alt=\"Workspace file browser with inline preview\" src=\"docs/images/ui-workspace.png\" /> <sub>Workspace file browser with inline preview</sub> <img alt=\"Session projects, tags, and tool call cards\" src=\"docs/images/ui-sessions.png\" /> <sub>Session projects, tags, and tool call cards</sub>" [ref=e971]:
+                - cell "<img alt=\"Workspace file browser with inline preview\" src=\"docs/images/ui-workspace.png\" /> <sub>Workspace file browser with inline preview</sub>" [ref=e972]:
+                  - text: <img alt="Workspace file browser with inline preview" src="docs/images/ui-workspace.png" />
+                  - text: <sub>Workspace file browser with inline preview</sub>
+                - cell "<img alt=\"Session projects, tags, and tool call cards\" src=\"docs/images/ui-sessions.png\" /> <sub>Session projects, tags, and tool call cards</sub>" [ref=e973]:
+                  - text: <img alt="Session projects, tags, and tool call cards" src="docs/images/ui-sessions.png" />
+                  - text: <sub>Session projects, tags, and tool call cards</sub>
+          - paragraph
+          - paragraph [ref=e974]:
+            - text: This gives you nearly
+            - strong [ref=e975]: 1:1 parity with Hermes CLI from a convenient web UI
+            - text: which you can access securely through an SSH tunnel from your Hermes setup. Single command to start this up, and a single command to SSH tunnel for access on your computer. Every single part of the web UI uses your existing Hermes agent and existing models, without requiring any additional setup.
+          - separator [ref=e976]
+          - heading "Why Hermes" [level=2] [ref=e977]
+          - paragraph [ref=e978]:
+            - text: Most AI tools reset every session. They don't know who you are, what you worked on, or what
+            - text: conventions your project follows. You re-explain yourself every time.
+          - paragraph [ref=e979]:
+            - text: Hermes retains context across sessions, runs scheduled jobs while you're offline, and gets
+            - text: smarter about your environment the longer it runs. It uses your existing Hermes agent setup,
+            - text: your existing models, and requires no additional configuration to start.
+          - paragraph [ref=e980]: "What makes it different from other agentic tools:"
+          - list [ref=e981]:
+            - listitem [ref=e982]:
+              - strong [ref=e983]: Persistent memory
+              - text: — user profile, agent notes, and a skills system that saves reusable
+          - text: procedures; Hermes learns your environment and does not have to relearn it
+          - list [ref=e984]:
+            - listitem [ref=e985]:
+              - strong [ref=e986]: Self-hosted scheduling
+              - text: — cron jobs that fire while you're offline and deliver results to
+          - text: Telegram, Discord, Slack, Signal, email, and more
+          - list [ref=e987]:
+            - listitem [ref=e988]:
+              - strong [ref=e989]: 10+ messaging platforms
+              - text: — the same agent available in the terminal is reachable from your phone
+            - listitem [ref=e990]:
+              - strong [ref=e991]: Self-improving skills
+              - text: — Hermes writes and saves its own skills automatically from experience;
+          - text: no marketplace to browse, no plugins to install
+          - list [ref=e992]:
+            - listitem [ref=e993]:
+              - strong [ref=e994]: Provider-agnostic
+              - text: — OpenAI, Anthropic, Google, DeepSeek, OpenRouter, and more
+            - listitem [ref=e995]:
+              - strong [ref=e996]: Orchestrates other agents
+              - text: — can spawn Claude Code or Codex for heavy coding tasks and bring
+          - text: the results back into its own memory
+          - list [ref=e997]:
+            - listitem [ref=e998]:
+              - strong [ref=e999]: Self-hosted
+              - text: — your conversations, your memory, your hardware
+          - strong [ref=e1000]: vs. the field
+          - emphasis [ref=e1001]: (landscape is actively shifting — see [HERMES.md](HERMES.md) for the full breakdown)
+          - text: ":"
+          - paragraph
+          - table [ref=e1002]:
+            - rowgroup [ref=e1003]:
+              - row "OpenClaw Claude Code Codex CLI OpenCode Hermes" [ref=e1004]:
+                - columnheader [ref=e1005]
+                - columnheader "OpenClaw" [ref=e1006]
+                - columnheader "Claude Code" [ref=e1007]
+                - columnheader "Codex CLI" [ref=e1008]
+                - columnheader "OpenCode" [ref=e1009]
+                - columnheader "Hermes" [ref=e1010]
+            - rowgroup [ref=e1011]:
+              - row "Persistent memory (auto) Yes Partial† Partial Partial Yes" [ref=e1012]:
+                - cell "Persistent memory (auto)" [ref=e1013]
+                - cell "Yes" [ref=e1014]
+                - cell "Partial†" [ref=e1015]
+                - cell "Partial" [ref=e1016]
+                - cell "Partial" [ref=e1017]
+                - cell "Yes" [ref=e1018]
+              - row "Scheduled jobs (self-hosted) Yes No‡ No No Yes" [ref=e1019]:
+                - cell "Scheduled jobs (self-hosted)" [ref=e1020]
+                - cell "Yes" [ref=e1021]
+                - cell "No‡" [ref=e1022]
+                - cell "No" [ref=e1023]
+                - cell "No" [ref=e1024]
+                - cell "Yes" [ref=e1025]
+              - row "Messaging app access Yes (15+ platforms) Partial (Telegram/Discord preview) No No Yes (10+)" [ref=e1026]:
+                - cell "Messaging app access" [ref=e1027]
+                - cell "Yes (15+ platforms)" [ref=e1028]
+                - cell "Partial (Telegram/Discord preview)" [ref=e1029]
+                - cell "No" [ref=e1030]
+                - cell "No" [ref=e1031]
+                - cell "Yes (10+)" [ref=e1032]
+              - row "Web UI (self-hosted) Dashboard only No No Yes Yes" [ref=e1033]:
+                - cell "Web UI (self-hosted)" [ref=e1034]
+                - cell "Dashboard only" [ref=e1035]
+                - cell "No" [ref=e1036]
+                - cell "No" [ref=e1037]
+                - cell "Yes" [ref=e1038]
+                - cell "Yes" [ref=e1039]
+              - row "Self-improving skills Partial No No No Yes" [ref=e1040]:
+                - cell "Self-improving skills" [ref=e1041]
+                - cell "Partial" [ref=e1042]
+                - cell "No" [ref=e1043]
+                - cell "No" [ref=e1044]
+                - cell "No" [ref=e1045]
+                - cell "Yes" [ref=e1046]
+              - row "Python / ML ecosystem No (Node.js) No No No Yes" [ref=e1047]:
+                - cell "Python / ML ecosystem" [ref=e1048]
+                - cell "No (Node.js)" [ref=e1049]
+                - cell "No" [ref=e1050]
+                - cell "No" [ref=e1051]
+                - cell "No" [ref=e1052]
+                - cell "Yes" [ref=e1053]
+              - row "Provider-agnostic Yes No (Claude only) Yes Yes Yes" [ref=e1054]:
+                - cell "Provider-agnostic" [ref=e1055]
+                - cell "Yes" [ref=e1056]
+                - cell "No (Claude only)" [ref=e1057]
+                - cell "Yes" [ref=e1058]
+                - cell "Yes" [ref=e1059]
+                - cell "Yes" [ref=e1060]
+              - row "Open source Yes (MIT) No Yes Yes Yes" [ref=e1061]:
+                - cell "Open source" [ref=e1062]
+                - cell "Yes (MIT)" [ref=e1063]
+                - cell "No" [ref=e1064]
+                - cell "Yes" [ref=e1065]
+                - cell "Yes" [ref=e1066]
+                - cell "Yes" [ref=e1067]
+          - text: † Claude Code has CLAUDE.md / MEMORY.md project context and rolling auto-memory, but not full automatic cross-session recall
+          - text: ‡ Claude Code has cloud-managed scheduling (Anthropic infrastructure) and session-scoped
+          - code [ref=e1068]: /loop
+          - text: ; no self-hosted cron
+          - paragraph
+          - paragraph [ref=e1069]:
+            - strong [ref=e1070]: The closest competitor is OpenClaw
+            - text: — both are always-on, self-hosted, open-source agents
+            - text: "with memory, cron, and messaging. The key differences: Hermes writes and saves its own skills"
+            - text: automatically as a core behavior (OpenClaw's skill system centers on a community marketplace);
+            - text: Hermes is more stable across updates (OpenClaw has documented release regressions and ClawHub
+            - text: has had security incidents involving malicious skills); and Hermes runs natively in the Python
+            - text: ecosystem. See [HERMES.md](HERMES.md) for the full side-by-side.
+          - separator [ref=e1071]
+          - heading "Quick start" [level=2] [ref=e1072]
+          - paragraph [ref=e1073]: "Run the repo bootstrap:"
+          - paragraph
+          - generic [ref=e1074]: bash
+          - code [ref=e1076]:
+            - text: git clone
+            - link "https://github.com/nesquena/hermes-webui.git" [ref=e1077] [cursor=pointer]:
+              - /url: https://github.com/nesquena/hermes-webui.git
+            - text: hermes-webui
+            - text: cd hermes-webui
+            - text: python3 bootstrap.py
+          - paragraph
+          - paragraph [ref=e1078]: "Or keep using the shell launcher:"
+          - paragraph
+          - generic [ref=e1079]: bash
+          - code [ref=e1081]: ./start.sh
+          - paragraph
+          - paragraph [ref=e1082]: "The bootstrap will:"
+          - list [ref=e1083]:
+            - listitem [ref=e1084]:
+              - text: Detect Hermes Agent and, if missing, attempt the official installer (
+              - code [ref=e1085]:
+                - text: curl -fsSL
+                - link "https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh" [ref=e1086] [cursor=pointer]:
+                  - /url: <a href=
+                - text: "\" target=\"_blank\" rel=\"noopener\">"
+                - link "https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh" [ref=e1087] [cursor=pointer]:
+                  - /url: https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh
+                - text: "| bash"
+              - text: ).
+            - listitem [ref=e1088]: Find or create a Python environment with the WebUI dependencies.
+            - listitem [ref=e1089]:
+              - text: Start the web server and wait for
+              - code [ref=e1090]: /health
+              - text: .
+            - listitem [ref=e1091]:
+              - text: Open the browser unless you pass
+              - code [ref=e1092]: "--no-browser"
+              - text: .
+            - listitem [ref=e1093]: Drop you into a first-run onboarding wizard inside the WebUI.
+          - blockquote [ref=e1094]: Native Windows is not supported for this bootstrap yet. Use Linux, macOS, or WSL2.
+          - paragraph [ref=e1095]:
+            - text: If provider setup is still incomplete after install, the onboarding wizard will point you to finish it with
+            - code [ref=e1096]: hermes model
+            - text: instead of trying to replicate the full CLI setup in-browser.
+          - separator [ref=e1097]
+          - heading "Docker" [level=2] [ref=e1098]
+          - paragraph [ref=e1099]:
+            - strong [ref=e1100]: Pre-built images
+            - text: "(amd64 + arm64) are published to GHCR on every release:"
+          - paragraph [ref=e1101]:
+            - text: Make sure the
+            - code [ref=e1102]: HERMES_WEBUI_STATE_DIR
+            - text: (by default
+            - code [ref=e1103]: ~/.hermes/webui-mvp
+            - text: ", as detailed in the"
+            - code [ref=e1104]: .env.example
+            - text: file) folder exist with the UID/GID of the owner of the
+            - code [ref=e1105]: .hermes
+            - text: folder.
+            - text: The container will also mount your configured "workspace" (also from the example .env.example) as
+            - code [ref=e1106]: /workspace
+            - text: . adapt the location as needed.
+          - paragraph
+          - generic [ref=e1107]: bash
+          - code [ref=e1109]:
+            - text: docker pull ghcr.io/nesquena/hermes-webui:latest
+            - text: docker run -d \
+            - text: "-e WANTED_UID="
+            - code [ref=e1110]: id -u
+            - text: "-e WANTED_GID="
+            - code [ref=e1111]: id -g
+            - text: \
+            - text: "-v ~/.hermes:/home/hermeswebui/.hermes -e HERMES_WEBUI_STATE_DIR=/home/hermeswebui/.hermes/webui-mvp \\"
+            - text: "-v ~/workspace:/workspace \\"
+            - text: "-p 8787:8787 ghcr.io/nesquena/hermes-webui:latest"
+          - paragraph
+          - paragraph [ref=e1112]: "Or run with Docker Compose (recommended):"
+          - paragraph
+          - generic [ref=e1113]: bash
+          - code [ref=e1115]:
+            - text: "# Check the docker-compose.yml and make sure to adapt as needed, at minimum WANTED_UID/WANTED_GID"
+            - text: docker compose up -d
+          - paragraph
+          - paragraph [ref=e1116]: "Or build locally:"
+          - paragraph
+          - generic [ref=e1117]: bash
+          - code [ref=e1119]:
+            - text: docker build -t hermes-webui .
+            - text: docker run -d \
+            - text: "-e WANTED_UID="
+            - code [ref=e1120]: id -u
+            - text: "-e WANTED_GID="
+            - code [ref=e1121]: id -g
+            - text: \
+            - text: "-v ~/.hermes:/home/hermeswebui/.hermes -e HERMES_WEBUI_STATE_DIR=/home/hermeswebui/.hermes/webui-mvp \\"
+            - text: "-v ~/workspace:/workspace \\"
+            - text: "-p 8787:8787 hermes-webui"
+          - paragraph
+          - paragraph [ref=e1122]:
+            - text: Open
+            - link "http://localhost:8787" [ref=e1123] [cursor=pointer]:
+              - /url: http://localhost:8787
+            - text: in your browser.
+          - paragraph [ref=e1124]: "To enable password protection:"
+          - paragraph
+          - generic [ref=e1125]: bash
+          - code [ref=e1127]:
+            - text: docker run -d \
+            - text: "-e WANTED_UID="
+            - code [ref=e1128]: id -u
+            - text: "-e WANTED_GID="
+            - code [ref=e1129]: id -g
+            - text: \
+            - text: "-v ~/.hermes:/home/hermeswebui/.hermes -e HERMES_WEBUI_STATE_DIR=/home/hermeswebui/.hermes/webui-mvp \\"
+            - text: "-v ~/workspace:/workspace \\"
+            - text: "-p 8787:8787 -e HERMES_WEBUI_PASSWORD=your-secret ghcr.io/nesquena/hermes-webui:latest"
+          - paragraph
+          - blockquote [ref=e1130]:
+            - strong [ref=e1131]: "Note:"
+            - text: By default, Docker Compose binds to
+            - code [ref=e1132]: 127.0.0.1
+            - text: (localhost only).
+          - blockquote [ref=e1133]:
+            - text: To expose on a network, change the port to
+            - code [ref=e1134]: "\"8787:8787\""
+            - text: in
+            - code [ref=e1135]: docker-compose.yml
+          - blockquote [ref=e1136]:
+            - text: and set
+            - code [ref=e1137]: HERMES_WEBUI_PASSWORD
+            - text: to enable authentication.
+          - heading "Two-container setup (Agent + WebUI)" [level=3] [ref=e1138]
+          - paragraph [ref=e1139]:
+            - text: If you run the Hermes Agent in its own Docker container and want the WebUI
+            - text: "in a separate container:"
+          - paragraph
+          - generic [ref=e1140]: bash
+          - code [ref=e1142]: docker compose -f docker-compose.two-container.yml up -d
+          - paragraph
+          - paragraph [ref=e1143]: "This starts both containers with shared volumes:"
+          - list [ref=e1144]:
+            - listitem [ref=e1145]:
+              - strong [ref=e1146]: <code>hermes-home</code>
+              - text: — shared
+              - code [ref=e1147]: ~/.hermes
+              - text: for config, sessions, skills, memory
+            - listitem [ref=e1148]:
+              - strong [ref=e1149]: <code>hermes-agent-src</code>
+              - text: — the agent's source code, mounted into the WebUI
+          - text: container so it can install the agent's Python dependencies at startup
+          - paragraph [ref=e1150]:
+            - text: The WebUI's init script automatically installs hermes-agent and all its
+            - text: dependencies (openai, anthropic, etc.) into its own Python environment on
+            - text: first boot. Subsequent restarts reuse the installed packages.
+          - blockquote [ref=e1151]:
+            - strong [ref=e1152]: "How it works:"
+            - text: The WebUI imports hermes-agent's Python modules directly
+          - blockquote [ref=e1153]: (not via HTTP). The shared volume makes the agent source available, and
+          - blockquote [ref=e1154]:
+            - text: the init script runs
+            - code [ref=e1155]: uv pip install
+            - text: to set up the dependencies. Both
+          - blockquote [ref=e1156]:
+            - text: containers share the same
+            - code [ref=e1157]: ~/.hermes
+            - text: directory for config and state.
+          - paragraph [ref=e1158]:
+            - text: See
+            - code [ref=e1159]: docker-compose.two-container.yml
+            - text: for the full configuration.
+          - separator [ref=e1160]
+          - heading "What start.sh discovers automatically" [level=2] [ref=e1161]
+          - paragraph
+          - table [ref=e1162]:
+            - rowgroup [ref=e1163]:
+              - row "Thing How it finds it" [ref=e1164]:
+                - columnheader "Thing" [ref=e1165]
+                - columnheader "How it finds it" [ref=e1166]
+            - rowgroup [ref=e1167]:
+              - row "Hermes agent dir HERMES_WEBUI_AGENT_DIR env, then ~/.hermes/hermes-agent, then sibling ../hermes-agent" [ref=e1168]:
+                - cell "Hermes agent dir" [ref=e1169]
+                - cell "HERMES_WEBUI_AGENT_DIR env, then ~/.hermes/hermes-agent, then sibling ../hermes-agent" [ref=e1170]:
+                  - code [ref=e1171]: HERMES_WEBUI_AGENT_DIR
+                  - text: env, then
+                  - code [ref=e1172]: ~/.hermes/hermes-agent
+                  - text: ", then sibling"
+                  - code [ref=e1173]: ../hermes-agent
+              - row "Python executable Agent venv first, then .venv in this repo, then system python3" [ref=e1174]:
+                - cell "Python executable" [ref=e1175]
+                - cell "Agent venv first, then .venv in this repo, then system python3" [ref=e1176]:
+                  - text: Agent venv first, then
+                  - code [ref=e1177]: .venv
+                  - text: in this repo, then system
+                  - code [ref=e1178]: python3
+              - row "State directory HERMES_WEBUI_STATE_DIR env, then ~/.hermes/webui-mvp" [ref=e1179]:
+                - cell "State directory" [ref=e1180]
+                - cell "HERMES_WEBUI_STATE_DIR env, then ~/.hermes/webui-mvp" [ref=e1181]:
+                  - code [ref=e1182]: HERMES_WEBUI_STATE_DIR
+                  - text: env, then
+                  - code [ref=e1183]: ~/.hermes/webui-mvp
+              - row "Default workspace HERMES_WEBUI_DEFAULT_WORKSPACE env, then ~/workspace, then state dir" [ref=e1184]:
+                - cell "Default workspace" [ref=e1185]
+                - cell "HERMES_WEBUI_DEFAULT_WORKSPACE env, then ~/workspace, then state dir" [ref=e1186]:
+                  - code [ref=e1187]: HERMES_WEBUI_DEFAULT_WORKSPACE
+                  - text: env, then
+                  - code [ref=e1188]: ~/workspace
+                  - text: ", then state dir"
+              - row "Port HERMES_WEBUI_PORT env or first argument, default 8787" [ref=e1189]:
+                - cell "Port" [ref=e1190]
+                - cell "HERMES_WEBUI_PORT env or first argument, default 8787" [ref=e1191]:
+                  - code [ref=e1192]: HERMES_WEBUI_PORT
+                  - text: env or first argument, default
+                  - code [ref=e1193]: "8787"
+          - text: If discovery finds everything, nothing else is required.
+          - paragraph
+          - separator [ref=e1194]
+          - heading "Overrides (only needed if auto-detection misses)" [level=2] [ref=e1195]
+          - paragraph
+          - generic [ref=e1196]: bash
+          - code [ref=e1198]:
+            - text: export HERMES_WEBUI_AGENT_DIR=/path/to/hermes-agent
+            - text: export HERMES_WEBUI_PYTHON=/path/to/python
+            - text: export HERMES_WEBUI_PORT=9000
+            - text: ./start.sh
+          - paragraph
+          - paragraph [ref=e1199]: "Or inline:"
+          - paragraph
+          - generic [ref=e1200]: bash
+          - code [ref=e1202]: HERMES_WEBUI_AGENT_DIR=/custom/path ./start.sh 9000
+          - paragraph
+          - paragraph [ref=e1203]: "Full list of environment variables:"
+          - paragraph
+          - table [ref=e1204]:
+            - rowgroup [ref=e1205]:
+              - row "Variable Default Description" [ref=e1206]:
+                - columnheader "Variable" [ref=e1207]
+                - columnheader "Default" [ref=e1208]
+                - columnheader "Description" [ref=e1209]
+            - rowgroup [ref=e1210]:
+              - row "HERMES_WEBUI_AGENT_DIR auto-discovered Path to the hermes-agent checkout" [ref=e1211]:
+                - cell "HERMES_WEBUI_AGENT_DIR" [ref=e1212]:
+                  - code [ref=e1213]: HERMES_WEBUI_AGENT_DIR
+                - cell "auto-discovered" [ref=e1214]
+                - cell "Path to the hermes-agent checkout" [ref=e1215]
+              - row "HERMES_WEBUI_PYTHON auto-discovered Python executable" [ref=e1216]:
+                - cell "HERMES_WEBUI_PYTHON" [ref=e1217]:
+                  - code [ref=e1218]: HERMES_WEBUI_PYTHON
+                - cell "auto-discovered" [ref=e1219]
+                - cell "Python executable" [ref=e1220]
+              - row "HERMES_WEBUI_HOST 127.0.0.1 Bind address" [ref=e1221]:
+                - cell "HERMES_WEBUI_HOST" [ref=e1222]:
+                  - code [ref=e1223]: HERMES_WEBUI_HOST
+                - cell "127.0.0.1" [ref=e1224]:
+                  - code [ref=e1225]: 127.0.0.1
+                - cell "Bind address" [ref=e1226]
+              - row "HERMES_WEBUI_PORT 8787 Port" [ref=e1227]:
+                - cell "HERMES_WEBUI_PORT" [ref=e1228]:
+                  - code [ref=e1229]: HERMES_WEBUI_PORT
+                - cell "8787" [ref=e1230]:
+                  - code [ref=e1231]: "8787"
+                - cell "Port" [ref=e1232]
+              - row "HERMES_WEBUI_STATE_DIR ~/.hermes/webui-mvp Where sessions and state are stored" [ref=e1233]:
+                - cell "HERMES_WEBUI_STATE_DIR" [ref=e1234]:
+                  - code [ref=e1235]: HERMES_WEBUI_STATE_DIR
+                - cell "~/.hermes/webui-mvp" [ref=e1236]:
+                  - code [ref=e1237]: ~/.hermes/webui-mvp
+                - cell "Where sessions and state are stored" [ref=e1238]
+              - row "HERMES_WEBUI_DEFAULT_WORKSPACE ~/workspace Default workspace" [ref=e1239]:
+                - cell "HERMES_WEBUI_DEFAULT_WORKSPACE" [ref=e1240]:
+                  - code [ref=e1241]: HERMES_WEBUI_DEFAULT_WORKSPACE
+                - cell "~/workspace" [ref=e1242]:
+                  - code [ref=e1243]: ~/workspace
+                - cell "Default workspace" [ref=e1244]
+              - row "HERMES_WEBUI_DEFAULT_MODEL openai/gpt-5.4-mini Default model" [ref=e1245]:
+                - cell "HERMES_WEBUI_DEFAULT_MODEL" [ref=e1246]:
+                  - code [ref=e1247]: HERMES_WEBUI_DEFAULT_MODEL
+                - cell "openai/gpt-5.4-mini" [ref=e1248]:
+                  - code [ref=e1249]: openai/gpt-5.4-mini
+                - cell "Default model" [ref=e1250]
+              - row "HERMES_WEBUI_PASSWORD (unset) Set to enable password authentication" [ref=e1251]:
+                - cell "HERMES_WEBUI_PASSWORD" [ref=e1252]:
+                  - code [ref=e1253]: HERMES_WEBUI_PASSWORD
+                - cell "(unset)" [ref=e1254]:
+                  - emphasis [ref=e1255]: (unset)
+                - cell "Set to enable password authentication" [ref=e1256]
+              - row "HERMES_HOME ~/.hermes Base directory for Hermes state (affects all paths)" [ref=e1257]:
+                - cell "HERMES_HOME" [ref=e1258]:
+                  - code [ref=e1259]: HERMES_HOME
+                - cell "~/.hermes" [ref=e1260]:
+                  - code [ref=e1261]: ~/.hermes
+                - cell "Base directory for Hermes state (affects all paths)" [ref=e1262]
+              - row "HERMES_CONFIG_PATH ~/.hermes/config.yaml Path to Hermes config file" [ref=e1263]:
+                - cell "HERMES_CONFIG_PATH" [ref=e1264]:
+                  - code [ref=e1265]: HERMES_CONFIG_PATH
+                - cell "~/.hermes/config.yaml" [ref=e1266]:
+                  - code [ref=e1267]: ~/.hermes/config.yaml
+                - cell "Path to Hermes config file" [ref=e1268]
+          - separator [ref=e1269]
+          - paragraph
+          - heading "Accessing from a remote machine" [level=2] [ref=e1270]
+          - paragraph [ref=e1271]:
+            - text: The server binds to
+            - code [ref=e1272]: 127.0.0.1
+            - text: by default (loopback only). If you are running
+            - text: "Hermes on a VPS or remote server, use an SSH tunnel from your local machine:"
+          - paragraph
+          - generic [ref=e1273]: bash
+          - code [ref=e1275]: ssh -N -L <local-port>:127.0.0.1:<remote-port> <user>@<server-host>
+          - paragraph
+          - paragraph [ref=e1276]: "Example:"
+          - paragraph
+          - generic [ref=e1277]: bash
+          - code [ref=e1279]: ssh -N -L 8787:127.0.0.1:8787 user@your.server.com
+          - paragraph
+          - paragraph [ref=e1280]:
+            - text: Then open
+            - code [ref=e1281]:
+              - link "http://localhost:8787" [ref=e1282] [cursor=pointer]:
+                - /url: http://localhost:8787
+            - text: in your local browser.
+          - paragraph [ref=e1283]:
+            - code [ref=e1284]: start.sh
+            - text: will print this command for you automatically when it detects you
+            - text: are running over SSH.
+          - separator [ref=e1285]
+          - heading "Accessing on your phone with Tailscale" [level=2] [ref=e1286]
+          - paragraph [ref=e1287]:
+            - link "https://tailscale.com" [ref=e1288] [cursor=pointer]:
+              - /url: <a href=
+            - text: "\" target=\"_blank\" rel=\"noopener\">Tailscale is a zero-config mesh VPN built on"
+            - text: WireGuard. Install it on your server and your phone, and they join the same
+            - text: private network -- no port forwarding, no SSH tunnels, no public exposure.
+          - paragraph [ref=e1289]:
+            - text: The Hermes Web UI is fully responsive with a mobile-optimized layout
+            - text: (hamburger sidebar, bottom navigation bar, touch-friendly controls), so it
+            - text: works well as a daily-driver agent interface from your phone.
+          - paragraph [ref=e1290]:
+            - strong [ref=e1291]: "Setup:"
+          - list [ref=e1292]:
+            - listitem [ref=e1293]:
+              - text: Install
+              - link "https://tailscale.com/download" [ref=e1294] [cursor=pointer]:
+                - /url: <a href=
+              - text: "\" target=\"_blank\" rel=\"noopener\">"
+              - link "https://tailscale.com/download" [ref=e1295] [cursor=pointer]:
+                - /url: https://tailscale.com/download
+              - text: "\" target=\"_blank\" rel=\"noopener\">Tailscale on your server and"
+          - text: your iPhone/Android.
+          - list [ref=e1296]:
+            - listitem [ref=e1297]: "Start the WebUI listening on all interfaces with password auth enabled:"
+          - generic [ref=e1298]: bash
+          - code [ref=e1300]: HERMES_WEBUI_HOST=0.0.0.0 HERMES_WEBUI_PASSWORD=your-secret ./start.sh
+          - list [ref=e1301]:
+            - listitem [ref=e1302]:
+              - text: Open
+              - code [ref=e1303]:
+                - link "http://&amp;lt;server-tailscale-ip&amp;gt;:8787" [ref=e1304] [cursor=pointer]:
+                  - /url: <a href=
+                - text: "\" target=\"_blank\" rel=\"noopener\">"
+                - link "http://&amp;lt;server-tailscale-ip&amp;gt;:8787" [ref=e1305] [cursor=pointer]:
+                  - /url: http://&amp;lt;server-tailscale-ip&amp;gt;:8787
+              - text: in your phone's browser
+          - text: (find your server's Tailscale IP in the Tailscale app or with
+          - code [ref=e1306]: tailscale ip -4
+          - text: on the server).
+          - paragraph [ref=e1307]:
+            - text: That's it. Traffic is encrypted end-to-end by WireGuard, and password auth
+            - text: protects the UI at the application level. You can add it to your home screen
+            - text: for an app-like experience.
+          - blockquote [ref=e1308]:
+            - strong [ref=e1309]: "Tip:"
+            - text: If using Docker, set
+            - code [ref=e1310]: HERMES_WEBUI_HOST=0.0.0.0
+            - text: in your
+          - blockquote [ref=e1311]:
+            - code [ref=e1312]: docker-compose.yml
+            - text: environment (already the default) and set
+          - blockquote [ref=e1313]:
+            - code [ref=e1314]: HERMES_WEBUI_PASSWORD
+            - text: .
+          - separator [ref=e1315]
+          - heading "Manual launch (without start.sh)" [level=2] [ref=e1316]
+          - paragraph [ref=e1317]: "If you prefer to launch the server directly:"
+          - paragraph
+          - generic [ref=e1318]: bash
+          - code [ref=e1320]:
+            - text: "cd /path/to/hermes-agent # or wherever sys.path can find Hermes modules"
+            - text: HERMES_WEBUI_PORT=8787 venv/bin/python /path/to/hermes-webui/server.py
+          - paragraph
+          - paragraph [ref=e1321]:
+            - text: "Note: use the agent venv Python (or any Python environment that has the Hermes agent dependencies installed). System Python will be missing"
+            - code [ref=e1322]: openai
+            - text: ","
+            - code [ref=e1323]: httpx
+            - text: ", and other required packages."
+          - paragraph [ref=e1324]: "Health check:"
+          - paragraph
+          - generic [ref=e1325]: bash
+          - code [ref=e1327]:
+            - text: curl
+            - link "http://127.0.0.1:8787/health" [ref=e1328] [cursor=pointer]:
+              - /url: http://127.0.0.1:8787/health
+          - paragraph
+          - separator [ref=e1329]
+          - heading "Running tests" [level=2] [ref=e1330]
+          - paragraph [ref=e1331]: Tests discover the repo and the Hermes agent dynamically -- no hardcoded paths.
+          - paragraph
+          - generic [ref=e1332]: bash
+          - code [ref=e1334]:
+            - text: cd hermes-webui
+            - text: pytest tests/ -v --timeout=60
+          - paragraph
+          - paragraph [ref=e1335]: "Or using the agent venv explicitly:"
+          - paragraph
+          - generic [ref=e1336]: bash
+          - code [ref=e1338]: /path/to/hermes-agent/venv/bin/python -m pytest tests/ -v
+          - paragraph
+          - paragraph [ref=e1339]:
+            - text: Tests run against an isolated server on port 8788 with a separate state directory.
+            - text: "Production data and real cron jobs are never touched. Current count:"
+            - strong [ref=e1340]: 802 tests
+            - text: across 51 test files.
+          - separator [ref=e1341]
+          - heading "Features" [level=2] [ref=e1342]
+          - heading "Chat and agent" [level=3] [ref=e1343]
+          - list [ref=e1344]:
+            - listitem [ref=e1345]: Streaming responses via SSE (tokens appear as they are generated)
+            - listitem [ref=e1346]: Multi-provider model support -- any Hermes API provider (OpenAI, Anthropic, Google, DeepSeek, Nous Portal, OpenRouter, MiniMax, Z.AI); dynamic model dropdown populated from configured keys
+            - listitem [ref=e1347]: Send a message while one is processing -- it queues automatically
+            - listitem [ref=e1348]: Edit any past user message inline and regenerate from that point
+            - listitem [ref=e1349]: Retry the last assistant response with one click
+            - listitem [ref=e1350]: Cancel a running task directly from the composer footer (Stop button next to Send)
+            - listitem [ref=e1351]: Tool call cards inline -- each shows the tool name, args, and result snippet; expand/collapse all toggle for multi-tool turns
+            - listitem [ref=e1352]: Subagent delegation cards -- child agent activity shown with distinct icon and indented border
+            - listitem [ref=e1353]: Mermaid diagram rendering inline (flowcharts, sequence diagrams, gantt charts)
+            - listitem [ref=e1354]: Thinking/reasoning display -- collapsible gold-themed cards for Claude extended thinking and o3 reasoning blocks
+            - listitem [ref=e1355]: Approval card for dangerous shell commands (allow once / session / always / deny)
+            - listitem [ref=e1356]: SSE auto-reconnect on network blips (SSH tunnel resilience)
+            - listitem [ref=e1357]: File attachments persist across page reloads
+            - listitem [ref=e1358]: Message timestamps (HH:MM next to each message, full date on hover)
+            - listitem [ref=e1359]: Code block copy button with "Copied!" feedback
+            - listitem [ref=e1360]: Syntax highlighting via Prism.js (Python, JS, bash, JSON, SQL, and more)
+            - listitem [ref=e1361]: Safe HTML rendering in AI responses (bold, italic, code converted to markdown)
+            - listitem [ref=e1362]: rAF-throttled token streaming for smoother rendering during long responses
+            - listitem [ref=e1363]: Context usage indicator in composer footer -- token count, cost, and fill bar (model-aware)
+          - heading "Sessions" [level=3] [ref=e1364]
+          - list [ref=e1365]:
+            - listitem [ref=e1366]: Create, rename, duplicate, delete, search by title and message content
+            - listitem [ref=e1367]:
+              - text: Session actions via
+              - code [ref=e1368]: ⋯
+              - text: dropdown per session — pin, move to project, archive, duplicate, delete
+            - listitem [ref=e1369]: Pin/star sessions to the top of the sidebar (gold indicator)
+            - listitem [ref=e1370]: Archive sessions (hide without deleting, toggle to show)
+            - listitem [ref=e1371]: Session projects -- named groups with colors for organizing sessions
+            - listitem [ref=e1372]: "Session tags -- add #tag to titles for colored chips and click-to-filter"
+            - listitem [ref=e1373]: Grouped by Today / Yesterday / Earlier in the sidebar (collapsible date groups)
+            - listitem [ref=e1374]: Download as Markdown transcript, full JSON export, or import from JSON
+            - listitem [ref=e1375]: Sessions persist across page reloads and SSH tunnel reconnects
+            - listitem [ref=e1376]: Browser tab title reflects the active session name
+            - listitem [ref=e1377]: CLI session bridge -- CLI sessions from hermes-agent's SQLite store appear in the sidebar with a gold "cli" badge; click to import with full history and reply normally
+            - listitem [ref=e1378]:
+              - text: Token/cost display -- input tokens, output tokens, estimated cost shown per conversation (toggle in Settings or
+              - code [ref=e1379]: /usage
+              - text: command)
+          - heading "Workspace file browser" [level=3] [ref=e1380]
+          - list [ref=e1381]:
+            - listitem [ref=e1382]: Directory tree with expand/collapse (single-click toggles, double-click navigates)
+            - listitem [ref=e1383]: Breadcrumb navigation with clickable path segments
+            - listitem [ref=e1384]: Preview text, code, Markdown (rendered), and images inline
+            - listitem [ref=e1385]: Edit, create, delete, and rename files; create folders
+            - listitem [ref=e1386]: Binary file download (auto-detected from server)
+            - listitem [ref=e1387]: File preview auto-closes on directory navigation (with unsaved-edit guard)
+            - listitem [ref=e1388]: Git detection -- branch name and dirty file count badge in workspace header
+            - listitem [ref=e1389]: Right panel is drag-resizable
+            - listitem [ref=e1390]: Syntax highlighted code preview (Prism.js)
+          - heading "Voice input" [level=3] [ref=e1391]
+          - list [ref=e1392]:
+            - listitem [ref=e1393]: Microphone button in the composer (Web Speech API)
+            - listitem [ref=e1394]: Tap to record, tap again or send to stop
+            - listitem [ref=e1395]: Live interim transcription appears in the textarea
+            - listitem [ref=e1396]: Auto-stops after ~2s of silence
+            - listitem [ref=e1397]: Appends to existing textarea content (doesn't replace)
+            - listitem [ref=e1398]: Hidden when browser doesn't support Web Speech API (Chrome, Edge, Safari)
+          - heading "Profiles" [level=3] [ref=e1399]
+          - list [ref=e1400]:
+            - listitem [ref=e1401]:
+              - text: Profile chip in the
+              - strong [ref=e1402]: composer footer
+              - text: "-- dropdown showing all profiles with gateway status and model info"
+            - listitem [ref=e1403]: Gateway status dots (green = running), model info, skill count per profile
+            - listitem [ref=e1404]: Profiles management panel -- create, switch, and delete profiles from the sidebar
+            - listitem [ref=e1405]: Clone config from active profile on create
+            - listitem [ref=e1406]:
+              - text: Optional custom endpoint fields on create -- Base URL and API key written into the profile's
+              - code [ref=e1407]: config.yaml
+              - text: at creation time, so Ollama, LMStudio, and other local endpoints can be configured without editing files manually
+            - listitem [ref=e1408]: Seamless switching -- no server restart; reloads config, skills, memory, cron, models
+            - listitem [ref=e1409]: Per-session profile tracking (records which profile was active at creation)
+          - heading "Authentication and security" [level=3] [ref=e1410]
+          - list [ref=e1411]:
+            - listitem [ref=e1412]: Optional password auth -- off by default, zero friction for localhost
+            - listitem [ref=e1413]:
+              - text: Enable via
+              - code [ref=e1414]: HERMES_WEBUI_PASSWORD
+              - text: env var or Settings panel
+            - listitem [ref=e1415]: Signed HMAC HTTP-only cookie with 24h TTL
+            - listitem [ref=e1416]:
+              - text: Minimal dark-themed login page at
+              - code [ref=e1417]: /login
+            - listitem [ref=e1418]: Security headers on all responses (X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
+            - listitem [ref=e1419]: 20MB POST body size limit
+            - listitem [ref=e1420]: CDN resources pinned with SRI integrity hashes
+          - heading "Themes" [level=3] [ref=e1421]
+          - list [ref=e1422]:
+            - listitem [ref=e1423]: "7 built-in themes: Dark (default), Light, Slate, Solarized Dark, Monokai, Nord, OLED"
+            - listitem [ref=e1424]:
+              - text: Switch via Settings panel dropdown (instant live preview) or
+              - code [ref=e1425]: /theme
+              - text: command
+            - listitem [ref=e1426]: Persists across reloads (server-side in settings.json + localStorage for flicker-free loading)
+            - listitem [ref=e1427]:
+              - text: "Custom themes: define a"
+              - code [ref=e1428]: :root[data-theme="name"]
+              - text: CSS block and it works — see [THEMES.md](THEMES.md)
+          - heading "Settings and configuration" [level=3] [ref=e1429]
+          - list [ref=e1430]:
+            - listitem [ref=e1431]:
+              - strong [ref=e1432]: Hermes Control Center
+              - text: (sidebar launcher button) -- Conversation tab (export/import/clear), Preferences tab (model, send key, theme, language, all toggles), System tab (version, password)
+            - listitem [ref=e1433]: "Send key: Enter (default) or Ctrl/Cmd+Enter"
+            - listitem [ref=e1434]: Show/hide CLI sessions toggle (enabled by default)
+            - listitem [ref=e1435]:
+              - text: Token usage display toggle (off by default, also via
+              - code [ref=e1436]: /usage
+              - text: command)
+            - listitem [ref=e1437]: Control Center always opens on the Conversation tab; resets on close
+            - listitem [ref=e1438]: Unsaved changes guard -- discard/save prompt when closing with unpersisted changes
+            - listitem [ref=e1439]: Cron completion alerts -- toast notifications and unread badge on Tasks tab
+            - listitem [ref=e1440]: Background agent error alerts -- banner when a non-active session encounters an error
+          - heading "Slash commands" [level=3] [ref=e1441]
+          - list [ref=e1442]:
+            - listitem [ref=e1443]:
+              - text: Type
+              - code [ref=e1444]: /
+              - text: in the composer for autocomplete dropdown
+            - listitem [ref=e1445]:
+              - text: "Built-in:"
+              - code [ref=e1446]: /help
+              - text: ","
+              - code [ref=e1447]: /clear
+              - text: ","
+              - code [ref=e1448]: /model <name>
+              - text: ","
+              - code [ref=e1449]: /workspace <name>
+              - text: ","
+              - code [ref=e1450]: /new
+              - text: ","
+              - code [ref=e1451]: /usage
+              - text: ","
+              - code [ref=e1452]: /theme
+              - text: ","
+              - code [ref=e1453]: /compact
+            - listitem [ref=e1454]: Arrow keys navigate, Tab/Enter select, Escape closes
+            - listitem [ref=e1455]: Unrecognized commands pass through to the agent
+          - heading "Panels" [level=3] [ref=e1456]
+          - list [ref=e1457]:
+            - listitem [ref=e1458]:
+              - strong [ref=e1459]: Chat
+              - text: "-- session list, search, pin, archive, projects, new conversation"
+            - listitem [ref=e1460]:
+              - strong [ref=e1461]: Tasks
+              - text: "-- view, create, edit, run, pause/resume, delete cron jobs; run history; completion alerts"
+            - listitem [ref=e1462]:
+              - strong [ref=e1463]: Skills
+              - text: "-- list all skills by category, search, preview, create/edit/delete; linked files viewer"
+            - listitem [ref=e1464]:
+              - strong [ref=e1465]: Memory
+              - text: "-- view and edit MEMORY.md and USER.md inline"
+            - listitem [ref=e1466]:
+              - strong [ref=e1467]: Profiles
+              - text: "-- create, switch, delete agent profiles; clone config"
+            - listitem [ref=e1468]:
+              - strong [ref=e1469]: Todos
+              - text: "-- live task list from the current session"
+            - listitem [ref=e1470]:
+              - strong [ref=e1471]: Spaces
+              - text: "-- add, rename, remove workspaces; quick-switch from topbar"
+          - heading "Mobile responsive" [level=3] [ref=e1472]
+          - list [ref=e1473]:
+            - listitem [ref=e1474]: Hamburger sidebar -- slide-in overlay on mobile (<640px)
+            - listitem [ref=e1475]: Bottom navigation bar -- 5-tab iOS-style fixed bar
+            - listitem [ref=e1476]: Files slide-over panel from right edge
+            - listitem [ref=e1477]: Touch targets minimum 44px on all interactive elements
+            - listitem [ref=e1478]: Composer positioned above bottom nav
+            - listitem [ref=e1479]: Desktop layout completely unchanged
+          - separator [ref=e1480]
+          - heading "Architecture" [level=2] [ref=e1481]
+          - code [ref=e1483]: "server.py HTTP routing shell + auth middleware (~154 lines) api/ auth.py Optional password authentication, signed cookies (~201 lines) config.py Discovery, globals, model detection, reloadable config (~1110 lines) helpers.py HTTP helpers, security headers (~175 lines) models.py Session model + CRUD + CLI bridge (~377 lines) onboarding.py First-run onboarding wizard, OAuth provider support (~507 lines) profiles.py Profile state management, hermes_cli wrapper (~411 lines) routes.py All GET + POST route handlers (~1996 lines) state_sync.py /insights sync — message_count to state.db (~113 lines) streaming.py SSE engine, run_agent, cancel support (~545 lines) updates.py Self-update check and release notes (~257 lines) upload.py Multipart parser, file upload handler (~82 lines) workspace.py File ops, workspace helpers, git detection (~288 lines) static/ index.html HTML template (~600 lines) style.css All CSS incl. mobile responsive, themes (~1050 lines) ui.js DOM helpers, renderMd, tool cards, context indicator (~1496 lines) workspace.js File preview, file ops, git badge (~286 lines) sessions.js Session CRUD, collapsible groups, search (~752 lines) messages.js send(), SSE handlers, rAF throttle (~487 lines) panels.js Cron, skills, memory, profiles, settings (~1438 lines) commands.js Slash command autocomplete (~267 lines) boot.js Mobile nav, voice input, boot IIFE (~524 lines) tests/ conftest.py Isolated test server (port 8788) 51 test files 802 test functions Dockerfile python:3.12-slim container image docker-compose.yml Compose with named volume and optional auth .github/workflows/ CI: multi-arch Docker build + GitHub Release on tag"
+          - paragraph [ref=e1484]:
+            - text: State lives outside the repo at
+            - code [ref=e1485]: ~/.hermes/webui-mvp/
+            - text: by default
+            - text: (sessions, workspaces, settings, projects, last_workspace). Override with
+            - code [ref=e1486]: HERMES_WEBUI_STATE_DIR
+            - text: .
+          - separator [ref=e1487]
+          - heading "Docs" [level=2] [ref=e1488]
+          - list [ref=e1489]:
+            - listitem [ref=e1490]:
+              - code [ref=e1491]: HERMES.md
+              - text: "-- why Hermes, mental model, and detailed comparison to Claude Code / Codex / OpenCode / Cursor"
+            - listitem [ref=e1492]:
+              - code [ref=e1493]: ROADMAP.md
+              - text: "-- feature roadmap and sprint history"
+            - listitem [ref=e1494]:
+              - code [ref=e1495]: ARCHITECTURE.md
+              - text: "-- system design, all API endpoints, implementation notes"
+            - listitem [ref=e1496]:
+              - code [ref=e1497]: TESTING.md
+              - text: "-- manual browser test plan and automated coverage reference"
+            - listitem [ref=e1498]:
+              - code [ref=e1499]: CHANGELOG.md
+              - text: "-- release notes per sprint"
+            - listitem [ref=e1500]:
+              - code [ref=e1501]: SPRINTS.md
+              - text: "-- forward sprint plan with CLI + Claude parity targets"
+            - listitem [ref=e1502]:
+              - code [ref=e1503]: THEMES.md
+              - text: "-- theme system documentation, custom theme guide"
+          - heading "Contributors" [level=2] [ref=e1504]
+          - paragraph [ref=e1505]: Hermes WebUI is built with help from the open-source community. Every PR — whether merged directly or incorporated via rebase — shapes the project, and we're grateful to everyone who has taken the time to contribute.
+          - heading "Major contributions" [level=3] [ref=e1506]
+          - paragraph [ref=e1507]:
+            - strong [ref=e1508]:
+              - link "https://github.com/aronprins" [ref=e1509] [cursor=pointer]:
+                - /url: <a href=
+              - text: "\" target=\"_blank\" rel=\"noopener\">@aronprins"
+            - text: "— v0.50.0 UI overhaul (PR #242)"
+            - text: "The biggest single contribution to the project: a complete UI redesign that moved model/profile/workspace controls into the composer footer, replaced the gear-icon settings panel with the Hermes Control Center (tabbed modal), removed the activity bar in favor of inline composer status, redesigned the session list with a"
+            - code [ref=e1510]: ⋯
+            - text: action dropdown, and added the workspace panel state machine. 26 commits, thoroughly designed and iterated through multiple review rounds.
+          - paragraph [ref=e1511]:
+            - strong [ref=e1512]:
+              - link "https://github.com/iRonin" [ref=e1513] [cursor=pointer]:
+                - /url: <a href=
+              - text: "\" target=\"_blank\" rel=\"noopener\">@iRonin"
+            - text: "— Security hardening sprint (PRs #196–#204)"
+            - text: "Six consecutive security and reliability PRs: session memory leak fix (expired token pruning), Content-Security-Policy + Permissions-Policy headers, 30-second slow-client connection timeout, optional HTTPS/TLS support via environment variables, upstream branch tracking fix for self-update, and CLI session support in the file browser API. This is the kind of focused, high-quality security work that makes a self-hosted tool trustworthy."
+          - paragraph [ref=e1514]:
+            - strong [ref=e1515]:
+              - link "https://github.com/DavidSchuchert" [ref=e1516] [cursor=pointer]:
+                - /url: <a href=
+              - text: "\" target=\"_blank\" rel=\"noopener\">@DavidSchuchert"
+            - text: "— German translation (PR #190)"
+            - text: Complete German locale (
+            - code [ref=e1517]: de
+            - text: ) covering all UI strings, settings labels, commands, and system messages — and in doing so, stress-tested the i18n system and exposed several elements that weren't yet translatable, which got fixed as part of the same PR.
+          - heading "Feature contributions" [level=3] [ref=e1518]
+          - paragraph [ref=e1519]:
+            - strong [ref=e1520]:
+              - link "https://github.com/kevin-ho" [ref=e1521] [cursor=pointer]:
+                - /url: <a href=
+              - text: "\" target=\"_blank\" rel=\"noopener\">@kevin-ho"
+            - text: "— OLED theme (PR #168)"
+            - text: "Added the 7th built-in theme: pure black backgrounds with warm accents tuned to reduce burn-in risk. Small diff, big impact for anyone on an OLED display."
+          - paragraph [ref=e1522]:
+            - strong [ref=e1523]:
+              - link "https://github.com/Bobby9228" [ref=e1524] [cursor=pointer]:
+                - /url: <a href=
+              - text: "\" target=\"_blank\" rel=\"noopener\">@Bobby9228"
+            - text: "— Mobile Profiles button (PR #265)"
+            - text: Added the Profiles tab to the mobile bottom navigation bar, making profile switching reachable on phones without digging into the sidebar.
+          - paragraph [ref=e1525]:
+            - strong [ref=e1526]:
+              - link "https://github.com/franksong2702" [ref=e1527] [cursor=pointer]:
+                - /url: <a href=
+              - text: "\" target=\"_blank\" rel=\"noopener\">@franksong2702"
+            - text: "— Session title guard + breadcrumb nav (PRs #301, #302)"
+            - text: "Two clean bug fixes / features: the session title guard that stops"
+            - code [ref=e1528]: title_from()
+            - text: from overwriting user-renamed sessions after every turn, and clickable breadcrumb navigation in the workspace file preview panel.
+          - heading "Bug fix contributions" [level=3] [ref=e1529]
+          - paragraph [ref=e1530]:
+            - strong [ref=e1531]:
+              - link "https://github.com/tgaalman" [ref=e1532] [cursor=pointer]:
+                - /url: <a href=
+              - text: "\" target=\"_blank\" rel=\"noopener\">@tgaalman"
+            - text: "— Thinking card fix (PR #169)"
+            - text: Fixed top-level reasoning fields being missed in the thinking card display — an edge case in how Claude's extended thinking blocks surface in the API response.
+          - paragraph [ref=e1533]:
+            - strong [ref=e1534]:
+              - link "https://github.com/smurmann" [ref=e1535] [cursor=pointer]:
+                - /url: <a href=
+              - text: "\" target=\"_blank\" rel=\"noopener\">@smurmann"
+            - text: "— Custom provider routing fix (PR #189)"
+            - text: Fixed model routing for slash-prefixed custom provider models, which were being misrouted in the model selector. A precise fix for a real edge case in multi-provider setups.
+          - paragraph [ref=e1536]:
+            - strong [ref=e1537]:
+              - link "https://github.com/jeffscottward" [ref=e1538] [cursor=pointer]:
+                - /url: <a href=
+              - text: "\" target=\"_blank\" rel=\"noopener\">@jeffscottward"
+            - text: "— Claude Haiku model ID fix (PR #145)"
+            - text: Caught and corrected the Claude Haiku model ID (
+            - code [ref=e1539]: 3-5
+            - text: →
+            - code [ref=e1540]: 4-5
+            - text: ) immediately after the Anthropic release — the kind of quick community catch that keeps the model dropdown accurate.
+          - separator [ref=e1541]
+          - paragraph [ref=e1542]: Want to contribute? See [ARCHITECTURE.md](ARCHITECTURE.md) for the codebase layout and [TESTING.md](TESTING.md) for how to run the test suite. The best contributions are focused, well-tested, and solve a real problem — exactly what every person on this list did.
+          - heading "Repo" [level=2] [ref=e1543]
+          - code [ref=e1545]: git@github.com:nesquena/hermes-webui.git
+  - generic: 工作区已切换到 g:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio

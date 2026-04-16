@@ -56,11 +56,18 @@ if ($hermesHome -and (Test-Path $hermesHome)) {
     Write-Host "[!!] 警告: HERMES_HOME 无效或未设置" -ForegroundColor Yellow
 }
 
-$host_ = $env:HERMES_WEBUI_HOST
-$port_ = $env:HERMES_WEBUI_PORT
+if (-not $env:HERMES_WEBUI_HOST) { $env:HERMES_WEBUI_HOST = "127.0.0.1" }
+if (-not $env:HERMES_WEBUI_PORT) { $env:HERMES_WEBUI_PORT = "18080" }
+
+$accessHost = $env:HERMES_WEBUI_HOST
+if ($accessHost -in @("0.0.0.0", "::", "[::]")) {
+    $accessHost = "127.0.0.1"
+}
+
 Write-Host ""
 Write-Host "[ok] 启动 Hermes WebUI..." -ForegroundColor Green
-Write-Host "    地址: http://${host_}:${port_}" -ForegroundColor White
+Write-Host "    监听: http://$($env:HERMES_WEBUI_HOST):$($env:HERMES_WEBUI_PORT)" -ForegroundColor DarkGray
+Write-Host "    打开: http://${accessHost}:$($env:HERMES_WEBUI_PORT)" -ForegroundColor White
 Write-Host ""
 
 & python server.py

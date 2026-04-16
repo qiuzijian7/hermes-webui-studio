@@ -5,11 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hermes</title>
 <script>(function(){var t=localStorage.getItem('hermes-theme');if(t&&t!=='dark')document.documentElement.dataset.theme=t;})()</script>
-<link rel="stylesheet" href="/static/style.css?v=20260414g">
-  <!-- Prism.js syntax highlighting (loaded async, non-blocking) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" integrity="sha384-wFjoQjtV1y5jVHbt0p35Ui8aV8GVpEZkyF99OXWqP/eNJDU93D3Ugxkoyh6Y2I4A" crossorigin="anonymous">
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js" integrity="sha384-MXybTpajaBV0AkcBaCPT4KIvo0FzoCiWXgcihYsw4FUkEz0Pv3JGV6tk2G8vJtDc" crossorigin="anonymous" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js" integrity="sha384-Uq05+JLko69eOiPr39ta9bh7kld5PKZoU+fF7g0EXTAriEollhZ+DrN8Q/Oi8J2Q" crossorigin="anonymous" defer></script>
+<link rel="stylesheet" href="/static/style.css?v=20260415q">
+  <!-- Marked.js — full-featured Markdown renderer (GFM tables, task lists, etc.) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js" crossorigin="anonymous" defer></script>
 </head>
 <body>
 <div class="layout">
@@ -391,12 +389,20 @@
       </div>
       <div class="rp-file-content" id="rpFileContent">
         <div class="rp-file-badge" id="rpFileBadge">text</div>
+        <!-- 预览模式切换按钮（HTML/MD 文件专有） -->
+        <div class="rp-file-mode-toggle" id="rpFileModeToggle" style="display:none">
+          <button class="rp-mode-btn active" id="rpModePreviewBtn" onclick="_switchRpFileMode('preview')">预览</button>
+          <button class="rp-mode-btn" id="rpModeSourceBtn" onclick="_switchRpFileMode('source')">源码</button>
+        </div>
         <div class="rp-file-code" id="rpFileCode" style="display:none"></div>
         <div class="rp-file-md" id="rpFileMd" style="display:none"></div>
+        <div class="rp-file-html-preview" id="rpFileHtmlPreview" style="display:none">
+          <iframe id="rpHtmlIframe" sandbox="allow-scripts allow-same-origin" style="width:100%;border:none;border-radius:8px;min-height:300px;background:#fff"></iframe>
+        </div>
         <div class="rp-file-img-wrap" id="rpFileImgWrap" style="display:none">
           <img id="rpFileImg" alt="" style="max-width:100%;border-radius:6px">
         </div>
-        <textarea class="rp-file-edit" id="rpFileEditArea" style="display:none" spellcheck="false"></textarea>
+
       </div>
     </div>
     <!-- 空状态：未选择任何内容 -->
@@ -641,7 +647,9 @@
 <script src="/static/employee.js?v=20260414c"></script>
 <script src="/static/agent-presets.js?v=20260414c"></script>
 <script src="/static/workspace-tabs.js?v=20260414n"></script>
-<script src="/static/right-panel.js?v=20260414i"></script>
+<script src="/static/right-panel.js?v=20260416b"></script>
+<!-- CodeMirror 6 editor module (async, non-blocking) -->
+<script type="module" src="/static/cm-editor.js?v=20260416d"></script>
 <script src="/static/onboarding.js?v=20260414"></script>
 <script src="/static/boot.js?v=20260414b"></script>
 </body>

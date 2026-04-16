@@ -1,0 +1,51 @@
+[GET] http://127.0.0.1:18080/api/settings => [200] OK
+[GET] http://127.0.0.1:18080/api/updates/check => [200] OK
+[GET] http://127.0.0.1:18080/api/profile/active => [200] OK
+[GET] http://127.0.0.1:18080/api/models => [200] OK
+[GET] http://127.0.0.1:18080/api/workspaces => [200] OK
+[GET] http://127.0.0.1:18080/api/onboarding/status => [200] OK
+[GET] http://127.0.0.1:18080/api/sessions => [200] OK
+[GET] http://127.0.0.1:18080/api/projects => [200] OK
+[GET] https://esm.sh/@codemirror/lang-html@6.5.0?alias=@codemirror/language:@codemirror/language@6.11.0,@codemirror/autocomplete:@codemirror/autocomplete@6.18.6 => [404] 
+[GET] https://esm.sh/@codemirror/lang-go@6.0.2?alias=@codemirror/language:@codemirror/language@6.11.0 => [404] 
+[GET] https://esm.sh/@codemirror/lang-vue@6.0.1?alias=@codemirror/language:@codemirror/language@6.11.0,@codemirror/lang-html:@codemirror/lang-html@6.5.0,@codemirror/lang-javascript:@codemirror/lang-javascript@6.2.4 => [404] 
+[GET] https://esm.sh/@codemirror/theme-one-dark@6.0.1?alias=@codemirror/language:@codemirror/language@6.11.0,@codemirror/view:@codemirror/view@6.36.8 => [404] 
+[GET] https://esm.sh/@codemirror/lang-vue@6.0.1?alias=@codemirror/language:@codemirror/language@6.11.0,@codemirror/lang-html:@codemirror/lang-html@6.5.0,@codemirror/lang-javascript:@codemirror/lang-javascript@6.2.4 => [404] 
+[GET] https://esm.sh/@codemirror/theme-one-dark@6.0.1?alias=@codemirror/language:@codemirror/language@6.11.0,@codemirror/view:@codemirror/view@6.36.8 => [404] 
+[GET] https://esm.sh/@codemirror/lang-html@6.5.0?alias=@codemirror/language:@codemirror/language@6.11.0,@codemirror/autocomplete:@codemirror/autocomplete@6.18.6 => [404] 
+[GET] https://esm.sh/@codemirror/lang-go@6.0.2?alias=@codemirror/language:@codemirror/language@6.11.0 => [404] 
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/workspaces => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[POST] http://127.0.0.1:18080/api/session/new => [200] OK
+[GET] http://127.0.0.1:18080/api/list?session_id=71b08c775c8b&path=. => [200] OK
+[GET] http://127.0.0.1:18080/api/list?session_id=71b08c775c8b&path=. => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/workspaces => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[POST] http://127.0.0.1:18080/api/session/update => [200] OK
+[GET] http://127.0.0.1:18080/api/list?session_id=71b08c775c8b&path=. => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/file?session_id=71b08c775c8b&path=12.py => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/workspaces => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[POST] http://127.0.0.1:18080/api/workspaces/add => [200] OK
+[POST] http://127.0.0.1:18080/api/session/update => [200] OK
+[GET] http://127.0.0.1:18080/api/list?session_id=71b08c775c8b&path=. => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776307454.168 => [200] OK

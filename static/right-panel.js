@@ -349,6 +349,112 @@ let _rpFileCurrentPath = '';
 let _rpFileCurrentMode = '';  // 'code' | 'md' | 'image'
 let _rpFileRawContent = '';
 let _rpFileDirty = false;
+let _rpFileIsEditing = false;    // 当前是否处于编辑态
+let _cmEditOriginalContent = ''; // 编辑前的原始内容，用于取消时恢复
+
+// ── CodeMirror 6 辅助函数 ─────────────────────────────────────────────────
+
+/** 检测 CM_EDITOR 模块是否已就绪 */
+function _cmReady() {
+  return typeof window.CM_EDITOR === 'object' && window.CM_EDITOR !== null;
+}
+
+/** 根据文件扩展名推断 Prism 语言名（CM6 语言映射也使用同一套名字） */
+function _rpFileLang(path) {
+  const ext = _rpFileExt(path).replace(/^\./, '');
+  const base = String(path || '').split(/[\\/]/).pop().toLowerCase();
+  const map = {
+    py: 'python', pyw: 'python',
+    js: 'javascript', mjs: 'javascript', cjs: 'javascript',
+    ts: 'typescript', tsx: 'tsx', jsx: 'jsx',
+    css: 'css', scss: 'scss', less: 'less',
+    html: 'html', htm: 'markup', xml: 'xml', svg: 'svg',
+    json: 'json', jsonc: 'json',
+    yml: 'yaml', yaml: 'yaml',
+    md: 'markdown', markdown: 'markdown',
+    java: 'java',
+    c: 'c', h: 'c', cpp: 'cpp', cc: 'cpp', cxx: 'cpp', hpp: 'cpp',
+    cs: 'csharp',
+    go: 'go',
+    rs: 'rust',
+    php: 'php',
+    sql: 'sql',
+    vue: 'vue',
+    sh: 'bash', bash: 'bash', zsh: 'bash',
+    ps1: 'powershell', psm1: 'powershell', psd1: 'powershell',
+    bat: 'shell', cmd: 'shell',
+    toml: 'toml', ini: 'ini', cfg: 'ini',
+    diff: 'diff', patch: 'diff',
+  };
+  if (base === 'dockerfile') return 'docker';
+  return map[ext] || 'none';
+}
+
+/** 在 rpFileCode 容器中创建 CM6 预览实例 */
+function _cmCreatePreview(content, lang) {
+  const container = $('rpFileCode');
+  if (!container) return false;
+
+  container.classList.remove('cm-active');
+  container.innerHTML = _plainCodeHtml(content);
+
+  if (!_cmReady()) return false;
+
+  try {
+    container.innerHTML = '';
+    window.CM_EDITOR.create(container, content, lang, false);
+
+    if (!container.querySelector('.cm-editor')) {
+      throw new Error('CM editor did not mount');
+    }
+
+    container.classList.add('cm-active');
+    return true;
+  } catch (err) {
+    console.error('[RP] Failed to create CM preview:', err);
+    container.classList.remove('cm-active');
+    container.innerHTML = _plainCodeHtml(content);
+    return false;
+  }
+}
+
+/** 切换 CM6 到编辑态 */
+function _cmStartEdit() {
+  if (!_cmReady() || !window.CM_EDITOR.getView()) return;
+  window.CM_EDITOR.setEditable(true);
+  _rpFileIsEditing = true;
+}
+
+/** 切换 CM6 回预览态 */
+function _cmStopEdit() {
+  if (!_cmReady() || !window.CM_EDITOR.getView()) return;
+  window.CM_EDITOR.setEditable(false);
+  _rpFileIsEditing = false;
+}
+
+/** 销毁当前 CM6 实例 */
+function _cmDestroy() {
+  if (_cmReady()) {
+    window.CM_EDITOR.destroy();
+  }
+}
+
+/** 获取 CM6 当前内容 */
+function _cmGetContent() {
+  if (_cmReady()) return window.CM_EDITOR.getContent();
+  return '';
+}
+
+/** 设置 CM6 内容 */
+function _cmSetContent(content) {
+  if (_cmReady()) window.CM_EDITOR.setContent(content);
+}
+
+/** 纯文本 HTML 回退（CM6 未加载时使用） */
+function _plainCodeHtml(content) {
+  const text = esc(content || '');
+  return `<pre class="rp-file-code-fallback">${text}</pre>`;
+}
 
 // 文件扩展名分类（与 workspace.js 保持一致）
 const _RP_IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.svg','.webp','.ico','.bmp']);
@@ -395,14 +501,19 @@ async function openFileInRightPanel(path) {
   const codeEl = $('rpFileCode');
   const mdEl = $('rpFileMd');
   const imgWrap = $('rpFileImgWrap');
-  const editArea = $('rpFileEditArea');
   const badge = $('rpFileBadge');
   const editBtn = $('rpFileEditBtn');
 
   if (codeEl) codeEl.style.display = 'none';
   if (mdEl) mdEl.style.display = 'none';
   if (imgWrap) imgWrap.style.display = 'none';
-  if (editArea) editArea.style.display = 'none';
+  // 销毁之前的 CM6 实例
+  _cmDestroy();
+  _rpFileIsEditing = false;
+  if (editBtn) {
+    editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    editBtn.style.color = '';
+  }
 
   // 构建 API 查询字符串
   const _fileQs = sid ? `session_id=${sid}&path=${encodeURIComponent(path)}` : `path=${encodeURIComponent(path)}`;
@@ -432,11 +543,6 @@ async function openFileInRightPanel(path) {
         mdEl.style.display = '';
         mdEl.innerHTML = typeof renderMd === 'function' ? renderMd(data.content || '') : (data.content || '');
       }
-      // 语法高亮
-      requestAnimationFrame(() => {
-        if (typeof highlightCode === 'function' && mdEl) highlightCode(mdEl);
-        if (typeof addCopyButtons === 'function' && mdEl) addCopyButtons(mdEl);
-      });
     } catch (e) {
       if (mdEl) { mdEl.style.display = ''; mdEl.innerHTML = '<p style="color:var(--muted)">文件加载失败</p>'; }
     }
@@ -455,12 +561,10 @@ async function openFileInRightPanel(path) {
       _rpFileRawContent = data.content || '';
       if (codeEl) {
         codeEl.style.display = '';
-        codeEl.textContent = data.content || '';
+        // 使用 CM6 预览（readonly + 语法高亮 + 行号）
+        const lang = _rpFileLang(path);
+        _cmCreatePreview(data.content || '', lang);
       }
-      // 语法高亮
-      requestAnimationFrame(() => {
-        if (typeof highlightCode === 'function' && codeEl) highlightCode(codeEl);
-      });
     } catch (e) {
       // 请求失败时在面板内显示错误，而不是下载
       if (codeEl) {
@@ -488,6 +592,12 @@ function closeRpFilePreview() {
   _rpFileCurrentMode = '';
   _rpFileRawContent = '';
   _rpFileDirty = false;
+  _rpFileIsEditing = false;
+  _cmEditOriginalContent = '';
+  // 销毁 CM6 实例并清空容器
+  _cmDestroy();
+  const codeEl = $('rpFileCode');
+  if (codeEl) codeEl.innerHTML = '';
   // 如果有选中的员工，回到对话视图；否则显示空状态
   if (EMPLOYEE_STORE.selectedId) {
     _setRightPanelView('chat');
@@ -500,20 +610,14 @@ function closeRpFilePreview() {
   });
 }
 
-/** 切换编辑模式 */
+/** 切换编辑模式 — 使用 CM6 同一实例切换 readonly/可编辑 */
 function toggleRpFileEdit() {
-  const editArea = $('rpFileEditArea');
-  const codeEl = $('rpFileCode');
-  const mdEl = $('rpFileMd');
   const editBtn = $('rpFileEditBtn');
-  if (!editArea) return;
+  if (!_rpFileCurrentPath) return;
 
-  const editing = editArea.style.display !== 'none';
-
-  if (editing) {
-    // 保存
-    if (!_rpFileCurrentPath) return;
-    const content = editArea.value;
+  if (_rpFileIsEditing) {
+    // ── 保存 ──
+    const content = _cmGetContent();
     const savePayload = { path: _rpFileCurrentPath, content };
     if (S.session && S.session.session_id) savePayload.session_id = S.session.session_id;
     api('/api/file/save', {
@@ -522,50 +626,79 @@ function toggleRpFileEdit() {
     }).then(() => {
       _rpFileDirty = false;
       _rpFileRawContent = content;
-      editArea.style.display = 'none';
-      if (_rpFileCurrentMode === 'code' && codeEl) {
-        codeEl.textContent = content;
-        codeEl.style.display = '';
-        requestAnimationFrame(() => { if (typeof highlightCode === 'function') highlightCode(codeEl); });
-      } else if (_rpFileCurrentMode === 'md' && mdEl) {
-        mdEl.innerHTML = typeof renderMd === 'function' ? renderMd(content) : content;
-        mdEl.style.display = '';
-        requestAnimationFrame(() => {
-          if (typeof highlightCode === 'function') highlightCode(mdEl);
-          if (typeof addCopyButtons === 'function') addCopyButtons(mdEl);
-        });
+      _rpFileIsEditing = false;
+      _cmEditOriginalContent = '';
+      _cmStopEdit();
+      if (_rpFileCurrentMode === 'md') {
+        // MD 文件：切换回渲染预览
+        const mdEl = $('rpFileMd');
+        const codeEl = $('rpFileCode');
+        if (mdEl) {
+          mdEl.innerHTML = typeof renderMd === 'function' ? renderMd(content) : content;
+          mdEl.style.display = '';
+        }
+        if (codeEl) codeEl.style.display = 'none';
       }
-      if (editBtn) editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
-      if (editBtn) editBtn.style.color = '';
+      if (editBtn) {
+        editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+        editBtn.style.color = '';
+      }
       if (typeof showToast === 'function') showToast('已保存');
     }).catch(e => {
       if (typeof showToast === 'function') showToast('保存失败: ' + e.message);
     });
   } else {
-    // 进入编辑模式
-    editArea.value = _rpFileRawContent;
-    editArea.style.display = '';
-    if (codeEl) codeEl.style.display = 'none';
-    if (mdEl) mdEl.style.display = 'none';
-    if (editBtn) editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
-    if (editBtn) editBtn.style.color = 'var(--blue)';
-    editArea.focus();
-    editArea.onkeydown = (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); _cancelRpFileEdit(); }
-    };
-    editArea.oninput = () => { _rpFileDirty = true; };
+    // ── 进入编辑模式 ──
+    _cmEditOriginalContent = _rpFileRawContent;
+
+    if (_rpFileCurrentMode === 'md') {
+      // MD 文件：隐藏渲染预览，显示 CM6 代码编辑
+      const mdEl = $('rpFileMd');
+      const codeEl = $('rpFileCode');
+      if (mdEl) mdEl.style.display = 'none';
+      if (codeEl) codeEl.style.display = '';
+      // 为 MD 文件创建 CM6 实例
+      _cmCreatePreview(_rpFileRawContent, 'markdown');
+    }
+
+    _cmStartEdit();
+    _rpFileIsEditing = true;
+
+    if (editBtn) {
+      editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+      editBtn.style.color = 'var(--blue)';
+    }
+
+    // 监听 CM6 内容变更
+    if (_cmReady()) {
+      window.CM_EDITOR.onChange(() => { _rpFileDirty = true; });
+    }
   }
 }
 
 function _cancelRpFileEdit() {
-  const editArea = $('rpFileEditArea');
-  const codeEl = $('rpFileCode');
-  const mdEl = $('rpFileMd');
   const editBtn = $('rpFileEditBtn');
-  if (editArea) editArea.style.display = 'none';
-  if (_rpFileCurrentMode === 'code' && codeEl) codeEl.style.display = '';
-  if (_rpFileCurrentMode === 'md' && mdEl) mdEl.style.display = '';
+  // 恢复原始内容
+  if (_cmEditOriginalContent !== '') {
+    _cmSetContent(_cmEditOriginalContent);
+  }
+  _cmStopEdit();
+  _rpFileIsEditing = false;
   _rpFileDirty = false;
+  _cmEditOriginalContent = '';
+
+  if (_rpFileCurrentMode === 'md') {
+    // MD 文件：切换回渲染预览
+    const mdEl = $('rpFileMd');
+    const codeEl = $('rpFileCode');
+    _cmDestroy();
+    if (codeEl) { codeEl.innerHTML = ''; codeEl.style.display = 'none'; }
+    if (mdEl) {
+      mdEl.innerHTML = typeof renderMd === 'function' ? renderMd(_rpFileRawContent) : _rpFileRawContent;
+      mdEl.style.display = '';
+    }
+  }
+
   if (editBtn) {
     editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
     editBtn.style.color = '';

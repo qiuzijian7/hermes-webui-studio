@@ -1,0 +1,15 @@
+[GET] http://127.0.0.1:18080/api/settings => [200] OK
+[GET] http://127.0.0.1:18080/api/updates/check => [200] OK
+[GET] http://127.0.0.1:18080/api/profile/active => [200] OK
+[GET] http://127.0.0.1:18080/api/models => [200] OK
+[GET] http://127.0.0.1:18080/api/workspaces => [200] OK
+[GET] http://127.0.0.1:18080/api/onboarding/status => [200] OK
+[GET] http://127.0.0.1:18080/api/sessions => [200] OK
+[GET] http://127.0.0.1:18080/api/projects => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776308797.534 => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776308797.534 => [200] OK
+[GET] http://127.0.0.1:18080/api/workspaces => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776308797.534 => [200] OK
+[POST] http://127.0.0.1:18080/api/session/new => [200] OK
+[GET] http://127.0.0.1:18080/api/list?session_id=81cea3529a50&path=. => [200] OK
+[GET] http://127.0.0.1:18080/api/crons/recent?since=1776308797.534 => [200] OK

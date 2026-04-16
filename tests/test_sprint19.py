@@ -73,6 +73,15 @@ def test_security_headers_on_json():
     assert headers.get("Referrer-Policy") == "same-origin"
 
 
+def test_csp_allows_cm6_esm_modules():
+    """CSP must allow esm.sh because CodeMirror 6 modules are loaded from there."""
+    _, status, headers = get("/api/auth/status")
+    assert status == 200
+    csp = headers.get("Content-Security-Policy", "")
+    assert "https://esm.sh" in csp
+    assert "script-src" in csp
+
+
 def test_security_headers_on_health():
     """Health endpoint should include security headers."""
     d, status, headers = get("/health")
