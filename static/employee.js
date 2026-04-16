@@ -93,11 +93,19 @@ function switchCanvasWorkspace(newWsPath) {
 
 // ── CRUD ──────────────────────────────────────────────────────────────────
 function createEmployee(opts = {}) {
+  const rawName = opts.name || ('员工 ' + (EMPLOYEE_STORE._nextId + 1));
+  // 名称唯一性：若重名则追加序号
+  let name = rawName;
+  if (!isEmployeeNameUnique(name, null)) {
+    let suffix = 2;
+    while (!isEmployeeNameUnique(name + ' ' + suffix, null)) suffix++;
+    name = rawName + ' ' + suffix;
+  }
   const id = 'emp-' + EMPLOYEE_STORE._nextId++;
   const avatarIdx = (EMPLOYEE_STORE.employees.length) % EMPLOYEE_AVATARS.length;
   const emp = {
     id,
-    name: opts.name || '员工 ' + EMPLOYEE_STORE._nextId,
+    name,
     role: opts.role || EMPLOYEE_ROLES[0],
     avatar: opts.avatar || EMPLOYEE_AVATARS[avatarIdx],
     status: 'idle',
@@ -124,6 +132,13 @@ function createEmployee(opts = {}) {
 
 function getEmployee(id) {
   return EMPLOYEE_STORE.employees.find(e => e.id === id);
+}
+
+/** 检查员工名称在工作区内是否唯一（排除指定 ID 的员工自身） */
+function isEmployeeNameUnique(name, excludeId) {
+  const n = (name || '').trim();
+  if (!n) return false;
+  return !EMPLOYEE_STORE.employees.some(e => e.name === n && e.id !== excludeId);
 }
 
 function updateEmployee(id, updates) {
@@ -274,7 +289,7 @@ function _buildCard(emp) {
       <div class="emp-card-header">
         ${avatarHtml}
         <div class="emp-card-info">
-          <div class="emp-card-name">${esc(emp.name)}</div>
+          <div class="emp-card-name" ondblclick="event.stopPropagation();_startRenameEmployee('${emp.id}')">${esc(emp.name)}</div>
           <div class="emp-card-role">${esc(emp.role)}</div>
         </div>
         <button class="emp-card-menu-btn" onclick="event.stopPropagation();_showCardMenu(event,'${emp.id}')">⋯</button>
@@ -386,8 +401,9 @@ function _showCardMenu(event, empId) {
   menu.className = 'emp-card-menu';
   menu.innerHTML = `
     <div class="emp-menu-item" onclick="selectEmployee('${empId}');_hideCardMenu()">${li('message-square',13)} 打开对话</div>
+    <div class="emp-menu-item" onclick="_startRenameEmployee('${empId}');_hideCardMenu()">${li('pencil',13)} 重命名</div>
     <div class="emp-menu-item" onclick="_showEmployeeSkillConfig('${empId}');_hideCardMenu()">${li('book-open',13)} 配置技能</div>
-    <div class="emp-menu-item" onclick="showEditEmployeeDialog('${empId}');_hideCardMenu()">${li('pencil',13)} 编辑员工</div>
+    <div class="emp-menu-item" onclick="showEditEmployeeDialog('${empId}');_hideCardMenu()">${li('settings',13)} 编辑员工</div>
     <div class="emp-menu-sep"></div>
     <div class="emp-menu-item emp-menu-danger" onclick="deleteEmployee('${empId}');_hideCardMenu()">${li('trash-2',13)} 删除员工</div>
   `;
@@ -407,6 +423,51 @@ function _showCardMenu(event, empId) {
 
 function _hideCardMenu() {
   if (_cardMenuEl) { _cardMenuEl.remove(); _cardMenuEl = null; }
+}
+
+// ── 内联重命名 ──────────────────────────────────────────────────────────────
+function _startRenameEmployee(empId) {
+  const card = document.querySelector(`.emp-card[data-id="${empId}"]`);
+  if (!card) return;
+  const emp = getEmployee(empId);
+  if (!emp) return;
+
+  const nameEl = card.querySelector('.emp-card-name');
+  if (!nameEl || nameEl.dataset.editing === '1') return;
+
+  nameEl.dataset.editing = '1';
+  const oldName = emp.name;
+  nameEl.innerHTML = `<input class="emp-rename-input" type="text" value="${esc(oldName)}" maxlength="32">`;
+  const input = nameEl.querySelector('.emp-rename-input');
+  input.focus();
+  input.select();
+
+  const finish = (save) => {
+    if (nameEl.dataset.editing !== '1') return;
+    nameEl.dataset.editing = '';
+    const newName = save ? input.value.trim() : null;
+    if (newName && newName !== oldName) {
+      if (!isEmployeeNameUnique(newName, empId)) {
+        showToast('员工名称不能重复');
+        nameEl.textContent = oldName;
+        return;
+      }
+      updateEmployee(empId, { name: newName });
+      // 同步右侧面板名字
+      const rpName = $('rpEmployeeName');
+      if (rpName && EMPLOYEE_STORE.selectedId === empId) rpName.textContent = newName;
+    } else {
+      nameEl.textContent = oldName;
+    }
+  };
+
+  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { nameEl.dataset.editing = ''; nameEl.textContent = oldName; }
+    e.stopPropagation();
+  });
+  input.addEventListener('click', (e) => e.stopPropagation());
 }
 
 // ── 员工创建对话框 ────────────────────────────────────────────────────────
@@ -466,8 +527,18 @@ function _showEmployeeFormDialog(existing) {
 
   // 提交
   overlay.querySelector('#empFormSubmit').onclick = () => {
-    const name = overlay.querySelector('#empFormName').value.trim();
-    if (!name) { overlay.querySelector('#empFormName').style.borderColor = 'var(--accent)'; return; }
+    const nameInput = overlay.querySelector('#empFormName');
+    const name = nameInput.value.trim();
+    if (!name) { nameInput.style.borderColor = 'var(--accent)'; return; }
+    // 名称唯一性校验（编辑时排除自身）
+    if (!isEmployeeNameUnique(name, existing ? existing.id : null)) {
+      nameInput.style.borderColor = 'var(--accent)';
+      nameInput.title = '该名称已被其他员工使用';
+      showToast('员工名称不能重复');
+      return;
+    }
+    nameInput.style.borderColor = '';
+    nameInput.title = '';
     const role = overlay.querySelector('#empFormRole').value;
     const avatarEl = overlay.querySelector('.emp-avatar-selected');
     const avatar = avatarEl ? avatarEl.dataset.avatar : EMPLOYEE_AVATARS[0];

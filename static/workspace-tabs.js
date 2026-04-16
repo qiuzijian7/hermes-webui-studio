@@ -648,6 +648,9 @@ function renderEmployeeCards() {
     // 重新绑定菜单按钮
     const menuBtn = clone.querySelector('.emp-card-menu-btn');
     if (menuBtn) menuBtn.onclick = (e) => { e.stopPropagation(); _showCardMenu(e, emp.id); };
+    // 重新绑定双击重命名
+    const nameEl = clone.querySelector('.emp-card-name');
+    if (nameEl) nameEl.ondblclick = (e) => { e.stopPropagation(); _startRenameEmployee(emp.id); };
     // 重新绑定操作按钮
     clone.querySelectorAll('.emp-action-btn').forEach(btn => {
       const title = btn.getAttribute('title');
