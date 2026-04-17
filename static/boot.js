@@ -505,6 +505,8 @@ function applyBotName(){
   if (typeof initEmployees === 'function') initEmployees();
   if (typeof initPresetPanel === 'function') initPresetPanel();
   if (typeof initWorkspaceTabs === 'function') initWorkspaceTabs();
+  // 初始化画布连线（确保在员工卡片渲染后）
+  if (typeof initCanvasConnections === 'function') initCanvasConnections();
   if (typeof initRightPanel === 'function') initRightPanel();
   // 重定向 renderMessages 到右侧面板
   if (typeof _renderRpMessages === 'function') {

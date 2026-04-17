@@ -5,6 +5,39 @@
 // ── 页签切换 ─────────────────────────────────────────────────────────────────
 let _activeWorkspaceTab = 'canvas';
 
+function _ensureFileToolbarInline() {
+  const filesContent = $('filesContent');
+  if (!filesContent) return;
+
+  let toolbar = $('fileDirToolbar');
+  if (!toolbar) {
+    toolbar = document.createElement('div');
+    toolbar.className = 'file-dir-toolbar';
+    toolbar.id = 'fileDirToolbar';
+
+    const breadcrumb = document.createElement('div');
+    breadcrumb.className = 'breadcrumb-bar';
+    breadcrumb.id = 'mainBreadcrumb';
+    toolbar.appendChild(breadcrumb);
+
+    const mainFileTree = $('mainFileTree');
+    if (mainFileTree) {
+      filesContent.insertBefore(toolbar, mainFileTree);
+    } else {
+      filesContent.appendChild(toolbar);
+    }
+  }
+
+  // 确保页签栏中的刷新按钮有事件绑定
+  const refreshBtn = $('btnRefreshDir');
+  if (refreshBtn && !refreshBtn._boundRefresh) {
+    refreshBtn._boundRefresh = true;
+    refreshBtn.onclick = () => { if (typeof loadDir === 'function') loadDir(S.currentDir || '.'); };
+  }
+}
+
+
+
 // ── 无限画布 — 缩放 + 平移 ──────────────────────────────────────────────────
 // 通过 transform: translate(panX, panY) scale(zoom) 实现，不依赖浏览器 scrollbar。
 // panX/panY 是 **视口像素** 级别的偏移量（layer 左上角相对于 canvas 左上角的像素偏移）。
@@ -319,24 +352,30 @@ function switchWorkspaceTab(tab) {
   const canvasContent = $('canvasContent');
   const filesContent = $('filesContent');
   const empToolbarInline = $('empToolbarInline');
-  const fileToolbarInline = $('fileToolbarInline');
 
   if (tab === 'canvas') {
     if (canvasContent) canvasContent.classList.add('active');
     if (filesContent) filesContent.classList.remove('active');
     if (empToolbarInline) empToolbarInline.style.display = '';
-    if (fileToolbarInline) fileToolbarInline.style.display = 'none';
     const zoomControls = $('canvasZoomControls');
     if (zoomControls) zoomControls.style.display = '';
+    const fileTabRefresh = $('fileTabRefreshBtn');
+    if (fileTabRefresh) fileTabRefresh.classList.remove('visible');
   } else {
     if (canvasContent) canvasContent.classList.remove('active');
     if (filesContent) filesContent.classList.add('active');
     if (empToolbarInline) empToolbarInline.style.display = 'none';
-    if (fileToolbarInline) fileToolbarInline.style.display = '';
     const zoomControls = $('canvasZoomControls');
     if (zoomControls) zoomControls.style.display = 'none';
-    // 加载文件目录
+    const fileTabRefresh = $('fileTabRefreshBtn');
+    if (fileTabRefresh) fileTabRefresh.classList.add('visible');
+    // 先用缓存数据渲染（立即可见）
+    _renderMainBreadcrumb();
     _renderMainFileTree();
+    // 然后异步刷新最新数据
+    if (typeof loadDir === 'function') {
+      try { loadDir('.'); } catch(e) { console.warn('auto loadDir failed:', e); }
+    }
   }
 }
 
@@ -351,8 +390,8 @@ function _initFreeDrag(card, emp) {
   card.addEventListener('touchstart', onTouchStart, { passive: false });
 
   function onMouseDown(e) {
-    // 不拦截按钮和输入框
-    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.emp-card-menu-btn')) return;
+    // 不拦截按钮、输入框和连接手柄
+    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.emp-card-menu-btn') || e.target.closest('.emp-conn-handle')) return;
     if (e.button !== 0) return;
     e.preventDefault();
     startDrag(e.clientX, e.clientY);
@@ -361,7 +400,7 @@ function _initFreeDrag(card, emp) {
   }
 
   function onTouchStart(e) {
-    if (e.target.closest('button') || e.target.closest('input')) return;
+    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.emp-conn-handle')) return;
     const t = e.touches[0];
     startDrag(t.clientX, t.clientY);
     document.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -380,6 +419,8 @@ function _initFreeDrag(card, emp) {
   function onMouseMove(e) { moveDrag(e.clientX, e.clientY); }
   function onTouchMove(e) { e.preventDefault(); const t = e.touches[0]; moveDrag(t.clientX, t.clientY); }
 
+  let _dragRafId = 0;
+
   function moveDrag(clientX, clientY) {
     const zoom = _canvasZoomLevel || 1;
     const dx = (clientX - startX) / zoom;
@@ -395,6 +436,12 @@ function _initFreeDrag(card, emp) {
 
     card.style.left = newX + 'px';
     card.style.top = newY + 'px';
+
+    // 拖拽时用 rAF 节流刷新连线
+    if (typeof renderConnections === 'function') {
+      cancelAnimationFrame(_dragRafId);
+      _dragRafId = requestAnimationFrame(renderConnections);
+    }
   }
 
   function onMouseUp(e) {
@@ -419,6 +466,8 @@ function _initFreeDrag(card, emp) {
         emp._pos = { x, y };
         _saveEmployees();
       }
+      // 拖拽结束后刷新连线
+      if (typeof refreshConnections === 'function') refreshConnections();
     }
     isDragging = false;
   }
@@ -494,33 +543,32 @@ function _renderMainBreadcrumb() {
     root.className = 'breadcrumb-seg breadcrumb-current';
     root.textContent = '~';
     bar.appendChild(root);
-    return;
-  }
+  } else {
+    // Root
+    const root = document.createElement('span');
+    root.className = 'breadcrumb-seg breadcrumb-link';
+    root.textContent = '~';
+    root.onclick = () => { if (typeof loadDir === 'function') loadDir('.'); };
+    bar.appendChild(root);
 
-  // Root
-  const root = document.createElement('span');
-  root.className = 'breadcrumb-seg breadcrumb-link';
-  root.textContent = '~';
-  root.onclick = () => { if (typeof loadDir === 'function') loadDir('.'); };
-  bar.appendChild(root);
-
-  const parts = S.currentDir.split('/');
-  let accumulated = '';
-  for (let i = 0; i < parts.length; i++) {
-    const sep = document.createElement('span');
-    sep.className = 'breadcrumb-sep'; sep.textContent = '/';
-    bar.appendChild(sep);
-    accumulated += (accumulated ? '/' : '') + parts[i];
-    const seg = document.createElement('span');
-    seg.textContent = parts[i];
-    if (i < parts.length - 1) {
-      seg.className = 'breadcrumb-seg breadcrumb-link';
-      const target = accumulated;
-      seg.onclick = () => { if (typeof loadDir === 'function') loadDir(target); };
-    } else {
-      seg.className = 'breadcrumb-seg breadcrumb-current';
+    const parts = S.currentDir.split('/');
+    let accumulated = '';
+    for (let i = 0; i < parts.length; i++) {
+      const sep = document.createElement('span');
+      sep.className = 'breadcrumb-sep'; sep.textContent = '/';
+      bar.appendChild(sep);
+      accumulated += (accumulated ? '/' : '') + parts[i];
+      const seg = document.createElement('span');
+      seg.textContent = parts[i];
+      if (i < parts.length - 1) {
+        seg.className = 'breadcrumb-seg breadcrumb-link';
+        const target = accumulated;
+        seg.onclick = () => { if (typeof loadDir === 'function') loadDir(target); };
+      } else {
+        seg.className = 'breadcrumb-seg breadcrumb-current';
+      }
+      bar.appendChild(seg);
     }
-    bar.appendChild(seg);
   }
 }
 
@@ -552,6 +600,29 @@ function _renderMainTreeItems(container, entries, depth) {
     nameEl.className = 'file-name';
     nameEl.textContent = item.name;
     el.appendChild(nameEl);
+
+    // Size -- only for files
+    if (item.type === 'file' && item.size) {
+      const sizeEl = document.createElement('span');
+      sizeEl.className = 'file-size';
+      sizeEl.textContent = `${(item.size / 1024).toFixed(1)}k`;
+      el.appendChild(sizeEl);
+    }
+
+    // Delete button -- for files
+    if (item.type === 'file') {
+      const del = document.createElement('button');
+      del.className = 'file-del-btn';
+      del.title = typeof t === 'function' ? t('delete_title') : '删除';
+      del.textContent = '\u00d7';
+      del.onclick = async (e) => {
+        e.stopPropagation();
+        if (typeof deleteWorkspaceFile === 'function') {
+          await deleteWorkspaceFile(item.path, item.name);
+        }
+      };
+      el.appendChild(del);
+    }
 
     // Right-click context menu
     el.oncontextmenu = (e) => {
@@ -661,6 +732,11 @@ function renderEmployeeCards() {
     _initFreeDrag(clone, emp);
     canvas.appendChild(clone);
   }
+
+  // 刷新连线（SVG 层 + 连接点手柄 + 徽标）
+  if (typeof refreshConnections === 'function') {
+    setTimeout(refreshConnections, 50);
+  }
 }
 
 // ── 监听文件目录数据刷新 ─────────────────────────────────────────────────────
@@ -675,10 +751,22 @@ function renderEmployeeCards() {
       _origRenderFileTree();
     }
   };
+
+  // 同时覆盖 renderBreadcrumb，让中间面板面包屑也能被 loadDir 自动更新
+  const _origRenderBreadcrumb = typeof renderBreadcrumb === 'function' ? renderBreadcrumb : null;
+  window.renderBreadcrumb = function() {
+    // 始终更新中间面板面包屑
+    _renderMainBreadcrumb();
+    // 同时更新右侧面板面包屑（如果存在）
+    if (_origRenderBreadcrumb) {
+      try { _origRenderBreadcrumb(); } catch(e) {}
+    }
+  };
 })();
 
 // ── 初始化 ────────────────────────────────────────────────────────────────────
 function initWorkspaceTabs() {
+  _ensureFileToolbarInline();
   // 恢复上次的页签状态
   const saved = localStorage.getItem('hermes-workspace-tab');
   if (saved === 'files') {
@@ -689,3 +777,4 @@ function initWorkspaceTabs() {
   // 初始化工作区选择器标签
   syncWsSelectorLabel();
 }
+

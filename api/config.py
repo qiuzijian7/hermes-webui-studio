@@ -225,19 +225,168 @@ def _discover_default_workspace() -> Path:
       1. HERMES_WEBUI_DEFAULT_WORKSPACE env var
       2. ~/workspace (common Hermes convention)
       3. STATE_DIR / workspace (isolated fallback)
+    The chosen directory is auto-created if it does not exist yet.
     """
     if os.getenv("HERMES_WEBUI_DEFAULT_WORKSPACE"):
-        return Path(os.getenv("HERMES_WEBUI_DEFAULT_WORKSPACE")).expanduser().resolve()
+        p = Path(os.getenv("HERMES_WEBUI_DEFAULT_WORKSPACE")).expanduser().resolve()
+    else:
+        common = HOME / "workspace"
+        if common.exists():
+            p = common.resolve()
+        else:
+            p = (STATE_DIR / "workspace").resolve()
 
-    common = HOME / "workspace"
-    if common.exists():
-        return common.resolve()
-
-    return (STATE_DIR / "workspace").resolve()
+    # Ensure the workspace directory exists (critical for Docker / first-launch)
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+    except (OSError, PermissionError):
+        pass  # best effort — caller will surface the error if truly unusable
+    return p
 
 
 DEFAULT_WORKSPACE = _discover_default_workspace()
 DEFAULT_MODEL = os.getenv("HERMES_WEBUI_DEFAULT_MODEL", "openai/gpt-5.4-mini")
+
+
+# ── Docker path mapping (container path → host path) ──────────────────────────
+# When running inside Docker, files seen at container paths are actually on the
+# host at a different location (e.g. /workspace → /home/user/myproject).
+# Two discovery methods:
+#   1. HERMES_WEBUI_PATH_MAP env var: "/workspace:/home/user/project,/data:/mnt/data"
+#   2. Auto-detection from /proc/1/mountinfo (reads Docker bind-mount source)
+# The mapping is used to translate container paths to host paths for the
+# "reveal in explorer" feature so users can find files on their host machine.
+
+def _discover_path_maps() -> list:
+    """Return a list of (container_path, host_path) tuples, longest container path first.
+
+    Discovery sources:
+      1. HERMES_WEBUI_PATH_MAP env var (highest priority)
+      2. /proc/1/mountinfo — auto-detect bind mounts
+
+    mountinfo format (per kernel docs):
+      id parent major:minor root mount_point opts optional - fstype source target opts
+    For bind mounts:
+      - root (field 3): the host-side path within the source filesystem
+      - mount_point (field 4): the container-side mount point
+      - fstype: the filesystem type (ext4, 9p, etc.)
+    For Docker Desktop for Windows (9p/virtiofs):
+      - root contains the host path, e.g. /CustomWorkspaces/AIProjects/.../workspace
+      - mount_point is the container path, e.g. /workspace
+    For Linux Docker (ext4 bind mounts):
+      - root is typically / (meaning the entire source is mounted)
+      - source contains the host path, e.g. /home/user/project
+      - mount_point is the container path
+    For named volumes:
+      - source contains /var/lib/docker/volumes/... — skip these
+    """
+    maps = []
+
+    # 1. Explicit env var: HERMES_WEBUI_PATH_MAP="/container:/host,/c2:/h2"
+    env_val = os.getenv("HERMES_WEBUI_PATH_MAP", "").strip()
+    if env_val:
+        for pair in env_val.split(","):
+            pair = pair.strip()
+            if ":" not in pair:
+                continue
+            cpath, hpath = pair.split(":", 1)
+            cpath, hpath = cpath.strip(), hpath.strip()
+            if cpath and hpath:
+                maps.append((cpath, hpath))
+
+    # 2. Auto-detect from /proc/1/mountinfo (available inside Docker containers)
+    try:
+        with open("/proc/1/mountinfo", "r") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 10:
+                    continue
+                # Parse standard mountinfo fields
+                # fields[0]=id, [1]=parent, [2]=major:minor, [3]=root, [4]=mount_point, [5]=opts
+                mount_point = parts[4]
+                root_field = parts[3]
+                # Skip virtual/internal filesystems
+                try:
+                    sep_idx = parts.index("-")
+                    fstype = parts[sep_idx + 1] if sep_idx + 1 < len(parts) else ""
+                    source = parts[sep_idx + 2] if sep_idx + 2 < len(parts) else ""
+                except (ValueError, IndexError):
+                    continue
+                if fstype in ("overlay", "proc", "sysfs", "devpts", "cgroup",
+                              "cgroup2", "tmpfs", "mqueue", "debugfs",
+                              "fusectl", "securityfs", "pstore", "bpf"):
+                    continue
+                # Skip if this container path is already mapped by env var
+                if any(m[0] == mount_point for m in maps):
+                    continue
+                # Determine host path based on filesystem type
+                host_path = None
+                if fstype == "9p":
+                    # Docker Desktop for Windows / macOS (virtiofs/9p)
+                    # The root field contains the path WITHOUT drive letter, e.g.
+                    #   /CustomWorkspaces/AIProjects/.../workspace
+                    # The source field contains the Windows drive letter, e.g.
+                    #   G:\   (may appear as G:\134 in /proc output)
+                    # We combine them to produce: G:/CustomWorkspaces/.../workspace
+                    if root_field and root_field != "/" and not root_field.startswith("/docker/"):
+                        drive_letter = ""
+                        if source and len(source) >= 2 and source[1] in (":", "\\"):
+                            # Extract drive letter from source like "G:\" or "G:\134" or "C:"
+                            drive_letter = source[0].upper()
+                        if drive_letter:
+                            host_path = drive_letter + ":/" + root_field.lstrip("/")
+                        else:
+                            # No drive letter found (macOS or unusual setup) — use root as-is
+                            host_path = root_field
+                elif fstype in ("ext4", "ext3", "xfs", "btrfs", "zfs", "nfs",
+                                "nfs4", "cifs", "smb", "smb2", "virtiofs"):
+                    # Linux bind mounts: source contains the host path
+                    # but root is usually "/" (meaning entire source mounted)
+                    if root_field == "/" and source and source.startswith("/"):
+                        # Check if source is a real host path (not Docker internal)
+                        if (source.startswith("/var/lib/docker") or
+                                source.startswith("/docker/") or
+                                source.startswith("/data/docker") or
+                                source.startswith("/dev/")):
+                            continue  # named volume, Docker internal, or block device
+                        # Skip Docker-internal mount points
+                        if mount_point.startswith("/etc/") or mount_point.startswith("/dev/"):
+                            continue
+                        host_path = source
+                    elif root_field != "/":
+                        # Sub-directory bind mount: source + root
+                        host_path = (source + root_field) if source.startswith("/") else root_field
+                if host_path and mount_point != host_path:
+                    # Skip Docker-internal and system mount points
+                    if mount_point.startswith("/etc/") or mount_point.startswith("/dev/"):
+                        continue
+                    # Skip paths that point into Docker internals (named volumes, containers)
+                    if ("/docker/volumes/" in host_path or
+                            "/docker/containers/" in host_path or
+                            host_path.startswith("/dev/")):
+                        continue
+                    maps.append((mount_point, host_path))
+    except (FileNotFoundError, PermissionError):
+        pass  # Not in a container or no access to mountinfo
+
+    # Sort by container path length descending (longest match first)
+    maps.sort(key=lambda m: len(m[0]), reverse=True)
+    return maps
+
+
+PATH_MAPS = _discover_path_maps()
+
+
+def resolve_host_path(container_path: str) -> str | None:
+    """Given a path inside the container, return the corresponding host path, or None."""
+    if not PATH_MAPS:
+        return None
+    p = str(Path(container_path).resolve())
+    for cpath, hpath in PATH_MAPS:
+        if p == cpath or p.startswith(cpath + "/"):
+            rel = p[len(cpath):]
+            return hpath + rel
+    return None
 
 
 # ── Startup diagnostics ───────────────────────────────────────────────────────
@@ -391,7 +540,43 @@ _FALLBACK_MODELS = [
         "id": "deepseek/deepseek-chat-v3-0324",
         "label": "DeepSeek V3",
     },
+    {
+        "provider": "Other",
+        "id": "deepseek/deepseek-r1",
+        "label": "DeepSeek R1",
+    },
     {"provider": "Other", "id": "meta-llama/llama-4-scout", "label": "Llama 4 Scout"},
+    # ── OpenRouter free tier models ──
+    {
+        "provider": "Free",
+        "id": "openrouter/free",
+        "label": "Free (auto-route)",
+    },
+    {
+        "provider": "Free",
+        "id": "nvidia/nemotron-3-super-120b-a12b:free",
+        "label": "Nemotron 3 Super 120B (free)",
+    },
+    {
+        "provider": "Free",
+        "id": "arcee-ai/trinity-large-preview:free",
+        "label": "Arcee Trinity Large (free)",
+    },
+    {
+        "provider": "Free",
+        "id": "google/gemma-3-27b-it:free",
+        "label": "Gemma 3 27B (free)",
+    },
+    {
+        "provider": "Free",
+        "id": "meta-llama/llama-4-scout:free",
+        "label": "Llama 4 Scout (free)",
+    },
+    {
+        "provider": "Free",
+        "id": "qwen/qwen3-235b-a22b:free",
+        "label": "Qwen3 235B MoE (free)",
+    },
 ]
 
 # Provider display names for known Hermes provider IDs
@@ -436,7 +621,7 @@ _PROVIDER_MODELS = {
     ],
     "deepseek": [
         {"id": "deepseek-chat-v3-0324", "label": "DeepSeek V3"},
-        {"id": "deepseek-reasoner", "label": "DeepSeek Reasoner"},
+        {"id": "deepseek-reasoner", "label": "DeepSeek R1"},
     ],
     "nous": [
         {"id": "claude-opus-4.6", "label": "Claude Opus 4.6 (via Nous)"},
@@ -858,16 +1043,54 @@ def get_available_models() -> dict:
         for pid in sorted(detected_providers):
             provider_name = _PROVIDER_DISPLAY.get(pid, pid.title())
             if pid == "openrouter":
-                # OpenRouter uses provider/model format -- show the fallback list
-                groups.append(
-                    {
-                        "provider": "OpenRouter",
-                        "models": [
-                            {"id": m["id"], "label": m["label"]}
-                            for m in _FALLBACK_MODELS
-                        ],
-                    }
-                )
+                # OpenRouter uses provider/model format
+                # Try fetching live model list from OpenRouter API first
+                or_models = None
+                try:
+                    import urllib.request
+                    or_api_key = all_env.get("OPENROUTER_API_KEY", "")
+                    or_req = urllib.request.Request("https://openrouter.ai/api/v1/models")
+                    if or_api_key:
+                        or_req.add_header("Authorization", f"Bearer {or_api_key}")
+                    or_resp = urllib.request.urlopen(or_req, timeout=8)
+                    or_data = json.loads(or_resp.read())
+                    if isinstance(or_data, dict) and isinstance(or_data.get("data"), list):
+                        # Filter popular/trending models to keep the list manageable
+                        _OR_POPULAR_PREFIXES = (
+                            "anthropic/", "openai/", "google/", "deepseek/",
+                            "meta-llama/", "mistralai/", "qwen/",
+                        )
+                        _OR_FREE_SUFFIX = ":free"
+                        picked = []
+                        for m in or_data["data"]:
+                            mid = m.get("id", "")
+                            if not mid:
+                                continue
+                            # Include free models or models from popular providers
+                            is_free = mid.endswith(_OR_FREE_SUFFIX)
+                            is_popular = any(mid.startswith(p) for p in _OR_POPULAR_PREFIXES)
+                            if is_free or is_popular:
+                                picked.append({
+                                    "id": mid,
+                                    "label": m.get("name") or mid.split("/")[-1],
+                                })
+                        if picked:
+                            or_models = picked
+                except Exception:
+                    pass  # fallback to static list below
+                if or_models:
+                    groups.append({"provider": "OpenRouter", "models": or_models})
+                else:
+                    # Fallback to hardcoded model list
+                    groups.append(
+                        {
+                            "provider": "OpenRouter",
+                            "models": [
+                                {"id": m["id"], "label": m["label"]}
+                                for m in _FALLBACK_MODELS
+                            ],
+                        }
+                    )
             elif pid in _PROVIDER_MODELS:
                 # For non-default providers, prefix model IDs with @provider:model
                 # so resolve_model_provider() routes through that specific provider

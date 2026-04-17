@@ -21,6 +21,17 @@ async function send(){
 
   const activeSid=S.session.session_id;
 
+  // 员工级配置：从当前选中员工获取独立 system prompt 和 model
+  let _empSysPrompt='';
+  let _empModel='';
+  if(typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof getEmployee==='function'&&typeof buildEmployeeSystemPrompt==='function'){
+    const _emp=getEmployee(EMPLOYEE_STORE.selectedId);
+    if(_emp){
+      _empSysPrompt=buildEmployeeSystemPrompt(_emp);
+      _empModel=_emp.model||'';
+    }
+  }
+
   setComposerStatus(S.pendingFiles&&S.pendingFiles.length?'Uploading…':'');
   let uploaded=[];
   try{uploaded=await uploadPendingFiles();}
@@ -65,8 +76,10 @@ async function send(){
   try{
     const startData=await api('/api/chat/start',{method:'POST',body:JSON.stringify({
       session_id:activeSid,message:msgText,
-      model:S.session.model||$('modelSelect').value,workspace:S.session.workspace,
-      attachments:uploaded.length?uploaded:undefined
+      model:_empModel||S.session.model||$('modelSelect').value,
+      workspace:S.session.workspace,
+      attachments:uploaded.length?uploaded:undefined,
+      system_prompt:_empSysPrompt||undefined,
     })});
     streamId=startData.stream_id;
     S.activeStreamId = streamId;
@@ -209,6 +222,20 @@ async function send(){
         const lastAsst=[...S.messages].reverse().find(m=>m.role==='assistant');
         if(lastAsst&&!lastAsst._ts&&!lastAsst.timestamp) lastAsst._ts=Date.now()/1000;
         if(d.usage){S.lastUsage=d.usage;_syncCtxIndicator(d.usage);}
+        // 更新当前选中员工的 tokenUsage
+        if(d.usage && typeof EMPLOYEE_STORE!=='undefined' && EMPLOYEE_STORE.selectedId && typeof getEmployee==='function'){
+          const _emp=getEmployee(EMPLOYEE_STORE.selectedId);
+          if(_emp){
+            _emp.tokenUsage={
+              input_tokens:((_emp.tokenUsage&&_emp.tokenUsage.input_tokens)||0)+(d.usage.input_tokens||0),
+              output_tokens:((_emp.tokenUsage&&_emp.tokenUsage.output_tokens)||0)+(d.usage.output_tokens||0),
+            };
+            // 同步 session 的 model 到员工
+            if(S.session&&S.session.model) _emp.model=S.session.model;
+            if(typeof _saveEmployees==='function') _saveEmployees();
+            if(typeof _updateCardTokenUsage==='function') _updateCardTokenUsage(_emp);
+          }
+        }
         if(d.session.tool_calls&&d.session.tool_calls.length){
           S.toolCalls=d.session.tool_calls.map(tc=>({...tc,done:true}));
         } else {

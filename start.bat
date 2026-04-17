@@ -65,6 +65,10 @@ echo     监听: http://%HERMES_WEBUI_HOST%:%HERMES_WEBUI_PORT%
 echo     打开: http://%HERMES_WEBUI_ACCESS_HOST%:%HERMES_WEBUI_PORT%
 echo.
 
+REM 启动宿主机辅助服务（用于一键打开目录等功能）
+start /b python host_helper.py 18791 127.0.0.1 >nul 2>&1
+echo [ok] 宿主机辅助服务已启动 (端口 18791)
+
 python server.py
 
 pause

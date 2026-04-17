@@ -51,7 +51,11 @@ async function populateModelDropdown(){
     // Clear existing options
     sel.innerHTML='';
     _dynamicModelLabels={};
+    const ap=(data.active_provider||'').toLowerCase();
     for(const g of data.groups){
+      // Only show groups matching the active provider
+      const gp=(g.provider||'').toLowerCase();
+      if(ap && gp!==ap) continue;
       const og=document.createElement('optgroup');
       og.label=g.provider;
       for(const m of g.models){
@@ -137,34 +141,110 @@ function renderModelDropdown(){
   const sel=$('modelSelect');
   if(!dd||!sel) return;
   dd.innerHTML='';
+  // ── Search input ──
+  const searchWrap=document.createElement('div');
+  searchWrap.className='model-search-wrap';
+  searchWrap.innerHTML=`<input type="text" class="model-search-input" id="modelSearchInput" placeholder="${esc(t('model_search_placeholder'))}" autocomplete="off">`;
+  dd.appendChild(searchWrap);
+  // ── Model list (scrollable) ──
+  const listWrap=document.createElement('div');
+  listWrap.className='model-list-wrap';
+  listWrap.id='modelListWrap';
   for(const child of Array.from(sel.children)){
     if(child.tagName==='OPTGROUP'){
       const heading=document.createElement('div');
       heading.className='model-group';
+      heading.dataset.group=child.label||'Models';
       heading.textContent=child.label||'Models';
-      dd.appendChild(heading);
+      listWrap.appendChild(heading);
       for(const opt of Array.from(child.children)){
         const row=document.createElement('div');
         row.className='model-opt'+(opt.value===sel.value?' active':'');
+        row.dataset.label=(opt.textContent||getModelLabel(opt.value)||'').toLowerCase();
+        row.dataset.value=opt.value.toLowerCase();
         row.innerHTML=`<span class="model-opt-name">${esc(opt.textContent||getModelLabel(opt.value))}</span><span class="model-opt-id">${esc(opt.value)}</span>`;
         row.onclick=()=>selectModelFromDropdown(opt.value);
-        dd.appendChild(row);
+        listWrap.appendChild(row);
       }
       continue;
     }
     if(child.tagName==='OPTION'){
       const row=document.createElement('div');
       row.className='model-opt'+(child.value===sel.value?' active':'');
+      row.dataset.label=(child.textContent||getModelLabel(child.value)||'').toLowerCase();
+      row.dataset.value=child.value.toLowerCase();
       row.innerHTML=`<span class="model-opt-name">${esc(child.textContent||getModelLabel(child.value))}</span><span class="model-opt-id">${esc(child.value)}</span>`;
       row.onclick=()=>selectModelFromDropdown(child.value);
-      dd.appendChild(row);
+      listWrap.appendChild(row);
     }
   }
+  dd.appendChild(listWrap);
+  // ── Custom model input ──
+  const customWrap=document.createElement('div');
+  customWrap.className='model-custom-wrap';
+  customWrap.innerHTML=`<div class="model-custom-divider"></div><div class="model-custom-row"><input type="text" class="model-custom-input" id="modelCustomInput" placeholder="${esc(t('model_custom_placeholder'))}" autocomplete="off"><button class="model-custom-btn" id="modelCustomBtn" title="${esc(t('model_custom_apply'))}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button></div>`;
+  dd.appendChild(customWrap);
+  // ── Wire up events ──
+  const searchInput=$('modelSearchInput');
+  if(searchInput){
+    searchInput.addEventListener('input',()=>_filterModelDropdown(searchInput.value));
+    // Auto-focus search when dropdown opens
+    requestAnimationFrame(()=>searchInput.focus());
+  }
+  const customInput=$('modelCustomInput');
+  const customBtn=$('modelCustomBtn');
+  if(customInput&&customBtn){
+    const applyCustom=()=>{
+      const val=customInput.value.trim();
+      if(val) selectModelFromDropdown(val);
+    };
+    customBtn.addEventListener('click',applyCustom);
+    customInput.addEventListener('keydown',(e)=>{if(e.key==='Enter'){e.preventDefault();applyCustom();}});
+  }
+}
+
+function _filterModelDropdown(query){
+  const listWrap=$('modelListWrap');
+  if(!listWrap) return;
+  const q=(query||'').toLowerCase().trim();
+  const groups=listWrap.querySelectorAll('.model-group');
+  const opts=listWrap.querySelectorAll('.model-opt');
+  if(!q){
+    // Show all
+    groups.forEach(g=>g.style.display='');
+    opts.forEach(o=>o.style.display='');
+    return;
+  }
+  // Hide/show options based on search
+  opts.forEach(o=>{
+    const label=o.dataset.label||'';
+    const value=o.dataset.value||'';
+    const match=label.includes(q)||value.includes(q);
+    o.style.display=match?'':'none';
+  });
+  // Hide empty groups
+  groups.forEach(g=>{
+    let next=g.nextElementSibling;
+    let hasVisible=false;
+    while(next&&!next.classList.contains('model-group')){
+      if(next.style.display!=='none') hasVisible=true;
+      next=next.nextElementSibling;
+    }
+    g.style.display=hasVisible?'':'none';
+  });
 }
 
 async function selectModelFromDropdown(value){
   const sel=$('modelSelect');
-  if(!sel||sel.value===value) { closeModelDropdown(); return; }
+  if(!sel) { closeModelDropdown(); return; }
+  if(sel.value===value) { closeModelDropdown(); return; }
+  // If value not in existing options, add it as a custom entry
+  if(!sel.querySelector(`option[value="${CSS.escape(value)}"]`)){
+    const opt=document.createElement('option');
+    opt.value=value;
+    opt.textContent=getModelLabel(value);
+    sel.appendChild(opt);
+  }
   sel.value=value;
   syncModelChip();
   closeModelDropdown();
@@ -636,8 +716,8 @@ function clearInflight() {
   localStorage.removeItem(INFLIGHT_KEY);
 }
 function showReconnectBanner(msg) {
-  $('reconnectMsg').textContent = msg || 'A response may have been in progress when you last left.';
-  $('reconnectBanner').classList.add('visible');
+  const el=$('reconnectMsg');if(el)el.textContent = msg || 'A response may have been in progress when you last left.';
+  const b=$('reconnectBanner');if(b)b.classList.add('visible');
 }
 function dismissReconnect() {
   $('reconnectBanner').classList.remove('visible');
@@ -739,10 +819,10 @@ function syncTopbar(){
     return;
   }
   const sessionTitle=S.session.title||t('untitled');
-  $('topbarTitle').textContent=sessionTitle;
+  const _tt=$('topbarTitle');if(_tt)_tt.textContent=sessionTitle;
   document.title=sessionTitle+' \u2014 '+(window._botName||'Hermes');
   const vis=S.messages.filter(m=>m&&m.role&&m.role!=='tool');
-  $('topbarMeta').textContent=t('n_messages',vis.length);
+  const _tm=$('topbarMeta');if(_tm)_tm.textContent=t('n_messages',vis.length);
   // If a profile switch just happened, apply its model rather than the session's stale value.
   // S._pendingProfileModel is set by switchToProfile() and cleared here after one application.
   const modelOverride=S._pendingProfileModel;
@@ -777,8 +857,8 @@ function syncTopbar(){
   if(typeof syncWsSelectorLabel==='function') syncWsSelectorLabel();
   if(S.session && S.session.workspace){
     const wsName = typeof getWorkspaceFriendlyName==='function' ? getWorkspaceFriendlyName(S.session.workspace) : S.session.workspace.split(/[\/\\]/).filter(Boolean).pop();
-    $('topbarTitle').textContent = wsName || $('topbarTitle').textContent;
-    $('topbarMeta').textContent = S.session.workspace;
+    const _ttW=$('topbarTitle');if(_ttW)_ttW.textContent = wsName || _ttW.textContent;
+    const _tmW=$('topbarMeta');if(_tmW)_tmW.textContent = S.session.workspace;
   }
   // modelSelect already set above
   // Update profile chip label
@@ -1497,8 +1577,30 @@ function _showFileCtxMenu(x, y, item){
     if(!S.session)return;
     try{
       const ws=_activeWorkspacePath();
-      await api('/api/file/reveal',{method:'POST',body:JSON.stringify({session_id:S.session.session_id,path:item.path,workspace:ws||undefined})});
-      showToast(t('revealed','已打开'));
+      const res=await api('/api/file/reveal',{method:'POST',body:JSON.stringify({session_id:S.session.session_id,path:item.path,workspace:ws||undefined})});
+      const hostPath=res.host_file_path||res.host_path;
+      if(hostPath){
+        // Docker environment: try host helper via WebUI proxy (avoids CORS)
+        let helperOk=false;
+        try{
+          const helperRes=await fetch('/api/host/open?path='+encodeURIComponent(hostPath));
+          const helperData=await helperRes.json();
+          if(helperData.ok) helperOk=true;
+        }catch(_e){
+          console.warn('[reveal] host helper failed:', _e.message||_e);
+        }
+        if(helperOk){
+          showToast(t('revealed','已打开'));
+          return;
+        }
+        // Fallback: copy path and show hint
+        try{await navigator.clipboard.writeText(hostPath);}catch(_e){}
+        showToast(t('host_path_copied_fallback','已复制路径，若未自动打开请在资源管理器地址栏粘贴'));
+      }else if(!res.hint){
+        showToast(t('revealed','已打开'));
+      }else{
+        showToast(t('reveal_no_filemanager','无可用的文件管理器 (Docker环境)'));
+      }
     }catch(e){showToast(t('reveal_failed','打开失败')+': '+e.message);}
   };
   menu.appendChild(revealItem);
@@ -1527,17 +1629,197 @@ function _showFileCtxMenu(x, y, item){
   },0);
 }
 
-async function deleteWorkspaceFile(relPath, name){
-  if(!S.session)return;
-  const _delFile=await showConfirmDialog({title:t('delete_confirm',name),message:'',confirmLabel:'Delete',danger:true,focusCancel:true});
-  if(!_delFile) return;
+// ── In-browser directory viewer (Docker fallback) ─────────────────────
+function _showInBrowserDirViewer(dirPath, highlightName, hostDirPath, hostFilePath, hostDirPathUrl, hostFilePathUrl){
+  // Remove any existing viewer
+  const existing=document.getElementById('dirViewerOverlay');
+  if(existing) existing.remove();
+
+  const overlay=document.createElement('div');
+  overlay.id='dirViewerOverlay';
+  overlay.className='dir-viewer-overlay';
+
+  const panel=document.createElement('div');
+  panel.className='dir-viewer';
+
+  // Header
+  const header=document.createElement('div');
+  header.className='dir-viewer-header';
+
+  const titleEl=document.createElement('div');
+  titleEl.className='dir-viewer-title';
+  titleEl.textContent=t('dir_viewer_title','目录浏览');
+
+  const pathEl=document.createElement('div');
+  pathEl.id='_dirViewerPath';
+  pathEl.className='dir-viewer-path';
+  pathEl.textContent=dirPath;
+
+  const titleWrap=document.createElement('div');
+  titleWrap.appendChild(titleEl);
+  titleWrap.appendChild(pathEl);
+
+  const closeBtn=document.createElement('button');
+  closeBtn.className='dir-viewer-close';
+  closeBtn.innerHTML='&#x2715;';
+  closeBtn.onclick=()=>overlay.remove();
+
+  header.appendChild(titleWrap);
+  header.appendChild(closeBtn);
+  panel.appendChild(header);
+
+  // Host path info bar (Docker volume mapping)
+  if(hostDirPath||hostFilePath){
+    const hostBar=document.createElement('div');
+    hostBar.className='dir-viewer-host';
+    const hostLabel=document.createElement('div');
+    hostLabel.className='dir-viewer-host-label';
+    hostLabel.textContent=t('host_path_label','宿主机路径 (Docker映射)');
+    hostBar.appendChild(hostLabel);
+    const hostRow=document.createElement('div');
+    hostRow.className='dir-viewer-host-row';
+    const hostPathText=document.createElement('code');
+    hostPathText.className='dir-viewer-host-code';
+    hostPathText.textContent=hostFilePath||hostDirPath;
+    hostRow.appendChild(hostPathText);
+    // Copy button
+    const copyBtn=document.createElement('button');
+    copyBtn.className='dir-viewer-host-btn';
+    copyBtn.textContent='📋';
+    copyBtn.title=t('copy_host_path','复制宿主机路径');
+    copyBtn.onclick=async()=>{
+      try{
+        await navigator.clipboard.writeText(hostFilePath||hostDirPath);
+        copyBtn.textContent='✓';
+        copyBtn.classList.add('copied');
+        setTimeout(()=>{copyBtn.textContent='📋';copyBtn.classList.remove('copied');},1500);
+      }catch(e){
+        showToast(t('copy_failed','复制失败'));
+      }
+    };
+    hostRow.appendChild(copyBtn);
+    // Open in explorer button
+    const openUrl=hostFilePathUrl||hostDirPathUrl;
+    if(openUrl){
+      const openBtn=document.createElement('button');
+      openBtn.className='dir-viewer-open-btn';
+      openBtn.innerHTML='📂 '+t('open_host_dir','打开目录');
+      openBtn.title=t('open_host_dir_title','在宿主机资源管理器中打开此目录');
+      openBtn.onclick=()=>{
+        const a=document.createElement('a');
+        a.href=openUrl;
+        a.target='_blank';
+        a.rel='noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        navigator.clipboard.writeText(hostFilePath||hostDirPath).catch(()=>{});
+        showToast(t('host_path_copied_fallback','已复制路径，若未自动打开请在资源管理器地址栏粘贴'));
+      };
+      hostRow.appendChild(openBtn);
+    }
+    hostBar.appendChild(hostRow);
+    panel.appendChild(hostBar);
+  }
+
+  // File list
+  const listWrap=document.createElement('div');
+  listWrap.className='dir-viewer-list';
+  listWrap.id='_dirViewerList';
+
+  panel.appendChild(listWrap);
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+
+  // Close on backdrop click
+  overlay.onclick=(e)=>{if(e.target===overlay)overlay.remove();};
+
+  // Load directory contents
+  _loadDirViewerContents(dirPath, highlightName);
+}
+
+async function _loadDirViewerContents(dirPath, highlightName){
+  const listWrap=document.getElementById('_dirViewerList');
+  const pathEl=document.getElementById('_dirViewerPath');
+  if(!listWrap) return;
+  if(pathEl) pathEl.textContent=dirPath;
+  listWrap.innerHTML='<div class="dir-viewer-empty">Loading…</div>';
   try{
-    await api('/api/file/delete',{method:'POST',body:JSON.stringify({session_id:S.session.session_id,path:relPath})});
-    showToast(t('deleted')+name);
-    // Close preview if we just deleted the viewed file
-    if($('previewPathText').textContent===relPath)$('btnClearPreview').onclick();
-    await loadDir(S.currentDir);
-  }catch(e){setStatus(t('delete_failed')+e.message);}
+    const data=await api('/api/browse-dir?path='+encodeURIComponent(dirPath)+'&include_files=true');
+    listWrap.innerHTML='';
+
+    // Parent directory link
+    if(data.parent!==null&&data.parent!==undefined){
+      const parentItem=document.createElement('div');
+      parentItem.className='dir-viewer-item parent';
+      parentItem.textContent='📁 ..';
+      parentItem.onclick=()=>_loadDirViewerContents(data.parent,'');
+      listWrap.appendChild(parentItem);
+    }
+
+    // Directories
+    const dirs=data.dirs||[];
+    for(const d of dirs){
+      const item=document.createElement('div');
+      const isHighlight=highlightName&&d.name===highlightName;
+      item.className='dir-viewer-item'+(isHighlight?' highlight':'');
+      item.textContent='📁 '+d.name;
+      item.onclick=()=>_loadDirViewerContents(d.path,'');
+      listWrap.appendChild(item);
+    }
+
+    // Files
+    const files=data.files||[];
+    for(const f of files){
+      const item=document.createElement('div');
+      const isHighlight=highlightName&&f.name===highlightName;
+      const sizeStr=f.size!=null?'<span class="dv-size">'+Math.round(f.size/1024)+'KB</span>':'';
+      item.className='dir-viewer-item file'+(isHighlight?' highlight':'');
+      item.innerHTML='📄 '+esc(f.name)+sizeStr;
+      listWrap.appendChild(item);
+    }
+
+    if(!dirs.length&&!files.length){
+      const empty=document.createElement('div');
+      empty.className='dir-viewer-empty';
+      empty.textContent=t('dir_viewer_empty','(空目录)');
+      listWrap.appendChild(empty);
+    }
+  }catch(e){
+    listWrap.innerHTML='<div class="dir-viewer-empty" style="color:var(--error,#f44)">Failed to load: '+esc(e.message)+'</div>';
+  }
+}
+
+async function deleteWorkspaceFile(relPath, name){
+  console.log('[deleteWorkspaceFile] called', {relPath, name, session: !!S.session});
+  if(!S.session){showToast('No active session');return;}
+  const displayName = name || relPath || 'file';
+  // Step 1: Confirm dialog
+  let confirmed = false;
+  try{
+    confirmed = await showConfirmDialog({title:t('delete_confirm',displayName),message:'',confirmLabel:'Delete',danger:true,focusCancel:true});
+  }catch(e){console.warn('[deleteWorkspaceFile] Confirm dialog error:',e);return;}
+  if(!confirmed) return;
+  // Step 2: API call
+  try{
+    const sid = S.session && S.session.session_id ? S.session.session_id : '';
+    console.log('[deleteWorkspaceFile] Deleting via API', {sid, relPath});
+    await api('/api/file/delete',{method:'POST',body:JSON.stringify({session_id:sid,path:relPath})});
+  }catch(e){
+    console.error('[deleteWorkspaceFile] API error:', e);
+    showToast(t('delete_failed')+(e&&e.message?e.message:String(e)));
+    return;
+  }
+  showToast(t('deleted')+displayName);
+  // Step 3: Close file preview in right panel if we just deleted the viewed file
+  try{
+    const rpFilePathEl=$('rpFilePath');
+    if(rpFilePathEl && rpFilePathEl.textContent === relPath){
+      if(typeof closeRpFilePreview==='function') closeRpFilePreview();
+    }
+  }catch(e){console.warn('[deleteWorkspaceFile] preview cleanup error:',e);}
+  // Step 4: Refresh file tree
+  try{await loadDir(S.currentDir||'.');}catch(e){console.warn('[deleteWorkspaceFile] refresh error:',e);}
 }
 
 async function promptNewFile(){

@@ -79,7 +79,7 @@ def _sse(handler, event, data):
     handler.wfile.flush()
 
 
-def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, attachments=None):
+def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, attachments=None, system_prompt=""):
     """Run agent in background thread, writing SSE events to STREAMS[stream_id]."""
     q = STREAMS.get(stream_id)
     if q is None:
@@ -287,6 +287,15 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             # Pass personality via ephemeral_system_prompt (agent's own mechanism)
             if _personality_prompt:
                 agent.ephemeral_system_prompt = _personality_prompt
+
+            # Inject employee-level system prompt (from WebUI employee card)
+            # Combines with personality prompt if both exist
+            if system_prompt:
+                if agent.ephemeral_system_prompt:
+                    agent.ephemeral_system_prompt = agent.ephemeral_system_prompt + "\n\n" + system_prompt
+                else:
+                    agent.ephemeral_system_prompt = system_prompt
+
             result = agent.run_conversation(
                 user_message=workspace_ctx + msg_text,
                 system_message=workspace_system_msg,

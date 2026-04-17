@@ -418,16 +418,15 @@ async function openSkill(name, el) {
 async function openSkillFile(skillName, filePath) {
   try {
     const data = await api(`/api/skills/content?name=${encodeURIComponent(skillName)}&file=${encodeURIComponent(filePath)}`);
-    $('previewPathText').textContent = skillName + ' / ' + filePath;
-    $('previewBadge').textContent = filePath.split('.').pop() || 'file';
-    $('previewBadge').className = 'preview-badge code';
+    const _ppt=$('previewPathText');if(_ppt)_ppt.textContent = skillName + ' / ' + filePath;
+    const _pb=$('previewBadge');if(_pb){_pb.textContent = filePath.split('.').pop() || 'file';_pb.className = 'preview-badge code';}
     const ext = filePath.split('.').pop() || '';
     if (['md','markdown'].includes(ext)) {
       showPreview('md');
-      $('previewMd').innerHTML = renderMd(data.content || '');
+      const _pm=$('previewMd');if(_pm)_pm.innerHTML = renderMd(data.content || '');
     } else {
       showPreview('code');
-      $('previewCode').textContent = data.content || '';
+      const _pc=$('previewCode');if(_pc)_pc.textContent = data.content || '';
       requestAnimationFrame(() => highlightCode());
     }
   } catch(e) { setStatus('Could not load file: ' + e.message); }
@@ -691,12 +690,16 @@ async function addWorkspace(){
   const path=(input?input.value:'').trim();
   if(!path)return;
   try{
-    const data=await api('/api/workspaces/add',{method:'POST',body:JSON.stringify({path})});
+    const data=await api('/api/workspaces/add',{method:'POST',body:JSON.stringify({path,create:true})});
     _workspaceList=data.workspaces;
     if(typeof _wsSelectorList!=='undefined') _wsSelectorList=_workspaceList.slice();
     renderWorkspacesPanel(data.workspaces);
     if(input)input.value='';
-    showToast('Workspace added');
+    if(data.resolved_path&&data.resolved_path!==path){
+      showToast('Workspace created at '+data.resolved_path);
+    }else{
+      showToast('Workspace added');
+    }
   }catch(e){setStatus('Add failed: '+e.message);}
 }
 
@@ -732,14 +735,14 @@ async function promptWorkspacePath(){
         return;
       }
     }
-    const data=await api('/api/workspaces/add',{method:'POST',body:JSON.stringify({path})});
+    const data=await api('/api/workspaces/add',{method:'POST',body:JSON.stringify({path,create:true})});
     _workspaceList=data.workspaces||[];
     // 同步中间工作区选择器的缓存
     if(typeof _wsSelectorList!=='undefined') _wsSelectorList=_workspaceList.slice();
     const target=_workspaceList[_workspaceList.length-1];
     if(!target) throw new Error('Workspace was not added');
     await switchToWorkspace(target.path,target.name);
-    showToast('工作区已切换到 '+path);
+    showToast('工作区已切换到 '+(data.resolved_path||path));
   }catch(e){
     if(String(e.message||'').includes('Workspace already in list')){
       // 已存在则刷新列表并直接切换
@@ -788,8 +791,49 @@ async function _showBrowsePathDialog(opts={}){
   }
   if(cancelBtn) cancelBtn.textContent=opts.cancelLabel||t('cancel');
   if(confirmBtn){confirmBtn.textContent=opts.confirmLabel||t('create');confirmBtn.classList.remove('danger');}
-  // 隐藏子目录浏览面板（不再使用内嵌目录浏览）
-  if(browseEl) browseEl.style.display='none';
+  // 内嵌服务器端目录浏览面板
+  if(browseEl){
+    browseEl.style.display='block';
+    browseEl.innerHTML='';
+    const browseList=document.createElement('div');
+    browseList.style.cssText='max-height:200px;overflow-y:auto;margin:6px 0;border:1px solid var(--border-color,#333);border-radius:4px;background:var(--bg-secondary,#1a1a1a);';
+    const loadDirs=async(dirPath)=>{
+      browseList.innerHTML='<div style="padding:8px;color:var(--text-dim,#888)">Loading…</div>';
+      try{
+        const url='/api/browse-dir'+(dirPath?'?path='+encodeURIComponent(dirPath):'');
+        const data=await api(url);
+        browseList.innerHTML='';
+        // Parent dir link
+        if(data.parent!==null&&data.parent!==undefined){
+          const parentItem=document.createElement('div');
+          parentItem.style.cssText='padding:4px 8px;cursor:pointer;color:var(--text-dim,#888);border-bottom:1px solid var(--border-color,#333);';
+          parentItem.textContent='📁 ..';
+          parentItem.onclick=()=>loadDirs(data.parent);
+          browseList.appendChild(parentItem);
+        }
+        for(const d of(data.dirs||[])){
+          const item=document.createElement('div');
+          item.style.cssText='padding:4px 8px;cursor:pointer;color:var(--text-primary,#eee);border-bottom:1px solid var(--border-color,#222);';
+          item.textContent='📁 '+d.name;
+          item.onmouseenter=()=>{item.style.background='var(--bg-hover,#2a2a2a)';};
+          item.onmouseleave=()=>{item.style.background='';};
+          item.onclick=()=>{if(input)input.value=d.path;loadDirs(d.path);};
+          browseList.appendChild(item);
+        }
+        if(!(data.dirs||[]).length){
+          const empty=document.createElement('div');
+          empty.style.cssText='padding:8px;color:var(--text-dim,#888);';
+          empty.textContent='(no subdirectories)';
+          browseList.appendChild(empty);
+        }
+      }catch(e){
+        browseList.innerHTML='<div style="padding:8px;color:var(--error,#f44)">Failed to browse: '+e.message+'</div>';
+      }
+    };
+    // Initial browse from the input value or home
+    loadDirs((opts.value||'').trim()||'');
+    browseEl.appendChild(browseList);
+  }
   // "..." 按钮：调用后端弹出系统原生文件夹选择对话框
   if(browseBtn){
     browseBtn.onclick=async()=>{
@@ -803,7 +847,7 @@ async function _showBrowsePathDialog(opts={}){
           if(input) input.value=data.path;
         }
       }catch(e){
-        showToast('无法打开文件夹选择器');
+        showToast('无法打开文件夹选择器（Docker环境请使用下方目录列表浏览）');
       }finally{
         browseBtn.disabled=false;
         browseBtn.textContent='...';

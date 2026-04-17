@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hermes</title>
 <script>(function(){var t=localStorage.getItem('hermes-theme');if(t&&t!=='dark')document.documentElement.dataset.theme=t;})()</script>
-<link rel="stylesheet" href="/static/style.css?v=20260416c">
+<link rel="stylesheet" href="/static/style.css?v=20260417x">
+
+
   <!-- Marked.js — full-featured Markdown renderer (GFM tables, task lists, etc.) -->
   <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js" crossorigin="anonymous" defer></script>
 </head>
@@ -221,22 +223,24 @@
           <button class="emp-filter-btn" data-filter="working" onclick="setEmpFilter('working',this)">工作中</button>
           <button class="emp-filter-btn" data-filter="idle" onclick="setEmpFilter('idle',this)">空闲</button>
         </div>
-        <!-- 文件目录工具栏（仅文件模式显示） -->
-        <div class="file-toolbar-inline" id="fileToolbarInline" style="display:none">
-          <div class="breadcrumb-bar" id="mainBreadcrumb"></div>
-        </div>
+        <!-- 文件目录刷新按钮（仅文件模式显示，在页签栏右侧） -->
+        <button class="file-tab-refresh-btn" id="fileTabRefreshBtn" type="button" title="刷新目录" style="display:none" onclick="if(typeof loadDir==='function')loadDir(S.currentDir||'.')">↻</button>
+
         <!-- 画布缩放控件 -->
         <div class="canvas-zoom-controls" id="canvasZoomControls">
           <button class="canvas-zoom-btn" onclick="canvasZoom(-1)" title="缩小">−</button>
           <span class="canvas-zoom-label" id="canvasZoomLabel">100%</span>
           <button class="canvas-zoom-btn" onclick="canvasZoom(1)" title="放大">+</button>
           <button class="canvas-zoom-btn" onclick="canvasZoom(0)" title="重置">↺</button>
+          <span class="canvas-zoom-sep"></span>
+          <button class="canvas-zoom-btn canvas-save-btn" id="canvasSaveBtn" onclick="if(typeof saveCanvasData==='function')saveCanvasData()" title="保存画布 (Ctrl+S)">💾</button>
         </div>
       </div>
       <!-- 工作画布 -->
       <div class="workspace-tab-content active" id="canvasContent">
         <div class="employee-canvas" id="employeeCanvas">
           <div class="canvas-zoom-layer" id="canvasZoomLayer">
+            <svg class="canvas-connections-svg" id="canvasConnectionsSvg" xmlns="http://www.w3.org/2000/svg"></svg>
           </div>
           <div class="employee-empty-state" id="employeeEmptyState">
             <div class="emp-empty-icon">
@@ -258,6 +262,10 @@
       </div>
       <!-- 文件目录 -->
       <div class="workspace-tab-content" id="filesContent">
+        <div class="file-dir-toolbar" id="fileDirToolbar">
+          <div class="breadcrumb-bar" id="mainBreadcrumb"></div>
+          <button class="file-refresh-btn" id="btnRefreshDir" type="button" title="刷新目录" onclick="if(typeof loadDir==='function')loadDir(S.currentDir||'.')">↻</button>
+        </div>
         <div class="main-file-tree" id="mainFileTree"></div>
       </div>
     </div>
@@ -276,10 +284,16 @@
           </div>
         </div>
         <div class="rp-header-actions">
+          <button class="panel-icon-btn" id="btnEditPrompt" title="编辑提示词" onclick="openEmployeePromptEditor()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
           <button class="panel-icon-btn" id="btnCondenseSkill" title="将对话沉淀为技能" onclick="condenseConversationToSkill()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></button>
           <button class="panel-icon-btn" id="btnEmployeeSkills" title="配置员工技能" onclick="showEmployeeSkillDialog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
           <button class="panel-icon-btn close-preview" onclick="closeRightPanel()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
+      </div>
+      <!-- 委派关系信息条 -->
+      <div class="rp-delegation-bar" id="rpDelegationBar" style="display:none">
+        <div class="rp-delegation-info" id="rpDelegationInfo"></div>
+        <div class="rp-delegation-history" id="rpDelegationHistory"></div>
       </div>
       <div class="rp-messages" id="rpMessages">
         <div class="rp-empty-chat" id="rpEmptyChat">
@@ -369,6 +383,25 @@
       <div class="rp-skill-content" id="rpSkillContent">
         <div class="rp-skill-meta" id="rpSkillMeta"></div>
         <div class="rp-skill-body" id="rpSkillBody"></div>
+      </div>
+    </div>
+    <!-- 提示词编辑模式 -->
+    <div class="rp-prompt-view" id="rpPromptView" style="display:none">
+      <div class="rp-header">
+        <div class="rp-employee-info">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <div class="rp-employee-meta"><span class="rp-employee-name" id="rpPromptTitle">编辑提示词</span><span class="rp-employee-role" id="rpPromptSubtitle">直接编辑角色提示词，修改即时生效</span></div>
+        </div>
+        <div class="rp-header-actions">
+          <button class="panel-icon-btn" title="保存并返回" onclick="saveEmployeePrompt()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+          <button class="panel-icon-btn close-preview" onclick="closePromptEditor()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+      </div>
+      <div class="rp-prompt-content">
+        <div class="rp-prompt-section">
+          <label class="rp-prompt-label">角色提示词</label>
+          <textarea class="rp-prompt-textarea" id="rpPromptEditor" placeholder="角色提示词将根据预设、角色和技能自动生成，你也可以直接编辑修改" rows="16"></textarea>
+        </div>
       </div>
     </div>
     <!-- 文件预览模式 -->
@@ -636,21 +669,25 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="/static/i18n.js?v=20260414a"></script>
+<script src="/static/i18n.js?v=20260417b"></script>
 <script src="/static/icons.js?v=20260414"></script>
-<script src="/static/ui.js?v=20260416a"></script>
-<script src="/static/workspace.js?v=20260414c"></script>
-<script src="/static/sessions.js?v=20260414"></script>
+<script src="/static/ui.js?v=20260417z"></script>
+<script src="/static/workspace.js?v=20260417f"></script>
+<script src="/static/sessions.js?v=20260417r"></script>
 <script src="/static/commands.js?v=20260414"></script>
-<script src="/static/messages.js?v=20260414"></script>
-<script src="/static/panels.js?v=20260414m"></script>
-<script src="/static/employee.js?v=20260416a"></script>
+<script src="/static/messages.js?v=20260417t"></script>
+<script src="/static/panels.js?v=20260417a"></script>
+<script src="/static/employee.js?v=20260417t"></script>
+<script src="/static/canvas-connections.js?v=20260417u"></script>
 <script src="/static/agent-presets.js?v=20260414c"></script>
-<script src="/static/workspace-tabs.js?v=20260416b"></script>
-<script src="/static/right-panel.js?v=20260416c"></script>
+<script src="/static/workspace-tabs.js?v=20260417s"></script>
+
+
+
+<script src="/static/right-panel.js?v=20260417v"></script>
 <!-- CodeMirror 6 editor module (async, non-blocking) -->
 <script type="module" src="/static/cm-editor.js?v=20260416d"></script>
 <script src="/static/onboarding.js?v=20260414"></script>
-<script src="/static/boot.js?v=20260414b"></script>
+<script src="/static/boot.js?v=20260417u"></script>
 </body>
 </html>

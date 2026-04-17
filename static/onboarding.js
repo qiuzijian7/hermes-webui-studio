@@ -64,7 +64,48 @@ function _renderOnboardingModelField(){
     return `<label class="onboarding-field"><span>${t('onboarding_model_label')}</span><input id="onboardingModelInput" value="${esc(_getOnboardingSelectedModel())}" placeholder="${t('onboarding_custom_model_placeholder')}" oninput="ONBOARDING.form.model=this.value"></label><p class="onboarding-copy">${t('onboarding_custom_model_help')}</p>`;
   }
   const options=choices.map(m=>`<option value="${esc(m.id)}">${esc(m.label)}</option>`).join('');
-  return `<label class="onboarding-field"><span>${t('onboarding_model_label')}</span><select id="onboardingModelSelect" onchange="ONBOARDING.form.model=this.value">${options}</select></label><p class="onboarding-copy">${t('onboarding_workspace_help')}</p>`;
+  return `
+    <label class="onboarding-field">
+      <span>${t('onboarding_model_label')}</span>
+      <input type="text" class="onboarding-model-search" id="onboardingModelSearch" placeholder="${esc(t('model_search_placeholder'))}" autocomplete="off" oninput="_filterOnboardingModels(this.value)">
+    </label>
+    <label class="onboarding-field onboarding-model-list-wrap">
+      <select id="onboardingModelSelect" onchange="ONBOARDING.form.model=this.value;_onboardingModelPicked()" size="8">${options}</select>
+    </label>
+    <label class="onboarding-field onboarding-model-custom-row">
+      <span>${t('model_custom_or_label')}</span>
+      <div class="onboarding-model-custom-inner">
+        <input type="text" id="onboardingModelCustomInput" value="" placeholder="${esc(t('model_custom_placeholder'))}" autocomplete="off" oninput="ONBOARDING.form.model=this.value">
+        <button type="button" class="onboarding-model-custom-btn" onclick="_applyOnboardingCustomModel()" title="${esc(t('model_custom_apply'))}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+      </div>
+    </label>
+    <p class="onboarding-copy">${t('onboarding_workspace_help')}</p>`;
+}
+
+function _onboardingModelPicked(){
+  // Clear custom input when a preset model is selected
+  const ci=$('onboardingModelCustomInput');
+  if(ci) ci.value='';
+}
+
+function _filterOnboardingModels(query){
+  const sel=$('onboardingModelSelect');
+  if(!sel) return;
+  const q=(query||'').toLowerCase().trim();
+  for(const opt of sel.options){
+    const label=(opt.textContent||'').toLowerCase();
+    const value=(opt.value||'').toLowerCase();
+    opt.style.display=(!q||label.includes(q)||value.includes(q))?'':'none';
+  }
+}
+
+function _applyOnboardingCustomModel(){
+  const ci=$('onboardingModelCustomInput');
+  const sel=$('onboardingModelSelect');
+  if(ci&&ci.value.trim()){
+    ONBOARDING.form.model=ci.value.trim();
+    if(sel) sel.selectedIndex=-1;
+  }
 }
 
 function _providerStatusLabel(system){
@@ -305,7 +346,7 @@ async function _saveOnboardingDefaults(){
   if(!model) throw new Error(t('onboarding_error_choose_model'));
   const known=_getOnboardingWorkspaceChoices().some(ws=>ws.path===workspace);
   if(!known){
-    await api('/api/workspaces/add',{method:'POST',body:JSON.stringify({path:workspace})});
+    await api('/api/workspaces/add',{method:'POST',body:JSON.stringify({path:workspace,create:true})});
   }
   const body={default_workspace:workspace,default_model:model};
   if(password) body._set_password=password;
@@ -341,7 +382,7 @@ async function nextOnboardingStep(){
     }
     if(ONBOARDING.steps[ONBOARDING.step]==='workspace'){
       ONBOARDING.form.workspace=(($('onboardingWorkspaceInput')||{}).value||ONBOARDING.form.workspace||'').trim();
-      ONBOARDING.form.model=(($('onboardingModelInput')||{}).value||($('onboardingModelSelect')||{}).value||ONBOARDING.form.model||'').trim();
+      ONBOARDING.form.model=(($('onboardingModelInput')||{}).value||($('onboardingModelCustomInput')||{}).value||($('onboardingModelSelect')||{}).value||ONBOARDING.form.model||'').trim();
       if(!ONBOARDING.form.workspace) throw new Error(t('onboarding_error_workspace_required'));
       if(!ONBOARDING.form.model) throw new Error(t('onboarding_error_model_required'));
     }

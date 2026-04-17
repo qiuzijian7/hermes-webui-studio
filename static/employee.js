@@ -87,6 +87,8 @@ function switchCanvasWorkspace(newWsPath) {
   if (typeof closeRightPanel === 'function') closeRightPanel();
   // 6. 重新渲染
   renderEmployeeCards();
+  // 6.5 重新加载连线数据
+  if (typeof _loadConnections === 'function') _loadConnections();
   // 7. 恢复新工作区的画布视觉状态
   if (typeof _loadCanvasState === 'function') _loadCanvasState();
 }
@@ -118,6 +120,8 @@ function createEmployee(opts = {}) {
     presetId: opts.presetId || null,       // 关联的 Agent 预设 ID
     characterImg: opts.characterImg || null, // 角色精灵图标识
     model: opts.model || 'sonnet',         // 使用的模型
+    customPrompt: opts.customPrompt || '', // 用户自定义提示词
+    subagentOf: opts.subagentOf || null,   // 该员工是谁的下属（manager empId）
     _pos: opts._pos || null,               // 画布位置
   };
   EMPLOYEE_STORE.employees.push(emp);
@@ -134,11 +138,91 @@ function getEmployee(id) {
   return EMPLOYEE_STORE.employees.find(e => e.id === id);
 }
 
+/** 简化模型名称显示，如 claude-sonnet-4-20250514 → sonnet-4, gpt-4o → gpt-4o */
+function _shortModelLabel(model) {
+  if (!model) return '';
+  // 移除常见前缀
+  let s = model.replace(/^(anthropic\/|openai\/|google\/|x-ai\/|deepseek\/|meta-llama\/)/, '');
+  // 移除日期后缀 -20250514
+  s = s.replace(/-\d{8}$/, '');
+  // 已够短则直接用
+  if (s.length <= 12) return s;
+  // claude-sonnet-4 → sonnet-4
+  s = s.replace(/^claude-/, '');
+  return s.length > 12 ? s.slice(0, 12) : s;
+}
+
+/** 格式化 token 数字：1234 → 1.2k, 1234567 → 1.2M */
+function _fmtEmpTokens(n) {
+  if (!n || n < 0) return '0';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+  return String(n);
+}
+
 /** 检查员工名称在工作区内是否唯一（排除指定 ID 的员工自身） */
 function isEmployeeNameUnique(name, excludeId) {
   const n = (name || '').trim();
   if (!n) return false;
   return !EMPLOYEE_STORE.employees.some(e => e.name === n && e.id !== excludeId);
+}
+
+/** 根据员工的角色、技能、预设构建独立的 system prompt */
+function buildEmployeeSystemPrompt(emp) {
+  if (!emp) return '';
+  const parts = [];
+
+  // 1. 预设描述（如有 presetId，从 AGENT_PRESETS 加载完整描述）
+  if (emp.presetId && typeof AGENT_PRESETS !== 'undefined') {
+    const preset = AGENT_PRESETS.find(p => p.id === emp.presetId);
+    if (preset && preset.desc) {
+      parts.push(`## 角色定义\n你是「${emp.name}」，${preset.desc}`);
+    }
+  }
+
+  // 2. 角色信息（无预设时或作为补充）
+  if (!parts.length) {
+    parts.push(`## 角色定义\n你是「${emp.name}」，角色为「${emp.role}」。`);
+  }
+
+  // 3. 技能上下文
+  if (emp.skills && emp.skills.length) {
+    const enabledSkills = emp.skills.filter(s => s.enabled !== false);
+    const skillNames = enabledSkills.map(s => s.name || s).filter(Boolean);
+    if (skillNames.length) {
+      parts.push(`## 专业技能\n你擅长以下领域：${skillNames.join('、')}。在处理相关任务时，请充分发挥这些专长。`);
+    }
+  }
+
+  // 4. 行为指引
+  parts.push(`## 行为指引
+- 始终以「${emp.name}」的身份回应，保持角色一致性
+- 根据你的角色和技能，提供专业、精准的建议和解决方案
+- 如果问题超出你的专业领域，坦诚说明并给出力所能及的帮助`);
+
+  // 5. subagent 关系上下文（始终追加，不受 customPrompt 影响）
+  let relationCtx = '';
+  if (emp.subagentOf && typeof getEmployee === 'function') {
+    const manager = getEmployee(emp.subagentOf);
+    if (manager) {
+      relationCtx += `\n\n## 工作关系\n你是「${manager.name}」的下属员工。当「${manager.name}」通过 delegate_task 向你委派任务时，你应该专注执行并汇报结果。`;
+    }
+  }
+  if (typeof getSubagentsOf === 'function') {
+    const subs = getSubagentsOf(emp.id);
+    if (subs && subs.length) {
+      const subNames = subs.map(s => s.employee?.name || '?').join('、');
+      relationCtx += `\n\n## 管理范围\n你管理以下下属员工：${subNames}。你可以通过 delegate_task 向他们委派任务，指定 employee_name 为下属名称。`;
+    }
+  }
+
+  // 6. 用户自定义提示词
+  // 当 customPrompt 存在时，以用户编辑的完整提示词为基础，但仍追加关系上下文
+  if (emp.customPrompt && emp.customPrompt.trim()) {
+    return emp.customPrompt.trim() + relationCtx;
+  }
+
+  return parts.join('\n\n') + relationCtx;
 }
 
 function updateEmployee(id, updates) {
@@ -152,6 +236,10 @@ function updateEmployee(id, updates) {
 function deleteEmployee(id) {
   const idx = EMPLOYEE_STORE.employees.findIndex(e => e.id === id);
   if (idx < 0) return;
+  // 清理连线关系
+  if (typeof removeConnectionsForEmployee === 'function') {
+    removeConnectionsForEmployee(id);
+  }
   EMPLOYEE_STORE.employees.splice(idx, 1);
   if (EMPLOYEE_STORE.selectedId === id) {
     EMPLOYEE_STORE.selectedId = null;
@@ -277,6 +365,15 @@ function _buildCard(emp) {
       (emp.skills.length > 3 ? `<span class="emp-skill-more">+${emp.skills.length - 3}</span>` : '')
     : '';
 
+  // 模型标签：简化显示（取最后一段，如 claude-sonnet-4-20250514 → sonnet-4）
+  const modelLabel = _shortModelLabel(emp.model);
+  // Token 使用量
+  const usage = emp.tokenUsage || {};
+  const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+  const usageHtml = totalTokens > 0
+    ? `<span class="emp-usage-badge">${_fmtEmpTokens(totalTokens)}</span>`
+    : '';
+
   // 头像：如果有 characterImg 则显示精灵图（3×4 sprite sheet 裁剪首帧），否则显示 emoji
   const avatarFallback = esc(emp.avatar).replace(/'/g, "\\'");
   const avatarHtml = emp.characterImg
@@ -298,6 +395,8 @@ function _buildCard(emp) {
         <span class="emp-status-dot${st.animated ? ' emp-dot-animated' : ''}" style="background:${st.dot}"></span>
         <span class="emp-status-label" style="color:${st.color}">${st.label}</span>
         <span class="emp-card-time">${_timeAgo(emp.lastActiveAt)}</span>
+        ${modelLabel ? `<span class="emp-model-badge">${esc(modelLabel)}</span>` : ''}
+        ${usageHtml}
       </div>
       ${skillsHtml ? `<div class="emp-card-skills">${skillsHtml}</div>` : ''}
       <div class="emp-card-actions">
@@ -334,12 +433,55 @@ function _updateCardStatus(card, emp) {
   if (avatar) avatar.style.background = st.bg;
 }
 
+/** 增量更新卡片上的 token 使用量和模型标签 */
+function _updateCardTokenUsage(emp) {
+  const card = document.querySelector(`.emp-card[data-id="${emp.id}"]`);
+  if (!card) return;
+  const usage = emp.tokenUsage || {};
+  const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+  // 更新 token badge
+  let badge = card.querySelector('.emp-usage-badge');
+  if (totalTokens > 0) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'emp-usage-badge';
+      const statusRow = card.querySelector('.emp-card-status');
+      if (statusRow) statusRow.appendChild(badge);
+    }
+    badge.textContent = _fmtEmpTokens(totalTokens);
+  } else if (badge) {
+    badge.remove();
+  }
+  // 更新模型 badge
+  const modelLabel = _shortModelLabel(emp.model);
+  let modelBadge = card.querySelector('.emp-model-badge');
+  if (modelLabel) {
+    if (!modelBadge) {
+      modelBadge = document.createElement('span');
+      modelBadge.className = 'emp-model-badge';
+      const statusRow = card.querySelector('.emp-card-status');
+      if (statusRow) {
+        // 插入到 time 后面
+        const timeEl = statusRow.querySelector('.emp-card-time');
+        if (timeEl && timeEl.nextSibling) {
+          statusRow.insertBefore(modelBadge, timeEl.nextSibling);
+        } else {
+          statusRow.appendChild(modelBadge);
+        }
+      }
+    }
+    modelBadge.textContent = modelLabel;
+  } else if (modelBadge) {
+    modelBadge.remove();
+  }
+}
+
 // ── 拖拽（网格内交换位置）──────────────────────────────────────────────────
 let _dragSourceId = null;
 
 function _initCardDrag(card, emp) {
   card.addEventListener('dragstart', e => {
-    if (e.target.closest('button') || e.target.closest('.emp-card-menu-btn')) {
+    if (e.target.closest('button') || e.target.closest('.emp-card-menu-btn') || e.target.closest('.emp-conn-handle')) {
       e.preventDefault();
       return;
     }

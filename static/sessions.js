@@ -586,11 +586,11 @@ async function deleteSession(sid){
     if(remaining.sessions&&remaining.sessions.length){
       await loadSession(remaining.sessions[0].session_id);
     }else{
-      $('topbarTitle').textContent=window._botName||'Hermes';
-      $('topbarMeta').textContent='Start a new conversation';
-      $('msgInner').innerHTML='';
+      const _tt3=$('topbarTitle');if(_tt3)_tt3.textContent=window._botName||'Hermes';
+      const _tm3=$('topbarMeta');if(_tm3)_tm3.textContent='Start a new conversation';
+      const _mi=$('msgInner');if(_mi)_mi.innerHTML='';
       $('emptyState').style.display='';
-      $('fileTree').innerHTML='';
+      const _ft=$('fileTree');if(_ft)_ft.innerHTML='';
     }
   }
   showToast('Conversation deleted');

@@ -55,21 +55,22 @@ async function loadDir(path){
     if(!path||path==='.'){
       S._dirCache={};
       _restoreExpandedDirs();  // restore per-workspace expanded state on root load
+    }else{
+      // Invalidate cache for the target dir so fresh data is always fetched
+      delete S._dirCache[path];
     }
     S.currentDir=path||'.';
     const listQs=sid?`session_id=${sid}&path=${encodeURIComponent(path)}`:`path=${encodeURIComponent(path)}`;
     const data=await api(`/api/list?${listQs}`);
     S.entries=data.entries||[];renderBreadcrumb();renderFileTree();
-    // Pre-fetch contents of restored expanded dirs so they render without a second click
+    // Re-fetch contents of expanded dirs so new/deleted files show immediately
     if(!path||path==='.'){
       for(const dirPath of (S._expandedDirs||[])){
-        if(!S._dirCache[dirPath]){
-          try{
-            const dcQs=sid?`session_id=${sid}&path=${encodeURIComponent(dirPath)}`:`path=${encodeURIComponent(dirPath)}`;
-            const dc=await api(`/api/list?${dcQs}`);
-            S._dirCache[dirPath]=dc.entries||[];
-          }catch(e2){S._dirCache[dirPath]=[];}
-        }
+        try{
+          const dcQs=sid?`session_id=${sid}&path=${encodeURIComponent(dirPath)}`:`path=${encodeURIComponent(dirPath)}`;
+          const dc=await api(`/api/list?${dcQs}`);
+          S._dirCache[dirPath]=dc.entries||[];
+        }catch(e2){S._dirCache[dirPath]=[];}
       }
       if(S._expandedDirs&&S._expandedDirs.size>0)renderFileTree();
     }
@@ -145,13 +146,16 @@ let _previewDirty = false;     // true when edits are unsaved
 
 function showPreview(mode){
   // mode: 'code' | 'image' | 'md'
-  $('previewCode').style.display     = mode==='code'  ? '' : 'none';
-  $('previewImgWrap').style.display  = mode==='image' ? '' : 'none';
-  $('previewMd').style.display       = mode==='md'    ? '' : 'none';
-  $('previewEditArea').style.display = 'none';  // start in read-only
+  const _pc=$('previewCode');if(_pc)_pc.style.display=mode==='code'?'':'none';
+  const _piw=$('previewImgWrap');if(_piw)_piw.style.display=mode==='image'?'':'none';
+  const _pm=$('previewMd');if(_pm)_pm.style.display=mode==='md'?'':'none';
+  const _pea=$('previewEditArea');if(_pea)_pea.style.display='none';
   const badge=$('previewBadge');
-  badge.className='preview-badge '+mode;
-  badge.textContent = mode==='image'?'image':mode==='md'?'md':fileExt($('previewPathText').textContent)||'text';
+  const _ppt=$('previewPathText');
+  if(badge){
+    badge.className='preview-badge '+mode;
+    badge.textContent = mode==='image'?'image':mode==='md'?'md':fileExt(_ppt?_ppt.textContent:'')||'text';
+  }
   _previewCurrentMode = mode;
   _previewDirty = false;
   updateEditBtn();
@@ -162,7 +166,8 @@ function updateEditBtn(){
   if(!btn)return;
   const editable = _previewCurrentMode==='code'||_previewCurrentMode==='md';
   btn.style.display = editable?'':'none';
-  const editing = $('previewEditArea').style.display!=='none';
+  const _pea=$('previewEditArea');
+  const editing = _pea?_pea.style.display!=='none':false;
   btn.innerHTML = editing ? `&#128190; ${t('save')}` : `&#9998; ${t('edit')}`;
   btn.title = editing ? t('save_title') : t('edit_title');
   btn.style.color = editing ? 'var(--blue)' : '';
@@ -170,35 +175,40 @@ function updateEditBtn(){
 }
 
 async function toggleEditMode(){
-  const editing = $('previewEditArea').style.display!=='none';
+  const _pea=$('previewEditArea');
+  const editing = _pea?_pea.style.display!=='none':false;
   if(editing){
     // Save
     if(!S.session||!_previewCurrentPath)return;
-    const content=$('previewEditArea').value;
+    const content=_pea?_pea.value:'';
     try{
       await api('/api/file/save',{method:'POST',body:JSON.stringify({
         session_id:S.session.session_id, path:_previewCurrentPath, content
       })});
       _previewDirty=false;
       // Update read-only views
-      if(_previewCurrentMode==='code') $('previewCode').textContent=content;
-      else $('previewMd').innerHTML=renderMd(content);
-      $('previewEditArea').style.display='none';
-      if(_previewCurrentMode==='code') $('previewCode').style.display='';
-      else $('previewMd').style.display='';
+      const _pc=$('previewCode');
+      const _pm=$('previewMd');
+      if(_previewCurrentMode==='code'&&_pc)_pc.textContent=content;
+      else if(_pm)_pm.innerHTML=renderMd(content);
+      if(_pea)_pea.style.display='none';
+      if(_previewCurrentMode==='code'&&_pc)_pc.style.display='';
+      else if(_pm)_pm.style.display='';
       showToast(t('saved'));
     }catch(e){setStatus(t('save_failed')+e.message);}
   }else{
     // Enter edit mode: populate textarea with current content
+    const _pc=$('previewCode');
+    const _pm=$('previewMd');
     const currentText = _previewCurrentMode==='code'
-      ? $('previewCode').textContent
+      ? (_pc?_pc.textContent:'')
       : _previewRawContent||'';
-    $('previewEditArea').value=currentText;
-    $('previewEditArea').style.display='';
-    if(_previewCurrentMode==='code') $('previewCode').style.display='none';
-    else $('previewMd').style.display='none';
+    if(_pea)_pea.value=currentText;
+    if(_pea)_pea.style.display='';
+    if(_previewCurrentMode==='code'&&_pc)_pc.style.display='none';
+    else if(_pm)_pm.style.display='none';
     // Escape cancels the edit without saving
-    $('previewEditArea').onkeydown=e=>{
+    if(_pea)_pea.onkeydown=e=>{
       if(e.key==='Escape'){e.preventDefault();cancelEditMode();}
     };
   }
@@ -209,10 +219,13 @@ let _previewRawContent = '';  // raw text for md files (to populate editor)
 
 function cancelEditMode(){
   // Discard changes and return to read-only view
-  $('previewEditArea').style.display='none';
-  $('previewEditArea').onkeydown=null;
-  if(_previewCurrentMode==='code') $('previewCode').style.display='';
-  else $('previewMd').style.display='';
+  const _pea=$('previewEditArea');
+  const _pc=$('previewCode');
+  const _pm=$('previewMd');
+  if(_pea)_pea.style.display='none';
+  if(_pea)_pea.onkeydown=null;
+  if(_previewCurrentMode==='code'&&_pc)_pc.style.display='';
+  else if(_pm)_pm.style.display='';
   _previewDirty=false;
   updateEditBtn();
 }
@@ -227,9 +240,9 @@ async function openFile(path){
     return;
   }
 
-  $('previewPathText').textContent=path;
-  $('previewArea').classList.add('visible');
-  $('fileTree').style.display='none';
+  const _ppt=$('previewPathText');if(_ppt)_ppt.textContent=path;
+  const _pa=$('previewArea');if(_pa)_pa.classList.add('visible');
+  const _ft=$('fileTree');if(_ft)_ft.style.display='none';
 
   _previewCurrentPath = path;
   renderFileBreadcrumb(path);
@@ -237,16 +250,14 @@ async function openFile(path){
     // Image: load via raw endpoint, show as <img>
     showPreview('image');
     const url=`/api/file/raw?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(path)}`;
-    $('previewImg').alt=path;
-    $('previewImg').src=url;
-    $('previewImg').onerror=()=>setStatus(t('image_load_failed'));
+    const _pImg=$('previewImg');if(_pImg){_pImg.alt=path;_pImg.src=url;_pImg.onerror=()=>setStatus(t('image_load_failed'));}
   } else if(MD_EXTS.has(ext)){
     // Markdown: fetch text, render with renderMd, display as formatted HTML
     try{
       const data=await api(`/api/file?session_id=${encodeURIComponent(S.session.session_id)}&path=${encodeURIComponent(path)}`);
       showPreview('md');
       _previewRawContent = data.content;
-      $('previewMd').innerHTML=renderMd(data.content);
+      const _pm=$('previewMd');if(_pm)_pm.innerHTML=renderMd(data.content);
     }catch(e){setStatus(t('file_open_failed'));}
   } else {
     // Plain code / text -- but fall back to download if server signals binary
@@ -258,7 +269,7 @@ async function openFile(path){
         return;
       }
       showPreview('code');
-      $('previewCode').textContent=data.content;
+      const _pc=$('previewCode');if(_pc)_pc.textContent=data.content;
     }catch(e){
       // If it's a 400/too-large error, offer download instead
       downloadFile(path);

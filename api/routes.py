@@ -346,11 +346,24 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/sessions/search":
         return _handle_sessions_search(handler, parsed)
 
+    # ── Delegation: child sessions for a given parent ──
+    if parsed.path == "/api/delegation/children":
+        return _handle_delegation_children(handler, parsed)
+
+    if parsed.path == "/api/delegation/history":
+        return _handle_delegation_history(handler, parsed)
+
     if parsed.path == "/api/list":
         return _handle_list_dir(handler, parsed)
 
     if parsed.path == "/api/browse-dir":
         return _handle_browse_dir(handler, parsed)
+
+    if parsed.path == "/api/path-maps":
+        return _handle_path_maps(handler)
+
+    if parsed.path == "/api/host/open":
+        return _handle_host_open(handler, parsed)
 
     if parsed.path == "/api/pick-folder":
         return _handle_pick_folder(handler, parsed)
@@ -558,6 +571,28 @@ def handle_post(handler, parsed) -> bool:
         s = new_session(workspace=body.get("workspace"), model=body.get("model"))
         return j(handler, {"session": s.compact() | {"messages": s.messages}})
 
+    if parsed.path == "/api/session/update":
+        try:
+            require(body, "session_id")
+        except ValueError as e:
+            return bad(handler, str(e))
+        try:
+            s = get_session(body["session_id"])
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        if "system_prompt" in body:
+            s.system_prompt = body["system_prompt"]
+        if "model" in body:
+            s.model = body["model"]
+        if "title" in body:
+            s.title = body["title"]
+        if "workspace" in body:
+            new_ws = str(Path(body["workspace"]).expanduser().resolve())
+            s.workspace = new_ws
+            set_last_workspace(new_ws)
+        s.save()
+        return j(handler, {"ok": True})
+
     if parsed.path == "/api/sessions/cleanup":
         return _handle_sessions_cleanup(handler, body, zero_only=False)
 
@@ -620,22 +655,6 @@ def handle_post(handler, parsed) -> bool:
         s.personality = name if name else None
         s.save()
         return j(handler, {"ok": True, "personality": s.personality, "prompt": prompt})
-
-    if parsed.path == "/api/session/update":
-        try:
-            require(body, "session_id")
-        except ValueError as e:
-            return bad(handler, str(e))
-        try:
-            s = get_session(body["session_id"])
-        except KeyError:
-            return bad(handler, "Session not found", 404)
-        new_ws = str(Path(body.get("workspace", s.workspace)).expanduser().resolve())
-        s.workspace = new_ws
-        s.model = body.get("model", s.model)
-        s.save()
-        set_last_workspace(new_ws)
-        return j(handler, {"session": s.compact() | {"messages": s.messages}})
 
     if parsed.path == "/api/session/delete":
         sid = body.get("session_id", "")
@@ -1164,11 +1183,48 @@ def _handle_list_dir(handler, parsed):
         return bad(handler, _sanitize_error(e), 404)
 
 
+def _handle_path_maps(handler):
+    """Return the Docker volume path mappings (container → host).
+    Useful for the UI to display host paths when running inside Docker."""
+    from api.config import PATH_MAPS
+    return j(handler, {"maps": [{"container": c, "host": h} for c, h in PATH_MAPS]})
+
+
+def _handle_host_open(handler, parsed):
+    """Proxy: ask the host helper service to open a path in the file manager.
+    This avoids CORS issues — the browser sends the request to the same-origin
+    WebUI backend, which forwards it to the host helper on the host machine."""
+    import urllib.request
+    import urllib.error
+    qs = parse_qs(parsed.query)
+    host_path = qs.get("path", [""])[0]
+    if not host_path:
+        return bad(handler, "Missing 'path' parameter", 400)
+    # From inside Docker, use host.docker.internal to reach the host machine.
+    # From native mode, 127.0.0.1 works directly.
+    import os
+    host_target = os.getenv("HOST_HELPER_HOST", "host.docker.internal" if os.path.exists("/.within_container") else "127.0.0.1")
+    helper_port = os.getenv("HOST_HELPER_PORT", "18791")
+    helper_url = f"http://{host_target}:{helper_port}/open?path=" + urllib.parse.quote(host_path, safe="")
+    try:
+        req = urllib.request.Request(helper_url)
+        resp = urllib.request.urlopen(req, timeout=3)
+        import json as _json
+        data = _json.loads(resp.read().decode())
+        return j(handler, data)
+    except urllib.error.URLError:
+        return j(handler, {"ok": False, "error": "Host helper not running"}, 502)
+    except Exception as e:
+        return bad(handler, f"Host helper error: {e}")
+
+
 def _handle_browse_dir(handler, parsed):
     """Browse directories on the server filesystem for workspace path selection.
-    Returns only directories (no files) for navigation. Requires authentication."""
+    Returns directories; optionally includes files when include_files=true.
+    Requires authentication."""
     qs = parse_qs(parsed.query)
     raw_path = qs.get("path", [""])[0]
+    include_files = qs.get("include_files", [""])[0].lower() in ("true", "1", "yes")
     if not raw_path:
         # Default to home directory
         raw_path = str(Path.home())
@@ -1177,19 +1233,27 @@ def _handle_browse_dir(handler, parsed):
         if not target.is_dir():
             return bad(handler, "Not a directory", 400)
         dirs = []
+        files = []
         try:
             for item in sorted(target.iterdir(), key=lambda p: p.name.lower()):
-                if item.is_dir() and not item.name.startswith('.'):
-                    try:
-                        dirs.append({
-                            "name": item.name,
-                            "path": str(item),
-                        })
-                    except (PermissionError, OSError):
-                        pass
+                if item.name.startswith('.'):
+                    continue
+                try:
+                    if item.is_dir():
+                        dirs.append({"name": item.name, "path": str(item)})
+                    elif include_files and item.is_file():
+                        files.append({"name": item.name, "path": str(item),
+                                      "size": item.stat().st_size})
+                except (PermissionError, OSError):
+                    pass
         except (PermissionError, OSError):
             pass  # cannot list directory contents
-        return j(handler, {"path": str(target), "parent": str(target.parent) if str(target) != str(target.parent) else None, "dirs": dirs[:200]})
+        result = {"path": str(target),
+                  "parent": str(target.parent) if str(target) != str(target.parent) else None,
+                  "dirs": dirs[:200]}
+        if include_files:
+            result["files"] = files[:200]
+        return j(handler, result)
     except (PermissionError, OSError) as e:
         return bad(handler, _sanitize_error(e), 403)
 
@@ -1520,8 +1584,11 @@ def _handle_chat_start(handler, body):
     attachments = [str(a) for a in (body.get("attachments") or [])][:20]
     workspace = str(Path(body.get("workspace") or s.workspace).expanduser().resolve())
     model = body.get("model") or s.model
+    system_prompt = body.get("system_prompt") or getattr(s, 'system_prompt', '') or ""
     s.workspace = workspace
     s.model = model
+    if system_prompt:
+        s.system_prompt = system_prompt
     s.save()
     set_last_workspace(workspace)
     stream_id = uuid.uuid4().hex
@@ -1530,7 +1597,7 @@ def _handle_chat_start(handler, body):
         STREAMS[stream_id] = q
     thr = threading.Thread(
         target=_run_agent_streaming,
-        args=(s.session_id, msg, model, workspace, stream_id, attachments),
+        args=(s.session_id, msg, model, workspace, stream_id, attachments, system_prompt),
         daemon=True,
     )
     thr.start()
@@ -1863,6 +1930,7 @@ def _handle_file_reveal(handler, body):
     """Reveal a file or directory in the system file manager."""
     import subprocess
     import platform
+    import shutil
     try:
         require(body, "session_id", "path")
     except ValueError as e:
@@ -1878,6 +1946,14 @@ def _handle_file_reveal(handler, body):
         if not target.exists():
             return bad(handler, f"Path not found: {body['path']} (resolved={target}, workspace={workspace})", 404)
         system = platform.system()
+        # Resolve host paths for Docker environments (always include in response)
+        from api.config import resolve_host_path
+        dir_to_open = str(target.parent if target.is_file() else target)
+        host_path = resolve_host_path(dir_to_open)
+        host_file_path = resolve_host_path(str(target)) if target.is_file() else None
+        # Normalize host path to Windows-style backslashes for display/opening
+        host_path_win = host_path.replace("/", "\\") if host_path else None
+        host_file_path_win = host_file_path.replace("/", "\\") if host_file_path else None
         try:
             if system == "Windows":
                 if target.is_file():
@@ -1893,22 +1969,92 @@ def _handle_file_reveal(handler, body):
             elif system == "Darwin":
                 subprocess.Popen(['open', '-R', str(target)])
             else:
-                subprocess.Popen(['xdg-open', str(target.parent if target.is_file() else target)])
-            return j(handler, {"ok": True, "path": body["path"]})
+                # Linux / Docker: try multiple file managers in priority order
+                openers = ['xdg-open', 'nautilus', 'dolphin', 'thunar', 'pcmanfm', 'nemo', 'caja']
+                opener = None
+                for cmd in openers:
+                    if shutil.which(cmd):
+                        opener = cmd
+                        break
+                if opener:
+                    args = [opener, dir_to_open]
+                    if opener == 'nautilus':
+                        # nautilus supports --select to highlight a specific file
+                        if target.is_file():
+                            args = [opener, '--select', str(target)]
+                    subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                else:
+                    # No file manager available (e.g. minimal Docker container)
+                    return j(handler, {"ok": True, "path": body["path"],
+                                       "hint": "No file manager found on this system",
+                                       "dir_path": dir_to_open,
+                                       "host_path": host_path_win or host_path,
+                                       "host_file_path": host_file_path_win or host_file_path,
+                                       "host_path_url": _host_path_to_file_url(host_path_win or host_path),
+                                       "host_file_path_url": _host_path_to_file_url(host_file_path_win or host_file_path)})
+            return j(handler, {"ok": True, "path": body["path"],
+                               "host_path": host_path_win or host_path,
+                               "host_file_path": host_file_path_win or host_file_path,
+                               "host_path_url": _host_path_to_file_url(host_path_win or host_path),
+                               "host_file_path_url": _host_path_to_file_url(host_file_path_win or host_file_path)})
         except (OSError, FileNotFoundError) as e:
             return bad(handler, f"Failed to open file manager: {e}")
     except (ValueError, PermissionError) as e:
         return bad(handler, _sanitize_error(e))
 
 
+def _host_path_to_file_url(host_path):
+    """Convert a host path (e.g. G:\\path or /home/user/path) to a file:/// URL.
+    This allows the browser to attempt opening the path on the host machine."""
+    if not host_path:
+        return None
+    # Windows path: G:\path → file:///G:/path
+    import re
+    if re.match(r'^[A-Za-z]:[/\\]', host_path):
+        # Replace backslashes with forward slashes
+        normalized = host_path.replace('\\', '/')
+        return 'file:///' + normalized
+    # Unix path: /home/user → file:///home/user
+    return 'file://' + host_path
+
+
 def _handle_workspace_add(handler, body):
     path_str = body.get("path", "").strip()
     name = body.get("name", "").strip()
+    create = body.get("create", False)  # auto-create if not exists
     if not path_str:
         return bad(handler, "path is required")
     p = Path(path_str).expanduser().resolve()
+
+    # If the path doesn't exist and we need to create it, check if the
+    # parent directory is writable.  If not (e.g. Docker container where
+    # only /workspace and $HOME are writable), redirect to a subdirectory
+    # under the current default workspace so creation succeeds.
     if not p.exists():
-        return bad(handler, f"Path does not exist: {p}")
+        if create:
+            # First attempt: try creating directly
+            try:
+                p.mkdir(parents=True, exist_ok=True)
+            except PermissionError:
+                # Permission denied — redirect under DEFAULT_WORKSPACE
+                ws_root = Path(str(DEFAULT_WORKSPACE))
+                # If the user gave an absolute path like /workspace1,
+                # use just the last component as the subdir name
+                if p.is_absolute():
+                    subdir = p.name  # e.g. "workspace1" from "/workspace1"
+                else:
+                    subdir = str(p)
+                redirected = ws_root / subdir
+                try:
+                    redirected.mkdir(parents=True, exist_ok=True)
+                except (OSError, PermissionError) as e2:
+                    return bad(handler, f"Permission denied for {p}. "
+                               f"Also tried redirect to {redirected}: {e2}")
+                p = redirected
+            except OSError as e:
+                return bad(handler, f"Failed to create directory {p}: {e}")
+        else:
+            return bad(handler, f"Path does not exist: {p} (pass create=true to auto-create)")
     if not p.is_dir():
         return bad(handler, f"Path is not a directory: {p}")
     wss = load_workspaces()
@@ -1916,7 +2062,7 @@ def _handle_workspace_add(handler, body):
         return bad(handler, "Workspace already in list")
     wss.append({"path": str(p), "name": name or p.name})
     save_workspaces(wss)
-    return j(handler, {"ok": True, "workspaces": wss})
+    return j(handler, {"ok": True, "workspaces": wss, "resolved_path": str(p)})
 
 
 def _handle_workspace_remove(handler, body):
@@ -2122,3 +2268,46 @@ def _handle_session_import(handler, body):
             SESSIONS.popitem(last=False)
     s.save()
     return j(handler, {"ok": True, "session": s.compact() | {"messages": s.messages}})
+
+
+# ── Delegation history endpoints ──────────────────────────────────────────────
+
+def _handle_delegation_children(handler, parsed):
+    """GET /api/delegation/children?session_id=...
+
+    Returns child sessions (subagent runs) for a given parent session.
+    Queries the CLI state.db (hermes_state.py SessionDB) which stores
+    parent_session_id links from delegate_task.
+    """
+    qs = parse_qs(parsed.query)
+    parent_sid = qs.get("session_id", [""])[0].strip()
+    if not parent_sid:
+        return bad(handler, "session_id is required")
+
+    try:
+        from api.models import get_cli_session_children
+        children = get_cli_session_children(parent_sid)
+        return j(handler, {"children": children})
+    except Exception as e:
+        return j(handler, {"children": [], "error": str(e)})
+
+
+def _handle_delegation_history(handler, parsed):
+    """GET /api/delegation/history?session_id=...
+
+    Returns the full delegation history tree: all descendant sessions
+    (children, grandchildren, etc.) with their messages summaries.
+    Useful for visualizing the complete delegation chain.
+    """
+    qs = parse_qs(parsed.query)
+    root_sid = qs.get("session_id", [""])[0].strip()
+    depth = int(qs.get("depth", ["3"])[0])
+    if not root_sid:
+        return bad(handler, "session_id is required")
+
+    try:
+        from api.models import get_cli_delegation_tree
+        tree = get_cli_delegation_tree(root_sid, max_depth=depth)
+        return j(handler, {"tree": tree})
+    except Exception as e:
+        return j(handler, {"tree": None, "error": str(e)})

@@ -40,7 +40,7 @@ class Session:
                  tool_calls=None, pinned: bool=False, archived: bool=False,
                  project_id: str=None, profile=None,
                  input_tokens: int=0, output_tokens: int=0, estimated_cost=None,
-                 personality=None,
+                 personality=None, system_prompt=None,
                  **kwargs):
         self.session_id = session_id or uuid.uuid4().hex[:12]
         self.title = title
@@ -58,6 +58,7 @@ class Session:
         self.output_tokens = output_tokens or 0
         self.estimated_cost = estimated_cost
         self.personality = personality
+        self.system_prompt = system_prompt or ""
 
     @property
     def path(self):
@@ -375,3 +376,149 @@ def delete_cli_session(sid) -> bool:
             return cur.rowcount > 0
     except Exception:
         return False
+
+
+def get_cli_session_children(parent_sid: str) -> list:
+    """Get child sessions (subagent delegation runs) for a given parent session.
+
+    Queries the hermes_state SQLite DB for sessions where
+    parent_session_id matches the given session ID.
+    Returns a list of dicts with session metadata + summary info.
+    """
+    import os
+    try:
+        import sqlite3
+    except ImportError:
+        return []
+
+    try:
+        from api.profiles import get_active_hermes_home
+        hermes_home = Path(get_active_hermes_home()).expanduser().resolve()
+    except Exception:
+        hermes_home = Path(os.getenv('HERMES_HOME', str(HOME / '.hermes'))).expanduser().resolve()
+    db_path = hermes_home / 'state.db'
+    if not db_path.exists():
+        return []
+
+    try:
+        with sqlite3.connect(str(db_path)) as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute(
+                """SELECT id, source, model, system_prompt, parent_session_id,
+                          started_at, ended_at, end_reason, message_count,
+                          tool_call_count, input_tokens, output_tokens, title
+                   FROM sessions
+                   WHERE parent_session_id = ?
+                   ORDER BY started_at ASC""",
+                (parent_sid,),
+            )
+            rows = cur.fetchall()
+            children = []
+            for row in rows:
+                child = {
+                    "session_id": row["id"],
+                    "source": row["source"],
+                    "model": row["model"],
+                    "parent_session_id": row["parent_session_id"],
+                    "started_at": row["started_at"],
+                    "ended_at": row["ended_at"],
+                    "end_reason": row["end_reason"],
+                    "message_count": row["message_count"],
+                    "tool_call_count": row["tool_call_count"],
+                    "input_tokens": row["input_tokens"],
+                    "output_tokens": row["output_tokens"],
+                    "title": row["title"],
+                }
+                # Extract employee identity from system_prompt if present
+                sp = row["system_prompt"] or ""
+                if "「" in sp and "」" in sp:
+                    import re
+                    m = re.search(r"「([^」]+)」", sp)
+                    if m:
+                        child["employee_name"] = m.group(1)
+                    m2 = re.search(r"角色为「([^」]+)」", sp)
+                    if m2:
+                        child["employee_role"] = m2.group(1)
+                children.append(child)
+            return children
+    except Exception:
+        return []
+
+
+def get_cli_delegation_tree(root_sid: str, max_depth: int = 3) -> dict:
+    """Recursively build a delegation tree starting from root_sid.
+
+    Returns a nested dict structure:
+    {
+        "session_id": "...",
+        "model": "...",
+        "title": "...",
+        "message_count": N,
+        "children": [ { ... }, ... ]
+    }
+    """
+    import os
+    try:
+        import sqlite3
+    except ImportError:
+        return {}
+
+    try:
+        from api.profiles import get_active_hermes_home
+        hermes_home = Path(get_active_hermes_home()).expanduser().resolve()
+    except Exception:
+        hermes_home = Path(os.getenv('HERMES_HOME', str(HOME / '.hermes'))).expanduser().resolve()
+    db_path = hermes_home / 'state.db'
+    if not db_path.exists():
+        return {}
+
+    def _build_tree(sid, depth):
+        if depth > max_depth:
+            return None
+        try:
+            with sqlite3.connect(str(db_path)) as conn:
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+                cur.execute(
+                    """SELECT id, model, title, started_at, ended_at,
+                              message_count, tool_call_count, system_prompt
+                       FROM sessions WHERE id = ?""",
+                    (sid,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                node = {
+                    "session_id": row["id"],
+                    "model": row["model"],
+                    "title": row["title"],
+                    "started_at": row["started_at"],
+                    "ended_at": row["ended_at"],
+                    "message_count": row["message_count"],
+                    "tool_call_count": row["tool_call_count"],
+                    "children": [],
+                }
+                # Extract employee identity
+                sp = row["system_prompt"] or ""
+                if "「" in sp and "」" in sp:
+                    import re
+                    m = re.search(r"「([^」]+)」", sp)
+                    if m:
+                        node["employee_name"] = m.group(1)
+
+                # Find children
+                cur.execute(
+                    "SELECT id FROM sessions WHERE parent_session_id = ? ORDER BY started_at",
+                    (sid,),
+                )
+                child_rows = cur.fetchall()
+                for cr in child_rows:
+                    child_node = _build_tree(cr["id"], depth + 1)
+                    if child_node:
+                        node["children"].append(child_node)
+                return node
+        except Exception:
+            return None
+
+    return _build_tree(root_sid, 0) or {}

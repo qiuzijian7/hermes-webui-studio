@@ -3,18 +3,20 @@
  */
 
 // ── 面板视图切换 ────────────────────────────────────────────────────────────
-let _rpView = 'empty'; // 'empty' | 'chat' | 'skill' | 'file'
+let _rpView = 'empty'; // 'empty' | 'chat' | 'skill' | 'file' | 'prompt'
 
 function _setRightPanelView(view) {
   _rpView = view;
   const chatView = $('rpChatView');
   const skillView = $('rpSkillView');
   const fileView = $('rpFileView');
+  const promptView = $('rpPromptView');
   const emptyView = $('rpEmpty');
 
   if (chatView) chatView.style.display = view === 'chat' ? 'flex' : 'none';
   if (skillView) skillView.style.display = view === 'skill' ? 'flex' : 'none';
   if (fileView) fileView.style.display = view === 'file' ? 'flex' : 'none';
+  if (promptView) promptView.style.display = view === 'prompt' ? 'flex' : 'none';
   if (emptyView) emptyView.style.display = view === 'empty' ? 'flex' : 'none';
 
   // 右侧面板始终显示（不再折叠）
@@ -85,7 +87,7 @@ async function openEmployeeChat(empId) {
         ? _currentCanvasWorkspace
         : (S.session?.workspace || '');
       const data = await api('/api/session/new', { method: 'POST', body: JSON.stringify({
-        model: $('modelSelect')?.value || '',
+        model: emp.model || $('modelSelect')?.value || '',
         workspace: currentWs || undefined,
       }) });
       if (data.session) {
@@ -107,6 +109,21 @@ async function openEmployeeChat(empId) {
         S.session = data.session;
         S.messages = (data.session.messages || []).filter(m => m.role !== 'tool');
         _renderRpMessages();
+        // 同步 session 的模型信息到员工
+        if (data.session.model && data.session.model !== emp.model) {
+          emp.model = data.session.model;
+          if (typeof _saveEmployees === 'function') _saveEmployees();
+          if (typeof _updateCardTokenUsage === 'function') _updateCardTokenUsage(emp);
+        }
+        // 同步 token 使用量
+        if (data.session.input_tokens || data.session.output_tokens) {
+          emp.tokenUsage = {
+            input_tokens: data.session.input_tokens || 0,
+            output_tokens: data.session.output_tokens || 0,
+          };
+          if (typeof _saveEmployees === 'function') _saveEmployees();
+          if (typeof _updateCardTokenUsage === 'function') _updateCardTokenUsage(emp);
+        }
       }
     } catch(e) {
       // 会话可能已被删除，创建新的
@@ -117,11 +134,16 @@ async function openEmployeeChat(empId) {
     }
   }
 
+  // 更新委派关系信息条
+  _updateDelegationBar(emp);
+
   // 更新 topbar — 显示工作区信息
   const ws = _activeWorkspacePath();
   const wsName = ws ? (typeof getWorkspaceFriendlyName === 'function' ? getWorkspaceFriendlyName(ws) : ws.split(/[\/\\]/).filter(Boolean).pop()) : '';
-  $('topbarTitle').textContent = wsName || 'Hermes Studio';
-  $('topbarMeta').textContent = ws ? ws : '员工工作台 — 点击员工卡片开始对话';
+  const topTitle = $('topbarTitle');
+  if (topTitle) topTitle.textContent = wsName || 'Hermes Studio';
+  const topMeta = $('topbarMeta');
+  if (topMeta) topMeta.textContent = ws ? ws : '员工工作台 — 点击员工卡片开始对话';
   // 同步工作区选择器标签
   if (typeof syncWsSelectorLabel === 'function') syncWsSelectorLabel();
   // 如果 session workspace 与画布工作区不一致，刷新文件目录以显示正确的工作区内容
@@ -267,17 +289,21 @@ function showEmployeeSkillPanel(empId) {
         html += `
           <div class="rp-skill-item">
             <span class="rp-skill-item-name">${esc(name)}</span>
-            <label class="rp-skill-toggle">
-              <input type="checkbox" ${enabled ? 'checked' : ''} onchange="toggleEmployeeSkill('${emp.id}','${esc(name)}',this.checked)">
-              <span class="rp-skill-toggle-slider"></span>
-            </label>
+            <div class="rp-skill-item-actions">
+              <label class="rp-skill-toggle">
+                <input type="checkbox" ${enabled ? 'checked' : ''} onchange="toggleEmployeeSkill('${emp.id}','${esc(name)}',this.checked)">
+                <span class="rp-skill-toggle-slider"></span>
+              </label>
+              <button class="rp-skill-remove-btn" title="移除技能" onclick="removeEmployeeSkill('${emp.id}','${esc(name)}')">×</button>
+            </div>
           </div>
         `;
       }
     } else {
-      html += '<p style="color:var(--muted);font-size:13px;padding:12px 0">暂无配置技能，点击左侧技能面板中的技能进行分配</p>';
+      html += '<p style="color:var(--muted);font-size:13px;padding:12px 0">暂无配置技能</p>';
     }
     html += '</div>';
+    html += `<button class="rp-skill-add-btn" onclick="addSkillToEmployeeInline('${emp.id}')">+ 添加技能</button>`;
     bodyEl.innerHTML = html;
   }
 
@@ -291,6 +317,216 @@ function toggleEmployeeSkill(empId, skillName, enabled) {
   if (sk) {
     sk.enabled = enabled;
     _saveEmployees();
+    _syncEmployeePromptToSession(emp);
+  }
+}
+
+// ── 技能删除 ─────────────────────────────────────────────────────────────────
+function removeEmployeeSkill(empId, skillName) {
+  const emp = getEmployee(empId);
+  if (!emp) return;
+  const idx = emp.skills.findIndex(s => (s.name || s) === skillName);
+  if (idx !== -1) {
+    emp.skills.splice(idx, 1);
+    _saveEmployees();
+    renderEmployeeCards();
+    showEmployeeSkillPanel(empId); // 刷新面板
+    _syncEmployeePromptToSession(emp);
+    showToast(`已移除技能「${skillName}」`);
+  }
+}
+
+// ── 技能快速添加 ─────────────────────────────────────────────────────────────
+function addSkillToEmployeeInline(empId) {
+  const emp = getEmployee(empId);
+  if (!emp) return;
+  // 弹出添加技能对话框
+  const overlay = document.createElement('div');
+  overlay.className = 'app-dialog-overlay';
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div class="app-dialog" style="max-width:380px">
+      <div class="app-dialog-header">
+        <div class="app-dialog-title">添加技能</div>
+        <button class="app-dialog-close" id="addSkillClose"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div style="padding:4px 20px 16px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">为「${esc(emp.name)}」添加一项专业技能</div>
+        <input class="emp-dialog-input" id="addSkillInput" placeholder="输入技能名称，如：Python、代码审查、架构设计" style="width:100%" maxlength="40">
+      </div>
+      <div class="app-dialog-actions">
+        <button class="app-dialog-btn" id="addSkillCancel">取消</button>
+        <button class="app-dialog-btn confirm" id="addSkillOk">添加</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const input = overlay.querySelector('#addSkillInput');
+  setTimeout(() => input.focus(), 50);
+  const close = () => overlay.remove();
+  overlay.querySelector('#addSkillClose').onclick = close;
+  overlay.querySelector('#addSkillCancel').onclick = close;
+  overlay.querySelector('#addSkillOk').onclick = () => {
+    const name = input.value.trim();
+    if (!name) return;
+    if (emp.skills.find(s => (s.name || s) === name)) {
+      showToast('该技能已存在');
+      return;
+    }
+    emp.skills.push({ name, enabled: true });
+    _saveEmployees();
+    renderEmployeeCards();
+    showEmployeeSkillPanel(empId);
+    _syncEmployeePromptToSession(emp);
+    showToast(`已添加技能「${name}」`);
+    close();
+  };
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') overlay.querySelector('#addSkillOk').click();
+    if (e.key === 'Escape') close();
+  });
+}
+
+// ── 员工技能弹窗（从 chat header 调用）───────────────────────────────────────
+function showEmployeeSkillDialog() {
+  const empId = EMPLOYEE_STORE.selectedId;
+  if (!empId) { showToast('请先选择一个员工'); return; }
+  showEmployeeSkillPanel(empId);
+}
+
+// ── 提示词编辑器 ──────────────────────────────────────────────────────────────
+function openEmployeePromptEditor() {
+  const emp = getEmployee(EMPLOYEE_STORE.selectedId);
+  if (!emp) { showToast('请先选择一个员工'); return; }
+
+  _setRightPanelView('prompt');
+
+  const titleEl = $('rpPromptTitle');
+  if (titleEl) titleEl.textContent = emp.name + ' 的提示词';
+
+  // 直接在完整提示词区域编辑
+  const fullPrompt = buildEmployeeSystemPrompt(emp);
+  const editorEl = $('rpPromptEditor');
+  if (editorEl) editorEl.value = fullPrompt || '';
+}
+
+function saveEmployeePrompt() {
+  const emp = getEmployee(EMPLOYEE_STORE.selectedId);
+  if (!emp) return;
+
+  const editorEl = $('rpPromptEditor');
+  const newPrompt = editorEl ? editorEl.value.trim() : '';
+
+  // 计算自动生成的原始提示词（不含 customPrompt）
+  const autoPrompt = buildEmployeeSystemPrompt({ ...emp, customPrompt: '' });
+
+  // 如果编辑后的内容与自动生成的一致，清空 customPrompt（避免冗余存储）
+  emp.customPrompt = (newPrompt && newPrompt !== autoPrompt) ? newPrompt : '';
+  _saveEmployees();
+
+  // 即时生效：同步到 session
+  _syncEmployeePromptToSession(emp);
+
+  showToast('提示词已保存，即时生效');
+  // 返回聊天视图
+  openEmployeeChat(emp.id);
+}
+
+function closePromptEditor() {
+  const emp = getEmployee(EMPLOYEE_STORE.selectedId);
+  if (emp) {
+    openEmployeeChat(emp.id);
+  } else {
+    _setRightPanelView('empty');
+  }
+}
+
+// ── 即时同步提示词到 session ────────────────────────────────────────────────
+function _syncEmployeePromptToSession(emp) {
+  if (!emp || !emp.sessionId) return;
+  const prompt = buildEmployeeSystemPrompt(emp);
+  // 更新后端 session 的 system_prompt
+  api('/api/session/update', {
+    method: 'POST',
+    body: JSON.stringify({ session_id: emp.sessionId, system_prompt: prompt }),
+  }).catch(() => {}); // fire-and-forget
+}
+
+// ── 委派关系信息条 ──────────────────────────────────────────────────────────
+function _updateDelegationBar(emp) {
+  const bar = $('rpDelegationBar');
+  const info = $('rpDelegationInfo');
+  if (!bar || !info || !emp) { if (bar) bar.style.display = 'none'; return; }
+
+  const parts = [];
+
+  // 管理者（从连线关系）
+  if (emp.subagentOf && typeof getEmployee === 'function') {
+    const mgr = getEmployee(emp.subagentOf);
+    if (mgr) {
+      parts.push(`<span class="rp-del-label">上级：</span><span class="rp-del-name" onclick="selectEmployee('${mgr.id}')">${esc(mgr.name)}</span>`);
+    }
+  }
+
+  // 下属（从连线关系）
+  if (typeof getSubagentsOf === 'function') {
+    const subs = getSubagentsOf(emp.id);
+    if (subs && subs.length) {
+      const subLinks = subs.map(s =>
+        `<span class="rp-del-name" onclick="selectEmployee('${s.to}')">${esc(s.employee?.name || '?')}</span>`
+      ).join('、');
+      parts.push(`<span class="rp-del-label">下属：</span><span class="rp-del-names">${subLinks}</span>`);
+    }
+  }
+
+  if (parts.length) {
+    info.innerHTML = parts.join('<span class="rp-del-sep">|</span>');
+    bar.style.display = '';
+  } else {
+    bar.style.display = 'none';
+  }
+
+  // 异步加载委派历史（从后端 API）
+  _loadDelegationHistory(emp);
+}
+
+/** 异步从后端 API 加载委派历史，追加显示到委派栏下方 */
+async function _loadDelegationHistory(emp) {
+  const historyEl = $('rpDelegationHistory');
+  if (!historyEl || !emp || !emp.sessionId) {
+    if (historyEl) historyEl.innerHTML = '';
+    return;
+  }
+
+  if (typeof fetchDelegationHistory !== 'function') {
+    historyEl.innerHTML = '';
+    return;
+  }
+
+  try {
+    const children = await fetchDelegationHistory(emp.id);
+    if (!children || !children.length) {
+      historyEl.innerHTML = '';
+      return;
+    }
+
+    // 渲染委派历史摘要
+    let html = '<div class="rp-del-history-title">委派历史</div>';
+    for (const child of children.slice(0, 5)) {  // 最多显示 5 条
+      const name = child.employee_name || child.title || '子任务';
+      const status = child.status || '';
+      const summary = child.summary ? (child.summary.length > 60 ? child.summary.slice(0, 60) + '...' : child.summary) : '';
+      html += `<div class="rp-del-history-item">
+        <span class="rp-del-history-name">${esc(name)}</span>
+        ${summary ? `<span class="rp-del-history-summary">${esc(summary)}</span>` : ''}
+      </div>`;
+    }
+    if (children.length > 5) {
+      html += `<div class="rp-del-history-more">还有 ${children.length - 5} 条记录</div>`;
+    }
+    historyEl.innerHTML = html;
+  } catch (e) {
+    historyEl.innerHTML = '';
   }
 }
 
