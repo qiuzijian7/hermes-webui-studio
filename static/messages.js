@@ -29,6 +29,17 @@ async function send(){
     if(_emp){
       _empSysPrompt=buildEmployeeSystemPrompt(_emp);
       _empModel=_emp.model||'';
+      // 规范化：短名称（如 'sonnet'）→ 完整模型 ID（如 'anthropic/claude-sonnet-4.6'）
+      // 同时更新员工的 model 字段，避免下次再走 fallback
+      if(_empModel && typeof _findModelInDropdown==='function' && $('modelSelect')){
+        const resolved=_findModelInDropdown(_empModel,$('modelSelect'));
+        if(resolved && resolved!==_empModel){
+          _empModel=resolved;
+          _emp.model=resolved;
+          if(typeof _saveEmployees==='function') _saveEmployees();
+          if(typeof _updateCardTokenUsage==='function') _updateCardTokenUsage(_emp);
+        }
+      }
     }
   }
 

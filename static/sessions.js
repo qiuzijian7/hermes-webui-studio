@@ -31,6 +31,20 @@ async function loadSession(sid){
   const data=await api(`/api/session?session_id=${encodeURIComponent(sid)}`);
   S.session=data.session;
   localStorage.setItem('hermes-webui-session',S.session.session_id);
+  // Sync model dropdown to session's saved model so the picker reflects reality
+  if(data.session.model && typeof _applyModelToDropdown==='function'){
+    const sel=$('modelSelect');
+    if(sel) _applyModelToDropdown(data.session.model, sel);
+  }
+  // 同步 session 的模型到当前选中员工
+  if(data.session.model && typeof EMPLOYEE_STORE!=='undefined' && EMPLOYEE_STORE.selectedId && typeof getEmployee==='function'){
+    const _emp=getEmployee(EMPLOYEE_STORE.selectedId);
+    if(_emp && _emp.model !== data.session.model){
+      _emp.model=data.session.model;
+      if(typeof _saveEmployees==='function') _saveEmployees();
+      if(typeof _updateCardTokenUsage==='function') _updateCardTokenUsage(_emp);
+    }
+  }
   // B9: sanitize empty assistant messages that can appear when agent only ran tool calls
   data.session.messages=(data.session.messages||[]).filter(m=>{
     if(!m||!m.role)return false;

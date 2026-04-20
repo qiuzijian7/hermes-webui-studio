@@ -79,6 +79,16 @@ async function openEmployeeChat(empId) {
   const roleEl = $('rpEmployeeRole');
   if (roleEl) roleEl.textContent = emp.role;
 
+  // 规范化员工的 model：短名称（如 'sonnet'）→ 完整模型 ID（如 'anthropic/claude-sonnet-4.6'）
+  if (emp.model && typeof _findModelInDropdown === 'function' && $('modelSelect')) {
+    const resolved = _findModelInDropdown(emp.model, $('modelSelect'));
+    if (resolved && resolved !== emp.model) {
+      emp.model = resolved;
+      if (typeof _saveEmployees === 'function') _saveEmployees();
+      if (typeof _updateCardTokenUsage === 'function') _updateCardTokenUsage(emp);
+    }
+  }
+
   // 确保员工有会话
   if (!emp.sessionId) {
     try {
@@ -96,6 +106,11 @@ async function openEmployeeChat(empId) {
         S.session = data.session;
         S.messages = [];
         _renderRpMessages();
+        // 同步模型下拉框到员工的模型
+        const effectiveModel = emp.model || data.session.model;
+        if (effectiveModel && typeof _applyModelToDropdown === 'function') {
+          _applyModelToDropdown(effectiveModel, $('modelSelect'));
+        }
       }
     } catch(e) {
       showToast('创建会话失败: ' + e.message);
@@ -114,6 +129,11 @@ async function openEmployeeChat(empId) {
           emp.model = data.session.model;
           if (typeof _saveEmployees === 'function') _saveEmployees();
           if (typeof _updateCardTokenUsage === 'function') _updateCardTokenUsage(emp);
+        }
+        // 同步模型下拉框到员工的模型，确保切换后发消息用正确的模型
+        const effectiveModel = emp.model || data.session.model;
+        if (effectiveModel && typeof _applyModelToDropdown === 'function') {
+          _applyModelToDropdown(effectiveModel, $('modelSelect'));
         }
         // 同步 token 使用量
         if (data.session.input_tokens || data.session.output_tokens) {

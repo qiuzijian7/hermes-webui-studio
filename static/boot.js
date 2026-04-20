@@ -312,6 +312,15 @@ $('modelSelect').onchange=async()=>{
   localStorage.setItem('hermes-webui-model', selectedModel);
   await api('/api/session/update',{method:'POST',body:JSON.stringify({session_id:S.session.session_id,workspace:S.session.workspace,model:selectedModel})});
   S.session.model=selectedModel;
+  // 同步更新当前选中员工的 model，确保 send() 使用用户切换的模型
+  if(typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof getEmployee==='function'){
+    const _emp=getEmployee(EMPLOYEE_STORE.selectedId);
+    if(_emp){
+      _emp.model=selectedModel;
+      if(typeof _saveEmployees==='function') _saveEmployees();
+      if(typeof _updateCardTokenUsage==='function') _updateCardTokenUsage(_emp);
+    }
+  }
   if(typeof syncModelChip==='function') syncModelChip();
   syncTopbar();
   // Warn if selected model belongs to a different provider than what Hermes is configured for

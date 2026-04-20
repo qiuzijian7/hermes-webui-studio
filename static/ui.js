@@ -52,10 +52,15 @@ async function populateModelDropdown(){
     sel.innerHTML='';
     _dynamicModelLabels={};
     const ap=(data.active_provider||'').toLowerCase();
-    for(const g of data.groups){
-      // Only show groups matching the active provider
-      const gp=(g.provider||'').toLowerCase();
-      if(ap && gp!==ap) continue;
+    // Sort groups: active provider first, then others alphabetically
+    const sorted=data.groups.slice().sort((a,b)=>{
+      const ga=(a.provider||'').toLowerCase();
+      const gb=(b.provider||'').toLowerCase();
+      if(ga===ap) return -1;
+      if(gb===ap) return 1;
+      return ga.localeCompare(gb);
+    });
+    for(const g of sorted){
       const og=document.createElement('optgroup');
       og.label=g.provider;
       for(const m of g.models){
@@ -67,9 +72,10 @@ async function populateModelDropdown(){
       }
       sel.appendChild(og);
     }
-    // Set default model from server if no localStorage preference
-    if(data.default_model && !localStorage.getItem('hermes-webui-model')){
-      _applyModelToDropdown(data.default_model, sel);
+    // Restore model selection: prefer session model > localStorage > server default
+    const savedModel=(typeof S!=='undefined'&&S.session&&S.session.model)||localStorage.getItem('hermes-webui-model')||data.default_model;
+    if(savedModel){
+      _applyModelToDropdown(savedModel, sel);
     }
     if(typeof syncModelChip==='function') syncModelChip();
   }catch(e){
@@ -84,24 +90,21 @@ async function populateModelDropdown(){
  * currently configured in Hermes. Returns a warning string if mismatched,
  * or null if the selection looks compatible.
  *
- * Provider detection is intentionally loose — we compare the model's slash
- * prefix (e.g. "openai/" from "openai/gpt-4o") against the active provider
- * name. Custom/local endpoints report active_provider='custom' or the
- * base_url hostname and we skip the check to avoid false positives.
+ * NOTE: The backend resolve_model_provider() automatically routes cross-provider
+ * models (e.g. openai/gpt-4o when config provider is 'nous') through OpenRouter,
+ * so cross-provider selection works transparently. We no longer warn about this
+ * since it was misleading — the model *will* work via OpenRouter routing.
+ *
+ * We only return a warning for bare model names that clearly belong to a
+ * different provider and cannot be auto-routed (no slash prefix = no routing hint).
  */
 function _checkProviderMismatch(modelId){
-  const ap=(window._activeProvider||'').toLowerCase();
-  if(!ap||ap==='custom'||ap==='openrouter') return null; // can't reliably check
+  // Cross-provider models with a slash prefix (e.g. openai/gpt-4o) are
+  // automatically routed through OpenRouter by the backend. No warning needed.
   const slash=modelId.indexOf('/');
-  if(slash<0) return null; // bare model name, no provider prefix
-  const modelProvider=modelId.substring(0,slash).toLowerCase();
-  // Normalise common aliases
-  const aliases={'claude':'anthropic','gpt':'openai','gemini':'google'};
-  const norm=p=>aliases[p]||p;
-  if(norm(modelProvider)!==norm(ap)){
-    return (window.t?window.t('provider_mismatch_warning',modelId,ap):
-      `"${modelId}" may not work with your configured provider (${ap}). Send anyway or run \`hermes model\` to switch.`);
-  }
+  if(slash>0) return null; // has provider prefix → backend handles routing
+  // Bare model names without a slash cannot be auto-routed, but we also
+  // can't reliably determine the provider, so skip the check.
   return null;
 }
 
@@ -141,6 +144,32 @@ function renderModelDropdown(){
   const sel=$('modelSelect');
   if(!dd||!sel) return;
   dd.innerHTML='';
+  const ap=(window._activeProvider||'').toLowerCase();
+  // ── Provider tabs ──
+  const providerBar=document.createElement('div');
+  providerBar.className='model-provider-bar';
+  providerBar.id='modelProviderBar';
+  // Collect unique providers from <select> optgroups
+  const providers=[];
+  for(const child of Array.from(sel.children)){
+    if(child.tagName==='OPTGROUP' && child.label){
+      providers.push({name:child.label, key:(child.label||'').toLowerCase()});
+    }
+  }
+  for(const p of providers){
+    const tab=document.createElement('button');
+    tab.className='model-provider-tab'+(p.key===ap?' active':'');
+    tab.textContent=p.name;
+    tab.dataset.provider=p.key;
+    tab.onclick=()=>{
+      // Highlight active tab
+      providerBar.querySelectorAll('.model-provider-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      _filterByProvider(p.key);
+    };
+    providerBar.appendChild(tab);
+  }
+  dd.appendChild(providerBar);
   // ── Search input ──
   const searchWrap=document.createElement('div');
   searchWrap.className='model-search-wrap';
@@ -162,6 +191,7 @@ function renderModelDropdown(){
         row.className='model-opt'+(opt.value===sel.value?' active':'');
         row.dataset.label=(opt.textContent||getModelLabel(opt.value)||'').toLowerCase();
         row.dataset.value=opt.value.toLowerCase();
+        row.dataset.provider=(child.label||'').toLowerCase();
         row.innerHTML=`<span class="model-opt-name">${esc(opt.textContent||getModelLabel(opt.value))}</span><span class="model-opt-id">${esc(opt.value)}</span>`;
         row.onclick=()=>selectModelFromDropdown(opt.value);
         listWrap.appendChild(row);
@@ -173,6 +203,7 @@ function renderModelDropdown(){
       row.className='model-opt'+(child.value===sel.value?' active':'');
       row.dataset.label=(child.textContent||getModelLabel(child.value)||'').toLowerCase();
       row.dataset.value=child.value.toLowerCase();
+      row.dataset.provider='';
       row.innerHTML=`<span class="model-opt-name">${esc(child.textContent||getModelLabel(child.value))}</span><span class="model-opt-id">${esc(child.value)}</span>`;
       row.onclick=()=>selectModelFromDropdown(child.value);
       listWrap.appendChild(row);
@@ -187,7 +218,14 @@ function renderModelDropdown(){
   // ── Wire up events ──
   const searchInput=$('modelSearchInput');
   if(searchInput){
-    searchInput.addEventListener('input',()=>_filterModelDropdown(searchInput.value));
+    searchInput.addEventListener('input',()=>{
+      const q=searchInput.value.trim();
+      // Clear provider tab selection when searching
+      if(q){
+        providerBar.querySelectorAll('.model-provider-tab').forEach(t=>t.classList.remove('active'));
+      }
+      _filterModelDropdown(q);
+    });
     // Auto-focus search when dropdown opens
     requestAnimationFrame(()=>searchInput.focus());
   }
@@ -201,6 +239,53 @@ function renderModelDropdown(){
     customBtn.addEventListener('click',applyCustom);
     customInput.addEventListener('keydown',(e)=>{if(e.key==='Enter'){e.preventDefault();applyCustom();}});
   }
+  // Auto-select active provider tab on open
+  if(ap) _filterByProvider(ap);
+}
+
+function _filterByProvider(providerKey){
+  const listWrap=$('modelListWrap');
+  if(!listWrap) return;
+  const pk=(providerKey||'').toLowerCase();
+  const groups=listWrap.querySelectorAll('.model-group');
+  const opts=listWrap.querySelectorAll('.model-opt');
+  // Clear search input
+  const searchInput=$('modelSearchInput');
+  if(searchInput) searchInput.value='';
+  if(!pk){
+    // Show all
+    groups.forEach(g=>g.style.display='');
+    opts.forEach(o=>o.style.display='');
+    return;
+  }
+  // Show only models matching this provider
+  let currentGroup=null;
+  const groupOrder=[];
+  const groupVisible={};
+  groups.forEach(g=>{
+    currentGroup=g;
+    groupOrder.push(g);
+    groupVisible[g.dataset.group]=false;
+  });
+  opts.forEach(o=>{
+    const op=o.dataset.provider||'';
+    const match=op===pk;
+    o.style.display=match?'':'none';
+    // Mark its parent group as visible
+    if(match){
+      let prev=o.previousElementSibling;
+      while(prev){
+        if(prev.classList.contains('model-group')){
+          groupVisible[prev.dataset.group]=true;
+          break;
+        }
+        prev=prev.previousElementSibling;
+      }
+    }
+  });
+  groups.forEach(g=>{
+    g.style.display=groupVisible[g.dataset.group]?'':'none';
+  });
 }
 
 function _filterModelDropdown(query){
@@ -248,6 +333,7 @@ async function selectModelFromDropdown(value){
   sel.value=value;
   syncModelChip();
   closeModelDropdown();
+  // sel.onchange() 会同步 emp.model + S.session.model + 保存 session
   if(typeof sel.onchange==='function') await sel.onchange();
 }
 

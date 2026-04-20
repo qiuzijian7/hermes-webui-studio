@@ -1583,7 +1583,7 @@ def _handle_chat_start(handler, body):
         return bad(handler, "message is required")
     attachments = [str(a) for a in (body.get("attachments") or [])][:20]
     workspace = str(Path(body.get("workspace") or s.workspace).expanduser().resolve())
-    model = body.get("model") or s.model
+    model = body.get("model") or s.model or DEFAULT_MODEL
     system_prompt = body.get("system_prompt") or getattr(s, 'system_prompt', '') or ""
     s.workspace = workspace
     s.model = model

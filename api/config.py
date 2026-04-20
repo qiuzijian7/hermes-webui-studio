@@ -722,7 +722,14 @@ def resolve_model_provider(model_id: str) -> tuple:
 
     if "/" in model_id:
         prefix, bare = model_id.split("/", 1)
-        # OpenRouter always needs the full provider/model path (e.g. openrouter/free,
+        # "openrouter/" prefix explicitly routes through OpenRouter.
+        # Always honour this prefix regardless of config_provider, since the user
+        # explicitly chose an OpenRouter-routed model from the dropdown.
+        # Strip the "openrouter/" prefix — OpenRouter API expects bare
+        # provider/model format (e.g. "openai/gpt-4.1-mini").
+        if prefix == "openrouter":
+            return bare, "openrouter", None
+        # OpenRouter always needs the full provider/model path (e.g. openai/gpt-4.1-mini,
         # anthropic/claude-sonnet-4.6). Never strip the prefix for OpenRouter.
         if config_provider == "openrouter":
             return model_id, "openrouter", config_base_url
@@ -730,16 +737,19 @@ def resolve_model_provider(model_id: str) -> tuple:
         # e.g. config=anthropic, model=anthropic/claude-... → bare name to anthropic API
         if config_provider and prefix == config_provider:
             return bare, config_provider, config_base_url
-        # If a custom endpoint base_url is configured, don't reroute through OpenRouter
-        # just because the model name contains a slash (e.g. google/gemma-4-26b-a4b).
-        # The user has explicitly pointed at a base_url, so trust their routing config.
+        # If the prefix is a known provider that differs from config_provider,
+        # the user picked a cross-provider model (e.g. config=nous but picked
+        # openai/gpt-5.4-mini).  Route through OpenRouter — the custom endpoint
+        # won't know how to serve it.  However, for config_provider='custom'
+        # (Ollama, vLLM, etc.), the user may have models with slash-separated
+        # names (e.g. google/gemma-4-26b-a4b) that should stay on that endpoint.
+        if prefix in _PROVIDER_MODELS and prefix != config_provider and config_provider != "custom":
+            return model_id, "openrouter", None
+        # If a custom endpoint base_url is configured and the prefix is NOT a
+        # known provider (e.g. google/gemma-4-26b-a4b on an Ollama endpoint),
+        # trust the user's routing config — don't reroute through OpenRouter.
         if config_base_url:
             return model_id, config_provider, config_base_url
-        # If prefix does NOT match config provider, the user picked a cross-provider model
-        # from the OpenRouter dropdown (e.g. config=anthropic but picked openai/gpt-5.4-mini).
-        # In this case always route through openrouter with the full provider/model string.
-        if prefix in _PROVIDER_MODELS and prefix != config_provider:
-            return model_id, "openrouter", None
 
     return model_id, config_provider, config_base_url
 

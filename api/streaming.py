@@ -305,6 +305,25 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             )
             s.messages = result.get('messages') or s.messages
 
+            # If the agent failed (e.g. 401/403/429 from the LLM provider),
+            # send an apperror event so the frontend shows the error clearly
+            # instead of silently completing with no assistant response.
+            _err = result.get('error')
+            _failed = result.get('failed')
+            if _failed and _err:
+                _err_str = str(_err)
+                _err_type = 'error'
+                if '429' in _err_str or 'rate limit' in _err_str.lower():
+                    _err_type = 'rate_limit'
+                elif '401' in _err_str or '403' in _err_str:
+                    _err_type = 'auth_error'
+                put('apperror', {
+                    'type': _err_type,
+                    'message': _err_str[:500],
+                    'hint': 'Check your API key and provider configuration in .env',
+                })
+                return
+
             # ── Handle context compression side effects ──
             # If compression fired inside run_conversation, the agent may have
             # rotated its session_id. Detect and fix the mismatch so the WebUI

@@ -119,7 +119,7 @@ function createEmployee(opts = {}) {
     // 新增：预设相关字段
     presetId: opts.presetId || null,       // 关联的 Agent 预设 ID
     characterImg: opts.characterImg || null, // 角色精灵图标识
-    model: opts.model || 'sonnet',         // 使用的模型
+    model: opts.model || ($('modelSelect')?.value || ''),  // 使用的模型，默认取当前下拉框的值
     customPrompt: opts.customPrompt || '', // 用户自定义提示词
     subagentOf: opts.subagentOf || null,   // 该员工是谁的下属（manager empId）
     _pos: opts._pos || null,               // 画布位置
