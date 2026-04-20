@@ -346,6 +346,10 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/sessions/search":
         return _handle_sessions_search(handler, parsed)
 
+    # ── Group chat (总群) ──
+    if parsed.path == "/api/group-chat":
+        return _handle_group_chat_get(handler, parsed)
+
     # ── Delegation: child sessions for a given parent ──
     if parsed.path == "/api/delegation/children":
         return _handle_delegation_children(handler, parsed)
@@ -719,6 +723,13 @@ def handle_post(handler, parsed) -> bool:
 
     if parsed.path == "/api/chat":
         return _handle_chat_sync(handler, body)
+
+    # ── Group chat (总群) POST ──
+    if parsed.path == "/api/group-chat/send":
+        return _handle_group_chat_send(handler, body)
+
+    if parsed.path == "/api/group-chat/result":
+        return _handle_group_chat_result(handler, body)
 
     # ── Cron API (POST) ──
     if parsed.path == "/api/crons/create":
@@ -2311,3 +2322,125 @@ def _handle_delegation_history(handler, parsed):
         return j(handler, {"tree": tree})
     except Exception as e:
         return j(handler, {"tree": None, "error": str(e)})
+
+
+# ── Group chat (总群) endpoints ────────────────────────────────────────────────
+
+def _handle_group_chat_get(handler, parsed):
+    """GET /api/group-chat?workspace=...
+
+    Returns the group chat session for a workspace, creating one if it doesn't exist.
+    Also returns the member list (employees on the canvas).
+    """
+    from api.group_chat import get_or_create_group_chat
+    qs = parse_qs(parsed.query)
+    workspace = qs.get("workspace", [""])[0].strip()
+    if not workspace:
+        return bad(handler, "workspace is required")
+
+    try:
+        data = get_or_create_group_chat(workspace)
+        return j(handler, data)
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)
+
+
+def _handle_group_chat_send(handler, body):
+    """POST /api/group-chat/send
+
+    Send a message to the group chat. Parses @mentions and returns
+    the parsed mentions list for the frontend to dispatch tasks.
+
+    Body: {
+        workspace: str,
+        message: str,
+        sender_name: str (optional, defaults to "用户")
+    }
+
+    Returns: {
+        ok: True,
+        message: dict,
+        mentions: [{name: str, task_id: str}]
+    }
+    """
+    from api.group_chat import get_or_create_group_chat, add_group_message, parse_mentions
+
+    workspace = body.get("workspace", "").strip()
+    message = body.get("message", "").strip()
+    sender_name = body.get("sender_name", "用户").strip()
+
+    if not workspace:
+        return bad(handler, "workspace is required")
+    if not message:
+        return bad(handler, "message is required")
+
+    try:
+        # Parse @mentions from the message
+        mentioned_names = parse_mentions(message)
+        mentions_with_tasks = []
+        for name in mentioned_names:
+            task_id = f"task-{uuid.uuid4().hex[:8]}"
+            mentions_with_tasks.append({"name": name, "task_id": task_id})
+
+        # Add the message to the group chat
+        msg = add_group_message(
+            workspace=workspace,
+            role="user",
+            content=message,
+            sender_name=sender_name,
+            mentions=mentioned_names if mentioned_names else None,
+        )
+
+        # If there are mentions, add a system message indicating task dispatch
+        if mentions_with_tasks:
+            dispatch_text = "、".join(f"@{m['name']}" for m in mentions_with_tasks)
+            add_group_message(
+                workspace=workspace,
+                role="system",
+                content=f"已将任务委派给 {dispatch_text}",
+            )
+
+        return j(handler, {
+            "ok": True,
+            "message": msg,
+            "mentions": mentions_with_tasks,
+        })
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)
+
+
+def _handle_group_chat_result(handler, body):
+    """POST /api/group-chat/result
+
+    Post a task result back to the group chat from an employee.
+
+    Body: {
+        workspace: str,
+        employee_name: str,
+        task_id: str,
+        result: str,
+        requester_name: str (optional)
+    }
+    """
+    from api.group_chat import post_task_result
+
+    workspace = body.get("workspace", "").strip()
+    employee_name = body.get("employee_name", "").strip()
+    task_id = body.get("task_id", "").strip()
+    result = body.get("result", "").strip()
+    requester_name = body.get("requester_name", "").strip()
+
+    if not workspace or not employee_name or not result:
+        return bad(handler, "workspace, employee_name, and result are required")
+
+    try:
+        msg = post_task_result(
+            workspace=workspace,
+            employee_name=employee_name,
+            task_id=task_id,
+            result=result,
+            requester_name=requester_name or None,
+        )
+        return j(handler, {"ok": True, "message": msg})
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)

@@ -17,6 +17,14 @@ async function send(){
     }
     return;
   }
+
+  // 总群模式：如果总群面板打开，走总群发送路径
+  if(typeof GROUP_CHAT_STATE!=='undefined'&&GROUP_CHAT_STATE.isOpen){
+    $('msg').value='';autoResize();hideCmdDropdown();
+    await sendGroupMessage(text);
+    return;
+  }
+
   if(!S.session){await newSession();await renderSessionList();}
 
   const activeSid=S.session.session_id;

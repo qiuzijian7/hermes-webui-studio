@@ -3006,3 +3006,172 @@ body.resizing{user-select:none;cursor:col-resize;}
   border-color: rgba(0,0,0,.12);
   box-shadow: 0 8px 32px rgba(0,0,0,.1);
 }
+ 
+
+/* ── 总群 (Group Chat) 样式 ────────────────────────────────────────────────── */
+
+/* 总群链接（委派栏中） */
+.gc-link {
+  font-weight: 600;
+  text-decoration: none;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(124,185,255,.1);
+  transition: background .15s;
+}
+.gc-link:hover {
+  background: rgba(124,185,255,.2);
+  text-decoration: none !important;
+}
+
+/* 总群消息行 */
+.gc-msg-row {
+  position: relative;
+}
+
+/* 系统消息（居中、灰色） */
+.gc-system-msg {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(255,255,255,.04);
+  padding: 3px 10px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* @mention 高亮 */
+.gc-mention {
+  color: var(--blue);
+  background: rgba(124,185,255,.12);
+  padding: 0 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background .15s;
+}
+.gc-mention:hover {
+  background: rgba(124,185,255,.25);
+  text-decoration: none;
+}
+
+/* @mention 下拉补全 */
+.gc-mention-dropdown {
+  position: fixed;
+  z-index: 10000;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 4px;
+  min-width: 200px;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+.gc-mention-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  transition: background .1s;
+}
+.gc-mention-item:hover,
+.gc-mention-item.active {
+  background: rgba(124,185,255,.1);
+}
+.gc-mention-role {
+  color: var(--muted);
+  font-size: 11px;
+  margin-left: auto;
+}
+
+/* Light theme overrides for group chat */
+::root[data-theme="light"] .gc-mention {
+  background: rgba(59,130,246,.1);
+}
+::root[data-theme="light"] .gc-mention:hover {
+  background: rgba(59,130,246,.2);
+}
+::root[data-theme="light"] .gc-link {
+  background: rgba(59,130,246,.08);
+}
+::root[data-theme="light"] .gc-link:hover {
+  background: rgba(59,130,246,.15);
+}
+::root[data-theme="light"] .gc-mention-dropdown {
+  background: #fff;
+  border-color: rgba(0,0,0,.12);
+  box-shadow: 0 8px 32px rgba(0,0,0,.12);
+}
+::root[data-theme="light"] .gc-system-msg {
+  background: rgba(0,0,0,.04);
+}
+
+/* 总群头像样式 */
+.gc-avatar {
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* 总群空状态 */
+.gc-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  text-align: center;
+}
+.gc-empty-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+.gc-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.gc-empty-hint {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* 总群成员条（头部角色区域） */
+.gc-members-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.gc-member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(124,185,255,.08);
+  color: var(--blue);
+  cursor: pointer;
+  transition: background .15s;
+}
+.gc-member-chip:hover {
+  background: rgba(124,185,255,.18);
+}
+
+::root[data-theme="light"] .gc-empty-state .gc-empty-title {
+  color: var(--text);
+}
+::root[data-theme="light"] .gc-member-chip {
+  background: rgba(45,111,163,.08);
+}
+::root[data-theme="light"] .gc-member-chip:hover {
+  background: rgba(45,111,163,.15);
+}

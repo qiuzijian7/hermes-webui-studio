@@ -260,8 +260,22 @@ function setEmployeeStatus(id, status) {
   if (card) _updateCardStatus(card, emp);
 }
 
-function selectEmployee(id) {
+function selectEmployee(id, fromUser) {
+  // 如果总群正在打开中 且 不是用户主动点击，忽略员工选择请求（防止异步操作干扰总群UI）
+  if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen && !fromUser) {
+    console.log('[selectEmployee] 总群打开中，忽略非用户触发的选择:', id);
+    return;
+  }
   EMPLOYEE_STORE.selectedId = id;
+  // 关闭总群模式
+  if (typeof GROUP_CHAT_STATE !== 'undefined') GROUP_CHAT_STATE.isOpen = false;
+  // 恢复总群隐藏的头部按钮
+  const btnEditPrompt = $('btnEditPrompt');
+  if (btnEditPrompt) btnEditPrompt.style.display = '';
+  const btnCondense = $('btnCondenseSkill');
+  if (btnCondense) btnCondense.style.display = '';
+  const btnSkills = $('btnEmployeeSkills');
+  if (btnSkills) btnSkills.style.display = '';
   // 更新卡片选中状态
   document.querySelectorAll('.emp-card').forEach(c => {
     c.classList.toggle('emp-selected', c.dataset.id === id);

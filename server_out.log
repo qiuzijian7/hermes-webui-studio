@@ -1,0 +1,20 @@
+
+  Hermes Web UI -- startup config
+  --------------------------------
+  repo root   : G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio
+  agent dir   : G:\CustomWorkspaces\AIProjects\hermes-agent-studio  [ok]
+  python      : C:\Users\qiuzijian\AppData\Local\Microsoft\WindowsApps\python3.EXE
+  state dir   : C:\Users\qiuzijian\.hermes\webui
+  workspace   : C:\Users\qiuzijian\workspace
+  host:port   : 127.0.0.1:18080
+  config file : C:\Users\qiuzijian\.hermes\config.yaml  (found)
+
+  [security] fixed permissions on .env (0o666 -> 0600)
+  [security] fixed permissions on auth.json (0o666 -> 0600)
+  [tip] No password set. Any process on this machine can read sessions
+        and memory via the local API. Set HERMES_WEBUI_PASSWORD to
+        enable authentication.
+  Hermes Web UI listening on http://127.0.0.1:18080
+  Remote access: ssh -N -L 18080:127.0.0.1:18080 <user>@<your-server>
+  Then open:     http://localhost:18080
+

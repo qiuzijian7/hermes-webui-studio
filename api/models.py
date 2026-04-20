@@ -41,6 +41,7 @@ class Session:
                  project_id: str=None, profile=None,
                  input_tokens: int=0, output_tokens: int=0, estimated_cost=None,
                  personality=None, system_prompt=None,
+                 is_group_chat: bool=False,
                  **kwargs):
         self.session_id = session_id or uuid.uuid4().hex[:12]
         self.title = title
@@ -59,6 +60,7 @@ class Session:
         self.estimated_cost = estimated_cost
         self.personality = personality
         self.system_prompt = system_prompt or ""
+        self.is_group_chat = bool(is_group_chat)
 
     @property
     def path(self):
@@ -99,6 +101,7 @@ class Session:
             'output_tokens': self.output_tokens,
             'estimated_cost': self.estimated_cost,
             'personality': self.personality,
+            'is_group_chat': getattr(self, 'is_group_chat', False),
         }
 
 def get_session(sid):

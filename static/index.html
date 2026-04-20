@@ -222,6 +222,8 @@
           <button class="emp-filter-btn active" data-filter="all" onclick="setEmpFilter('all',this)">全部</button>
           <button class="emp-filter-btn" data-filter="working" onclick="setEmpFilter('working',this)">工作中</button>
           <button class="emp-filter-btn" data-filter="idle" onclick="setEmpFilter('idle',this)">空闲</button>
+          <span class="canvas-zoom-sep"></span>
+          <button class="emp-filter-btn" style="border-color:rgba(124,185,255,.3);color:var(--blue);background:rgba(124,185,255,.06)" onclick="openGroupChat()" title="打开工作区总群">🏠 总群</button>
         </div>
         <!-- 文件目录刷新按钮（仅文件模式显示，在页签栏右侧） -->
         <button class="file-tab-refresh-btn" id="fileTabRefreshBtn" type="button" title="刷新目录" style="display:none" onclick="if(typeof loadDir==='function')loadDir(S.currentDir||'.')">↻</button>
@@ -677,17 +679,18 @@
 <script src="/static/commands.js?v=20260414"></script>
 <script src="/static/messages.js?v=20260418d"></script>
 <script src="/static/panels.js?v=20260417a"></script>
-<script src="/static/employee.js?v=20260418d"></script>
+<script src="/static/employee.js?v=20260420f"></script>
 <script src="/static/canvas-connections.js?v=20260417u"></script>
 <script src="/static/agent-presets.js?v=20260414c"></script>
 <script src="/static/workspace-tabs.js?v=20260417s"></script>
 
 
 
-<script src="/static/right-panel.js?v=20260418d"></script>
+<script src="/static/right-panel.js?v=20260420e"></script>
 <!-- CodeMirror 6 editor module (async, non-blocking) -->
 <script type="module" src="/static/cm-editor.js?v=20260416d"></script>
 <script src="/static/onboarding.js?v=20260414"></script>
+<script src="/static/group-chat.js?v=20260420f"></script>
 <script src="/static/boot.js?v=20260418d"></script>
 </body>
 </html>

@@ -46,6 +46,15 @@ function _setRightPanelView(view) {
 function closeRightPanel() {
   EMPLOYEE_STORE.selectedId = null;
   document.querySelectorAll('.emp-card').forEach(c => c.classList.remove('emp-selected'));
+  // 关闭总群模式
+  if (typeof GROUP_CHAT_STATE !== 'undefined') GROUP_CHAT_STATE.isOpen = false;
+  // 恢复总群隐藏的头部按钮
+  const btnEditPrompt = $('btnEditPrompt');
+  if (btnEditPrompt) btnEditPrompt.style.display = '';
+  const btnCondense = $('btnCondenseSkill');
+  if (btnCondense) btnCondense.style.display = '';
+  const btnSkills = $('btnEmployeeSkills');
+  if (btnSkills) btnSkills.style.display = '';
   // 移动端滑出
   const panel = $('rightPanel');
   if (panel) panel.classList.remove('mobile-open');
@@ -474,9 +483,22 @@ function _syncEmployeePromptToSession(emp) {
 
 // ── 委派关系信息条 ──────────────────────────────────────────────────────────
 function _updateDelegationBar(emp) {
+  console.log('[右面板] _updateDelegationBar(原始) called, emp=', emp?.name || null, 'isOpen=', typeof GROUP_CHAT_STATE !== 'undefined' ? GROUP_CHAT_STATE.isOpen : 'N/A');
   const bar = $('rpDelegationBar');
   const info = $('rpDelegationInfo');
-  if (!bar || !info || !emp) { if (bar) bar.style.display = 'none'; return; }
+  if (!bar || !info) return;
+
+  // 总群打开时，走总群委派栏逻辑（不受 emp 为 null 影响）
+  if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) {
+    if (typeof _updateGroupDelegationBar === 'function') {
+      _updateGroupDelegationBar();
+    } else {
+      bar.style.display = 'none';
+    }
+    return;
+  }
+
+  if (!emp) { bar.style.display = 'none'; return; }
 
   const parts = [];
 
