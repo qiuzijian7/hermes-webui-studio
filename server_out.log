@@ -18,3 +18,1522 @@
   Remote access: ssh -N -L 18080:127.0.0.1:18080 <user>@<your-server>
   Then open:     http://localhost:18080
 
+[webui] {"ts": "2026-04-20T07:31:54Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T07:31:54Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:31:54Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 4.5}
+[webui] {"ts": "2026-04-20T07:32:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:32:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:33:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:33:46Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 5.2}
+[webui] {"ts": "2026-04-20T07:33:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:33:58Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 23.6}
+[webui] {"ts": "2026-04-20T07:34:06Z", "method": "POST", "path": "/api/group-chat/send", "status": 200, "ms": 38.4}
+[webui] {"ts": "2026-04-20T07:34:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:34:28Z", "method": "GET", "path": "/api/group-chat?workspace=G%%3A%%5CHermesWorkspaces%%5Ctest1", "status": 200, "ms": 15.3}
+[webui] {"ts": "2026-04-20T07:34:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:35:12Z", "method": "GET", "path": "/api/group-chat?workspace=G%%3A%%5CHermesWorkspaces%%5Ctest1", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:35:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:35:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.6}
+[webui] {"ts": "2026-04-20T07:36:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:36:23Z", "method": "GET", "path": "/api/group-chat?workspace=G%%3A%%5CHermesWorkspaces%%5Ctest1", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:36:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:37:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:37:31Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:37:48Z", "method": "POST", "path": "/api/group-chat/send", "status": 200, "ms": 39.6}
+[webui] {"ts": "2026-04-20T07:37:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:38:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:38:32Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:38:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:11Z", "method": "GET", "path": "/api/crons/recent?since=1776670194.64", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/", "status": 200, "ms": 1.3}
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/.well-known/appspecific/com.chrome.devtools.json", "status": 404, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/style.css?v=20260418a", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/i18n.js?v=20260417b", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/icons.js?v=20260414", "status": 200, "ms": 1.5}
+
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/ui.js?v=20260418d", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/commands.js?v=20260414", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/workspace.js?v=20260417f", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/sessions.js?v=20260418d", "status": 200, "ms": 2.5}
+
+
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/messages.js?v=20260420l", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/panels.js?v=20260417a", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/employee.js?v=20260420f", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/canvas-connections.js?v=20260417u", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/agent-presets.js?v=20260414c", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/workspace-tabs.js?v=20260417s", "status": 200, "ms": 3.0}
+
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/right-panel.js?v=20260420e", "status": 200, "ms": 2.3}
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/onboarding.js?v=20260414", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/cm-editor.js?v=20260416d", "status": 200, "ms": 3.1}
+
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/group-chat.js?v=20260420k", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/static/boot.js?v=20260418d", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:14Z", "method": "GET", "path": "/api/settings", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:15Z", "method": "GET", "path": "/api/profile/active", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:39:15Z", "method": "GET", "path": "/favicon.ico", "status": 204, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/api/models", "status": 200, "ms": 1556.8}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/api/workspaces", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 3.8}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 2.8}[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 2.8}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 4.9}
+
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 3.5}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 3.5}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 3.5}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 4.5}[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 4.5}[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 3.0}
+
+
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 13.7}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 3.5}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 3.1}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 3.1}
+
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 3.6}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:39:16Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 1.0}
+
+
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 1.0}
+
+
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 3.0}
+
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T07:39:17Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T07:39:18Z", "method": "GET", "path": "/api/onboarding/status", "status": 200, "ms": 1383.3}
+[webui] {"ts": "2026-04-20T07:39:18Z", "method": "GET", "path": "/api/session?session_id=bf84cd4fb595", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:18Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:39:18Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 1.2}
+[webui] {"ts": "2026-04-20T07:39:18Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 4.7}
+[webui] {"ts": "2026-04-20T07:39:18Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:18Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:18Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T07:39:18Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:39:18Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:39:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:39:23Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:30Z", "method": "POST", "path": "/api/group-chat/send", "status": 200, "ms": 34.2}
+[webui] {"ts": "2026-04-20T07:39:30Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:39:30Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:30Z", "method": "POST", "path": "/api/chat/start", "status": 200, "ms": 17.3}
+[webui] {"ts": "2026-04-20T07:39:30Z", "method": "GET", "path": "/api/chat/stream?stream_id=e751ed2131be43e7b09860eab7d5391c", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:35Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:35Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:39:37Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:39:37Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:39:39Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:39:44Z", "method": "GET", "path": "/api/crons/recent?since=1776670754.399", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:39:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:40:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:40:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:41:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:41:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:42:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:42:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:43:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:43:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:44:08Z", "method": "POST", "path": "/api/group-chat/result", "status": 200, "ms": 14.3}
+[webui] {"ts": "2026-04-20T07:44:08Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:44:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:44:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:45:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:45:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:46:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:46:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:47:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:47:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:48:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:48:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:49:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:49:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:50:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:50:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:51:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:51:27Z", "method": "GET", "path": "/api/crons/recent?since=1776670754.399", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T07:51:44Z", "method": "GET", "path": "/api/crons/recent?since=1776670754.399", "status": 200, "ms": 3.5}
+[webui] {"ts": "2026-04-20T07:51:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:52:07Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:52:07Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T07:52:09Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:52:10Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:52:10Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T07:52:14Z", "method": "GET", "path": "/api/crons/recent?since=1776670754.399", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:52:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:52:39Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:52:44Z", "method": "GET", "path": "/api/crons/recent?since=1776670754.399", "status": 200, "ms": 1.4}
+[webui] {"ts": "2026-04-20T07:52:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:53:13Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:53:13Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T07:53:14Z", "method": "GET", "path": "/api/crons/recent?since=1776670754.399", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:53:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:53:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:54:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:54:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:55:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T07:55:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:56:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:56:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:57:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T07:57:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:58:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:58:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T07:59:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T07:59:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T08:00:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:00:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:01:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:01:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T08:02:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T08:02:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:03:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:03:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T08:04:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T08:04:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:05:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:05:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.3}
+[webui] {"ts": "2026-04-20T08:06:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.8}
+[webui] {"ts": "2026-04-20T08:06:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:07:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:07:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:08:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:08:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:09:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:09:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:10:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:10:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:11:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:11:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:12:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:12:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:13:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:13:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:14:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:14:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:15:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:15:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:16:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:16:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:17:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T08:17:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:18:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:18:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T08:19:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:19:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:20:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 4.5}
+[webui] {"ts": "2026-04-20T08:20:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T08:21:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:21:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:22:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T08:22:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:23:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:23:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:24:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:24:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:25:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:25:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:26:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:26:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:27:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:27:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:28:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T08:28:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:29:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:29:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:30:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:30:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.7}
+[webui] {"ts": "2026-04-20T08:31:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T08:31:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T08:32:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:32:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:33:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:33:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:34:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.2}
+[webui] {"ts": "2026-04-20T08:34:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:35:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:35:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:36:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:36:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:37:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:37:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:38:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:38:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:39:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:39:30Z", "method": "GET", "path": "/api/crons/recent?since=1776670754.399", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T08:39:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:40:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:40:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:41:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:41:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:42:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T08:42:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:43:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:43:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T08:44:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T08:44:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:45:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:45:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T08:46:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:46:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:47:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:47:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:48:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:48:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:49:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:49:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:50:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:50:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:51:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:51:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:52:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:52:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:53:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:53:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T08:54:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:54:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:55:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:55:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:56:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T08:56:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:57:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:57:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.9}
+[webui] {"ts": "2026-04-20T08:58:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T08:58:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:59:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T08:59:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:00:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:00:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:01:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:01:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:02:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:02:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:03:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:03:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:04:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:04:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:05:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.9}
+[webui] {"ts": "2026-04-20T09:05:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:06:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:06:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:07:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:07:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:08:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:08:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T09:09:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:09:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:10:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:10:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:11:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:11:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.4}
+[webui] {"ts": "2026-04-20T09:12:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:12:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:13:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:13:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:14:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.6}
+[webui] {"ts": "2026-04-20T09:14:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T09:15:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:15:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:16:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:16:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:17:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:17:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:18:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:18:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T09:19:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:19:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:20:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:20:36Z", "method": "GET", "path": "/api/crons/recent?since=1776670754.399", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/.well-known/appspecific/com.chrome.devtools.json", "status": 404, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/style.css?v=20260418a", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/icons.js?v=20260414", "status": 200, "ms": 3.7}[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/workspace.js?v=20260417f", "status": 200, "ms": 3.7}[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/sessions.js?v=20260418d", "status": 200, "ms": 3.2}
+
+
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/ui.js?v=20260418d", "status": 200, "ms": 4.2}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/commands.js?v=20260414", "status": 200, "ms": 2.2}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/i18n.js?v=20260417b", "status": 200, "ms": 8.4}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/messages.js?v=20260420l", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/panels.js?v=20260417a", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/canvas-connections.js?v=20260417u", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/employee.js?v=20260420f", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/agent-presets.js?v=20260414c", "status": 200, "ms": 2.6}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/workspace-tabs.js?v=20260417s", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/right-panel.js?v=20260420e", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/cm-editor.js?v=20260416d", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/onboarding.js?v=20260414", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/group-chat.js?v=20260420k", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/static/boot.js?v=20260418d", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/api/settings", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/api/profile/active", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:20:38Z", "method": "GET", "path": "/favicon.ico", "status": 204, "ms": 0.6}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/api/models", "status": 200, "ms": 1556.8}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/api/workspaces", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 1.9}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 0.1}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 3.2}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 14.5}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 15.4}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 3.7}[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 2.2}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 2.2}[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 2.0}
+
+
+
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T09:20:40Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 3.0}
+
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 2.6}
+
+
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 0.5}
+
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 2.5}
+
+
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 1.9}[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 0.9}[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 1.9}
+
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 2.9}
+
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/api/onboarding/status", "status": 200, "ms": 1348.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/api/session?session_id=bf84cd4fb595", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 0.0}
+
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 4.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 3.3}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:41Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 4.5}
+[webui] {"ts": "2026-04-20T09:20:42Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:20:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:59Z", "method": "POST", "path": "/api/group-chat/send", "status": 200, "ms": 632.9}
+[webui] {"ts": "2026-04-20T09:20:59Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:20:59Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 2.3}
+[webui] {"ts": "2026-04-20T09:20:59Z", "method": "POST", "path": "/api/chat/start", "status": 200, "ms": 22.5}
+[webui] {"ts": "2026-04-20T09:20:59Z", "method": "GET", "path": "/api/chat/stream?stream_id=bc25b0e6ff234dada2c656d067a479e2", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:21:08Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:21:09Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:21:09Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 0.9}
+[webui] {"ts": "2026-04-20T09:21:13Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:21:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:21:20Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T09:21:21Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T09:21:27Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:21:38Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:21:45Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:21:45Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.8}
+[webui] {"ts": "2026-04-20T09:21:46Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:21:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:22:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:22:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:23:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T09:23:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T09:24:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+
+[webui] {"ts": "2026-04-20T09:24:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:25:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:25:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:26:14Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:26:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+
+[webui] {"ts": "2026-04-20T09:26:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+
+[webui] {"ts": "2026-04-20T09:27:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:27:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:28:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 3.5}
+[webui] {"ts": "2026-04-20T09:28:22Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:28:31Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:28:31Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:28:38Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:28:44Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:28:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T09:29:02Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:29:02Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 2.6}
+[webui] {"ts": "2026-04-20T09:29:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:29:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:30:08Z", "method": "POST", "path": "/api/group-chat/result", "status": 200, "ms": 14.7}
+[webui] {"ts": "2026-04-20T09:30:08Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:30:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:30:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:31:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:31:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:32:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:32:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:33:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:33:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:34:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:34:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:35:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:35:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.3}
+[webui] {"ts": "2026-04-20T09:36:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:36:31Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 1.3}
+[webui] {"ts": "2026-04-20T09:36:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:37:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:37:38Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:37:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:38:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:38:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:39:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:39:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:40:00Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.7}
+[webui] {"ts": "2026-04-20T09:40:08Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:40:19Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 6.5}
+[webui] {"ts": "2026-04-20T09:40:19Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:40:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:40:30Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:40:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:41:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:41:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:42:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:42:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.7}
+[webui] {"ts": "2026-04-20T09:43:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:43:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:44:08Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:44:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:44:38Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:44:44Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.0}
+[webui] {"ts": "2026-04-20T09:44:44Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:44:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:45:03Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.2}
+[webui] {"ts": "2026-04-20T09:45:03Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.8}
+[webui] {"ts": "2026-04-20T09:45:07Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:45:08Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:45:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:45:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:46:06Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.5}
+[webui] {"ts": "2026-04-20T09:46:06Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:46:08Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:46:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:46:38Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:46:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:47:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:47:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.2}
+[webui] {"ts": "2026-04-20T09:48:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.2}
+[webui] {"ts": "2026-04-20T09:48:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:49:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:49:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:50:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:50:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:51:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:51:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:52:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:52:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:53:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:53:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:54:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:54:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:55:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:55:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:56:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.3}
+[webui] {"ts": "2026-04-20T09:56:31Z", "method": "GET", "path": "/api/crons/recent?since=1776676838.2", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/.well-known/appspecific/com.chrome.devtools.json", "status": 404, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/style.css?v=20260418a", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/i18n.js?v=20260417b", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/workspace.js?v=20260417f", "status": 200, "ms": 3.6}[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/icons.js?v=20260414", "status": 200, "ms": 3.6}[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/sessions.js?v=20260418d", "status": 200, "ms": 4.1}
+
+
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/ui.js?v=20260418d", "status": 200, "ms": 4.1}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/commands.js?v=20260414", "status": 200, "ms": 3.6}[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/messages.js?v=20260420l", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/panels.js?v=20260417a", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/canvas-connections.js?v=20260417u", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/employee.js?v=20260420f", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/agent-presets.js?v=20260414c", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/workspace-tabs.js?v=20260417s", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/right-panel.js?v=20260420e", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/cm-editor.js?v=20260416d", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/onboarding.js?v=20260414", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/boot.js?v=20260418d", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/static/group-chat.js?v=20260420k", "status": 200, "ms": 2.1}
+
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/api/settings", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/api/profile/active", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:56:32Z", "method": "GET", "path": "/favicon.ico", "status": 204, "ms": 1.3}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/api/models", "status": 200, "ms": 1489.6}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/api/workspaces", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 3.1}[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 2.2}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 1.2}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 3.3}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 4.3}[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 3.3}
+
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 4.3}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 4.0}[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 3.0}
+
+
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 4.1}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 13.4}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 2.9}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 3.4}[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 3.4}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 2.4}
+
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 3.4}
+[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 1.6}[webui] {"ts": "2026-04-20T09:56:34Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 2.1}
+
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 2.0}
+
+
+
+
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 3.5}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 2.5}
+
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 2.5}
+
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 1.8}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 2.1}
+
+
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 1.6}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/api/onboarding/status", "status": 200, "ms": 1366.0}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/api/session?session_id=bf84cd4fb595", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 3.4}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 1.5}
+
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 3.6}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T09:56:35Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 2.6}
+[webui] {"ts": "2026-04-20T09:56:37Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:56:40Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.0}
+[webui] {"ts": "2026-04-20T09:56:40Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:56:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:57:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T09:57:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:58:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:58:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T09:59:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T09:59:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:00:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:00:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:01:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:01:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:02:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:02:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:03:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:03:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:04:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 85.3}
+[webui] {"ts": "2026-04-20T10:04:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:05:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:05:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:06:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:06:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:07:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:07:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:08:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:08:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:09:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:09:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:10:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:10:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:11:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:11:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:12:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.3}
+[webui] {"ts": "2026-04-20T10:12:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:13:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.8}
+[webui] {"ts": "2026-04-20T10:13:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:14:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:14:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:15:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:15:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:16:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 4.5}
+[webui] {"ts": "2026-04-20T10:16:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:17:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:17:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:18:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:18:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:19:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:19:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:20:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:20:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:21:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:21:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:22:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:22:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:23:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:23:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:24:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:24:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:25:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:25:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:26:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:26:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:27:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:27:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:28:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:28:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:29:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:29:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:30:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:30:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:31:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:31:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:32:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:32:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:33:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:33:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:34:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:34:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:35:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:35:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:36:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:36:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:37:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:37:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:38:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:38:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:39:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:39:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:40:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:40:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:41:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:41:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:42:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:42:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:43:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:43:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:44:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:44:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:45:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:45:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:46:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:46:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:47:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:47:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:48:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:48:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:49:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:49:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/", "status": 200, "ms": 1.2}
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/style.css?v=20260418a", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/i18n.js?v=20260417b", "status": 200, "ms": 1.2}
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/icons.js?v=20260414", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/workspace.js?v=20260417f", "status": 200, "ms": 2.5}
+
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/ui.js?v=20260418d", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/sessions.js?v=20260418d", "status": 200, "ms": 3.5}[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/commands.js?v=20260414", "status": 200, "ms": 1.0}
+
+
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/messages.js?v=20260420l", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/employee.js?v=20260420f", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/panels.js?v=20260417a", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/canvas-connections.js?v=20260417u", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/agent-presets.js?v=20260414c", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/workspace-tabs.js?v=20260417s", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/right-panel.js?v=20260420e", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/cm-editor.js?v=20260416d", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/group-chat.js?v=20260420k", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/onboarding.js?v=20260414", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T10:49:52Z", "method": "GET", "path": "/static/boot.js?v=20260418d", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T10:49:53Z", "method": "GET", "path": "/api/settings", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:49:53Z", "method": "GET", "path": "/api/profile/active", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:49:53Z", "method": "GET", "path": "/favicon.ico", "status": 204, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/api/models", "status": 200, "ms": 1411.6}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/api/workspaces", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 1.5}
+
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 1.7}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 2.7}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 3.5}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 2.5}
+
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 3.5}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 3.5}[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 2.5}
+
+
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 3.1}[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 2.1}
+
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 2.6}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T10:49:55Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 2.4}[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 2.4}
+
+
+
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 2.2}[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 2.5}
+
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 1.2}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 1.2}[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 1.2}[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 1.2}
+
+
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 2.3}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 2.3}[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 2.3}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 1.5}
+
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 3.9}[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 2.9}
+
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 2.4}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 2.9}[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 2.4}
+
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 1.9}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 2.9}[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 2.0}
+
+
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/api/onboarding/status", "status": 200, "ms": 1355.5}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/api/session?session_id=bf84cd4fb595", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 0.6}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 4.3}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.6}
+[webui] {"ts": "2026-04-20T10:49:56Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 2.2}
+[webui] {"ts": "2026-04-20T10:49:59Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:50:15Z", "method": "POST", "path": "/api/group-chat/send", "status": 200, "ms": 35.5}
+[webui] {"ts": "2026-04-20T10:50:15Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:50:15Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 6.0}
+[webui] {"ts": "2026-04-20T10:50:15Z", "method": "POST", "path": "/api/chat/start", "status": 200, "ms": 16.5}
+[webui] {"ts": "2026-04-20T10:50:15Z", "method": "GET", "path": "/api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:50:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T10:50:23Z", "method": "GET", "path": "/api/crons/recent?since=1776682193.003", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:50:23Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.6}
+[webui] {"ts": "2026-04-20T10:50:23Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:50:23Z", "method": "GET", "path": "/api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:50:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:50:51Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.6}
+[webui] {"ts": "2026-04-20T10:50:51Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:50:51Z", "method": "GET", "path": "/api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:50:53Z", "method": "GET", "path": "/api/crons/recent?since=1776682193.003", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:50:59Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 6.1}
+[webui] {"ts": "2026-04-20T10:50:59Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:50:59Z", "method": "GET", "path": "/api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:51:01Z", "method": "GET", "path": "/api/session?session_id=b54ac2b90a72", "status": 200, "ms": 1.7}
+[webui] {"ts": "2026-04-20T10:51:01Z", "method": "GET", "path": "/api/delegation/children?session_id=b54ac2b90a72", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:51:02Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:51:02Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:51:03Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.0}
+[webui] {"ts": "2026-04-20T10:51:03Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.4}
+[webui] {"ts": "2026-04-20T10:51:03Z", "method": "GET", "path": "/api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:51:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T10:51:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T10:52:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/session?session_id=b54ac2b90a72", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.9}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/crons/recent?since=1776682193.003", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.0}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 10.7}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "POST", "path": "/api/group-chat/result", "status": 200, "ms": 16.4}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/delegation/children?session_id=b54ac2b90a72", "status": 200, "ms": 0.9}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/crons/recent?since=1776682193.003", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:52:40Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:52:46Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:52:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:52:53Z", "method": "GET", "path": "/api/crons/recent?since=1776682193.003", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:52:53Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 4.0}
+[webui] {"ts": "2026-04-20T10:52:53Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:53:02Z", "method": "GET", "path": "/api/list?session_id=e24810663c93&path=.", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:53:02Z", "method": "GET", "path": "/api/list?session_id=e24810663c93&path=.", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:53:04Z", "method": "GET", "path": "/api/list?session_id=e24810663c93&path=.", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:53:19Z", "method": "GET", "path": "/api/group-chat?workspace=G%3A%5CHermesWorkspaces%5Ctest1", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:53:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:53:23Z", "method": "GET", "path": "/api/crons/recent?since=1776682193.003", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:53:41Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.5}
+[webui] {"ts": "2026-04-20T10:53:41Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:53:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:53:53Z", "method": "GET", "path": "/api/crons/recent?since=1776682193.003", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T10:54:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:54:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T10:54:53Z", "method": "GET", "path": "/api/crons/recent?since=1776682193.003", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:55:17Z", "method": "GET", "path": "/api/session?session_id=b54ac2b90a72", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T10:55:17Z", "method": "GET", "path": "/api/delegation/children?session_id=b54ac2b90a72", "status": 200, "ms": 2.8}
+[webui] {"ts": "2026-04-20T10:55:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.4}
+[webui] {"ts": "2026-04-20T10:55:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:56:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:56:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:57:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:57:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:58:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:58:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T10:59:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T10:59:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:00:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.7}
+[webui] {"ts": "2026-04-20T11:00:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:01:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:01:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:02:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:02:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:03:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:03:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:34Z", "method": "GET", "path": "/api/crons/recent?since=1776682193.003", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/style.css?v=20260418a", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/ui.js?v=20260418d", "status": 200, "ms": 2.6}[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/icons.js?v=20260414", "status": 200, "ms": 3.1}
+
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/i18n.js?v=20260417b", "status": 200, "ms": 3.1}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/workspace.js?v=20260417f", "status": 200, "ms": 2.6}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/sessions.js?v=20260418d", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/commands.js?v=20260414", "status": 200, "ms": 1.3}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/panels.js?v=20260417a", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/messages.js?v=20260420l", "status": 200, "ms": 2.6}
+
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/employee.js?v=20260420f", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/canvas-connections.js?v=20260417u", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/agent-presets.js?v=20260414c", "status": 200, "ms": 1.6}
+
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/workspace-tabs.js?v=20260417s", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/right-panel.js?v=20260420e", "status": 200, "ms": 1.6}[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/cm-editor.js?v=20260416d", "status": 200, "ms": 1.6}
+
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/onboarding.js?v=20260414", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/group-chat.js?v=20260420k", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/static/boot.js?v=20260418d", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/api/settings", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/api/profile/active", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:04:35Z", "method": "GET", "path": "/favicon.ico", "status": 204, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/api/models", "status": 200, "ms": 1366.6}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/api/workspaces", "status": 200, "ms": 2.3}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 3.5}
+
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 4.5}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 4.0}
+
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 4.5}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 3.0}
+
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 3.0}
+
+
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 2.7}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 12.3}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 3.1}
+
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 3.1}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 3.1}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 3.1}
+
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 2.6}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 3.4}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 2.1}
+
+
+
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 2.6}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 3.2}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 3.2}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 3.6}
+
+
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 2.2}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T11:04:37Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 0.5}
+
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 1.0}
+
+
+
+
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 2.5}
+
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 0.8}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 1.8}
+
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 1.2}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 1.0}
+
+
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/api/onboarding/status", "status": 200, "ms": 1354.6}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/api/session?session_id=bf84cd4fb595", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 3.6}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 3.1}[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 1.8}
+
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:04:38Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T11:04:42Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.5}
+[webui] {"ts": "2026-04-20T11:04:42Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:04:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] ERROR GET /api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85
+Traceback (most recent call last):
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\api\routes.py", line 1319, in _handle_sse_stream
+    handler.send_header("X-Accel-Buffering", "no")
+                              ^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\queue.py", line 179, in get
+    raise Empty
+_queue.Empty
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\server.py", line 42, in do_GET
+    result = handle_get(self, parsed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\api\routes.py", line 458, in handle_get
+    return _handle_sse_stream(handler, parsed)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\api\routes.py", line 1321, in _handle_sse_stream
+    handler.end_headers()
+                ^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\socketserver.py", line 840, in write
+    self._sock.sendall(b)
+ConnectionAbortedError: [WinError 10053] 你的主机中的软件中止了一个已建立的连接。
+
+[webui] {"ts": "2026-04-20T11:05:10Z", "method": "GET", "path": "/api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85", "status": 500, "ms": 858817.7}
+[webui] ERROR GET /api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85
+Traceback (most recent call last):
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\api\routes.py", line 1319, in _handle_sse_stream
+    handler.send_header("X-Accel-Buffering", "no")
+                              ^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\queue.py", line 179, in get
+    raise Empty
+_queue.Empty
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\server.py", line 42, in do_GET
+    result = handle_get(self, parsed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\api\routes.py", line 458, in handle_get
+    return _handle_sse_stream(handler, parsed)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\api\routes.py", line 1321, in _handle_sse_stream
+    handler.end_headers()
+                ^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\socketserver.py", line 840, in write
+    self._sock.sendall(b)
+ConnectionAbortedError: [WinError 10053] 你的主机中的软件中止了一个已建立的连接。
+
+[webui] {"ts": "2026-04-20T11:05:10Z", "method": "GET", "path": "/api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85", "status": 500, "ms": 886456.3}
+[webui] ERROR GET /api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85
+Traceback (most recent call last):
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\api\routes.py", line 1319, in _handle_sse_stream
+    handler.send_header("X-Accel-Buffering", "no")
+                              ^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\queue.py", line 179, in get
+    raise Empty
+_queue.Empty
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\server.py", line 42, in do_GET
+    result = handle_get(self, parsed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\api\routes.py", line 458, in handle_get
+    return _handle_sse_stream(handler, parsed)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\api\routes.py", line 1321, in _handle_sse_stream
+    handler.end_headers()
+                ^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\socketserver.py", line 840, in write
+    self._sock.sendall(b)
+ConnectionAbortedError: [WinError 10053] 你的主机中的软件中止了一个已建立的连接。
+
+[webui] {"ts": "2026-04-20T11:05:10Z", "method": "GET", "path": "/api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85", "status": 500, "ms": 850766.4}
+[webui] ERROR GET /api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85
+Traceback (most recent call last):
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\api\routes.py", line 1319, in _handle_sse_stream
+    handler.send_header("X-Accel-Buffering", "no")
+                              ^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\queue.py", line 179, in get
+    raise Empty
+_queue.Empty
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\server.py", line 42, in do_GET
+    result = handle_get(self, parsed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\api\routes.py", line 458, in handle_get
+    return _handle_sse_stream(handler, parsed)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\CustomWorkspaces\AIProjects\hermes-agent-studio\hermes-webui-studio\api\routes.py", line 1321, in _handle_sse_stream
+    handler.end_headers()
+                ^^^^^^^^^^
+  File "C:\Program Files\Python312\Lib\socketserver.py", line 840, in write
+    self._sock.sendall(b)
+ConnectionAbortedError: [WinError 10053] 你的主机中的软件中止了一个已建立的连接。
+
+[webui] {"ts": "2026-04-20T11:05:10Z", "method": "GET", "path": "/api/chat/stream?stream_id=51aabc7b620e4d2b86ce9aa83a591a85", "status": 500, "ms": 846695.2}
+[webui] {"ts": "2026-04-20T11:05:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:05:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:06:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:06:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T11:07:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:07:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:08:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/style.css?v=20260418a", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/i18n.js?v=20260417b", "status": 200, "ms": 3.3}[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/sessions.js?v=20260418d", "status": 200, "ms": 3.3}[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/icons.js?v=20260414", "status": 200, "ms": 3.3}
+
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/ui.js?v=20260418d", "status": 200, "ms": 3.3}[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/workspace.js?v=20260417f", "status": 200, "ms": 3.3}
+
+
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/commands.js?v=20260414", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/messages.js?v=20260420l", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/panels.js?v=20260417a", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/employee.js?v=20260420f", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/canvas-connections.js?v=20260417u", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/agent-presets.js?v=20260414c", "status": 200, "ms": 2.0}
+
+
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/workspace-tabs.js?v=20260417s", "status": 200, "ms": 2.7}
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/right-panel.js?v=20260420e", "status": 200, "ms": 2.2}
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/cm-editor.js?v=20260416d", "status": 200, "ms": 1.4}
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/onboarding.js?v=20260414", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/group-chat.js?v=20260420k", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/static/boot.js?v=20260418d", "status": 200, "ms": 2.5}
+[webui] {"ts": "2026-04-20T11:08:29Z", "method": "GET", "path": "/api/settings", "status": 200, "ms": 0.8}
+[webui] {"ts": "2026-04-20T11:08:30Z", "method": "GET", "path": "/api/profile/active", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:08:30Z", "method": "GET", "path": "/favicon.ico", "status": 204, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/api/models", "status": 200, "ms": 1389.4}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/api/workspaces", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 2.1}
+
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 2.1}
+
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 3.1}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 2.7}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 3.2}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 3.2}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 3.8}[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 4.8}
+
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 3.1}[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 3.1}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 1.6}
+
+
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 2.1}
+
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:08:31Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 2.1}
+
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 2.0}
+
+
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 1.4}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 0.5}
+
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 0.8}
+[webui] {"ts": "2026-04-20T11:08:32Z", "method": "GET", "path": "/api/onboarding/status", "status": 200, "ms": 1353.9}
+[webui] {"ts": "2026-04-20T11:08:33Z", "method": "GET", "path": "/api/session?session_id=bf84cd4fb595", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:33Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:08:33Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:08:33Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:08:33Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:33Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:08:33Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T11:08:33Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:33Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:08:36Z", "method": "GET", "path": "/api/session?session_id=b54ac2b90a72", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:08:36Z", "method": "GET", "path": "/api/delegation/children?session_id=b54ac2b90a72", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:08:37Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.6}
+[webui] {"ts": "2026-04-20T11:08:37Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:39Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:08:39Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:40Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 5.7}
+[webui] {"ts": "2026-04-20T11:08:40Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T11:08:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:08:59Z", "method": "GET", "path": "/api/crons/recent?since=1776683309.611", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:09:11Z", "method": "GET", "path": "/api/list?session_id=e24810663c93&path=.", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:09:11Z", "method": "GET", "path": "/api/list?session_id=e24810663c93&path=.", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:09:12Z", "method": "GET", "path": "/api/list?session_id=e24810663c93&path=.", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:09:15Z", "method": "GET", "path": "/api/workspaces", "status": 200, "ms": 2.3}
+[webui] {"ts": "2026-04-20T11:09:16Z", "method": "POST", "path": "/api/session/update", "status": 200, "ms": 14.3}
+[webui] {"ts": "2026-04-20T11:09:16Z", "method": "GET", "path": "/api/list?session_id=e24810663c93&path=.", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:09:18Z", "method": "GET", "path": "/api/list?session_id=e24810663c93&path=.", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:09:18Z", "method": "GET", "path": "/api/list?session_id=e24810663c93&path=.", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:09:19Z", "method": "GET", "path": "/api/workspaces", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:09:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:09:20Z", "method": "POST", "path": "/api/session/update", "status": 200, "ms": 14.3}
+[webui] {"ts": "2026-04-20T11:09:20Z", "method": "GET", "path": "/api/list?session_id=e24810663c93&path=.", "status": 200, "ms": 8.4}
+[webui] {"ts": "2026-04-20T11:09:21Z", "method": "GET", "path": "/api/workspaces", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:09:22Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 1.3}
+[webui] {"ts": "2026-04-20T11:09:22Z", "method": "POST", "path": "/api/session/update", "status": 200, "ms": 14.3}
+[webui] {"ts": "2026-04-20T11:09:22Z", "method": "GET", "path": "/api/list?session_id=01faaaec6a16&path=.", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T11:09:22Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 2.5}
+
+[webui] {"ts": "2026-04-20T11:09:26Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 4.6}
+[webui] {"ts": "2026-04-20T11:09:26Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:09:28Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 4.5}
+[webui] {"ts": "2026-04-20T11:09:28Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:09:29Z", "method": "GET", "path": "/api/crons/recent?since=1776683309.611", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:09:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.2}
+[webui] {"ts": "2026-04-20T11:10:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:10:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:11:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:11:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:12:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:12:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:13:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:13:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:14:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:14:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:15:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.9}
+[webui] {"ts": "2026-04-20T11:15:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:16:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:16:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.3}
+[webui] {"ts": "2026-04-20T11:17:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:17:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:18:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:18:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.8}
+[webui] {"ts": "2026-04-20T11:19:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:19:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:04Z", "method": "GET", "path": "/api/crons/recent?since=1776683309.611", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/sessions.js?v=20260418d", "status": 200, "ms": 1.8}
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/ui.js?v=20260418d", "status": 200, "ms": 2.8}[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/workspace.js?v=20260417f", "status": 200, "ms": 2.8}
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/icons.js?v=20260414", "status": 200, "ms": 2.8}
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/i18n.js?v=20260417b", "status": 200, "ms": 2.8}
+
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/style.css?v=20260418a", "status": 200, "ms": 8.4}
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/commands.js?v=20260414", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/panels.js?v=20260417a", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/messages.js?v=20260420l", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/canvas-connections.js?v=20260417u", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/employee.js?v=20260420f", "status": 200, "ms": 3.0}
+
+
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/agent-presets.js?v=20260414c", "status": 200, "ms": 1.9}[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/workspace-tabs.js?v=20260417s", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/right-panel.js?v=20260420e", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/onboarding.js?v=20260414", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/cm-editor.js?v=20260416d", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/group-chat.js?v=20260420m", "status": 200, "ms": 2.2}
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/static/boot.js?v=20260418d", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:05Z", "method": "GET", "path": "/api/settings", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:20:06Z", "method": "GET", "path": "/api/profile/active", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:20:06Z", "method": "GET", "path": "/favicon.ico", "status": 204, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/api/models", "status": 200, "ms": 1617.9}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/api/workspaces", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 1.3}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 2.5}[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 2.0}
+
+
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 1.0}
+
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 1.0}[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 3.1}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 3.5}[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 3.0}
+
+
+
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 2.9}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 2.1}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 1.5}
+
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:20:08Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_1_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_5_frame32x32.png", "status": 200, "ms": 1.6}[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_4_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_2_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_3_frame32x32.png", "status": 200, "ms": 2.6}
+
+
+
+
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_6_frame32x32.png", "status": 200, "ms": 3.0}[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_8_frame32x32.png", "status": 200, "ms": 2.0}[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_9_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_7_frame32x32.png", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_10_frame32x32.png", "status": 200, "ms": 1.0}
+
+
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_11_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_12_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_13_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_15_frame32x32.png", "status": 200, "ms": 2.1}[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_14_frame32x32.png", "status": 200, "ms": 2.1}
+
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_16_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_17_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_18_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_20_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_19_frame32x32.png", "status": 200, "ms": 2.0}
+
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_25_frame32x32.png", "status": 200, "ms": 1.5}[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_26_frame32x32.png", "status": 200, "ms": 1.5}
+
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_21_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_22_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_23_frame32x32.png", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_24_frame32x32.png", "status": 200, "ms": 0.9}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_27_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_28_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_29_frame32x32.png", "status": 200, "ms": 2.2}[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_30_frame32x32.png", "status": 200, "ms": 1.2}
+
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_31_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/static/img/characters/character_32_frame32x32.png", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/api/onboarding/status", "status": 200, "ms": 1340.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/api/session?session_id=bf84cd4fb595", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 3.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/api/sessions/gateway/stream", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/api/projects", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:20:09Z", "method": "GET", "path": "/api/sessions", "status": 200, "ms": 2.0}
+[webui] {"ts": "2026-04-20T11:20:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:20:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:21:19Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 4.0}
+[webui] {"ts": "2026-04-20T11:21:19Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:21:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:21:22Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 4.5}
+[webui] {"ts": "2026-04-20T11:21:22Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:21:23Z", "method": "GET", "path": "/api/session?session_id=b54ac2b90a72", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:21:23Z", "method": "GET", "path": "/api/delegation/children?session_id=b54ac2b90a72", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:21:24Z", "method": "GET", "path": "/api/session?session_id=01faaaec6a16", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:21:24Z", "method": "GET", "path": "/api/delegation/children?session_id=01faaaec6a16", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:21:26Z", "method": "GET", "path": "/api/session?session_id=e24810663c93", "status": 200, "ms": 4.8}
+[webui] {"ts": "2026-04-20T11:21:26Z", "method": "GET", "path": "/api/delegation/children?session_id=e24810663c93", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:21:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:22:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:22:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:23:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:23:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:24:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:24:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:25:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:25:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:26:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:26:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:27:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:27:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:28:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:28:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:29:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:29:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:30:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:30:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.6}
+[webui] {"ts": "2026-04-20T11:31:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:31:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:32:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:32:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:33:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:33:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:34:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:34:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:35:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:35:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:36:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:36:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.9}
+[webui] {"ts": "2026-04-20T11:37:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:37:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.2}
+[webui] {"ts": "2026-04-20T11:38:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:38:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:39:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:39:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:40:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:40:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:41:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:41:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:42:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:42:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:43:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.1}
+[webui] {"ts": "2026-04-20T11:43:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:44:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:44:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:45:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:45:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.2}
+[webui] {"ts": "2026-04-20T11:46:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.5}
+[webui] {"ts": "2026-04-20T11:46:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.3}
+[webui] {"ts": "2026-04-20T11:47:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.7}
+[webui] {"ts": "2026-04-20T11:47:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.5}
+[webui] {"ts": "2026-04-20T11:48:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 0.0}
+[webui] {"ts": "2026-04-20T11:48:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:49:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:49:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:50:20Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}
+[webui] {"ts": "2026-04-20T11:50:50Z", "method": "GET", "path": "/api/crons/recent?since=1776321946.804", "status": 200, "ms": 1.0}

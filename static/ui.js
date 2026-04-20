@@ -1425,6 +1425,8 @@ function renderMermaidBlocks(){
 }
 
 function appendThinking(){
+  // ★ 总群打开时不追加 thinking 行（防止覆盖总群内容）
+  if(typeof GROUP_CHAT_STATE!=='undefined'&&GROUP_CHAT_STATE.isOpen) return;
   const emp = typeof EMPLOYEE_STORE!=='undefined'?getEmployee(EMPLOYEE_STORE.selectedId):null;
   const avatar = emp?emp.avatar:'🤖';
   const name = emp?emp.name:'Hermes';

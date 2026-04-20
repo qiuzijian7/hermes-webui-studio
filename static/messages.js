@@ -1,12 +1,22 @@
 async function send(){
   const text=$('msg').value.trim();
   if(!text&&!S.pendingFiles.length)return;
+  console.log('[send] called, S.busy=', S.busy, 'isOpen=', typeof GROUP_CHAT_STATE!=='undefined'?GROUP_CHAT_STATE.isOpen:'N/A');
   // Slash command intercept -- local commands handled without agent round-trip
   if(text.startsWith('/')&&!S.pendingFiles.length&&executeCommand(text)){
     $('msg').value='';autoResize();hideCmdDropdown();return;
   }
   // Don't send while an inline message edit is active
   if(document.querySelector('.msg-edit-area'))return;
+
+  // 总群模式：如果总群面板打开，走总群发送路径（不受 S.busy 限制）
+  if(typeof GROUP_CHAT_STATE!=='undefined'&&GROUP_CHAT_STATE.isOpen){
+    console.log('[send] 总群模式, isOpen=true, text=', text);
+    $('msg').value='';autoResize();hideCmdDropdown();
+    await sendGroupMessage(text);
+    return;
+  }
+
   // If busy, queue the message instead of dropping it
   if(S.busy){
     if(text){
@@ -15,13 +25,6 @@ async function send(){
       updateQueueBadge();
       showToast(`Queued: "${text.slice(0,40)}${text.length>40?'\u2026':''}"`,2000);
     }
-    return;
-  }
-
-  // 总群模式：如果总群面板打开，走总群发送路径
-  if(typeof GROUP_CHAT_STATE!=='undefined'&&GROUP_CHAT_STATE.isOpen){
-    $('msg').value='';autoResize();hideCmdDropdown();
-    await sendGroupMessage(text);
     return;
   }
 
@@ -67,9 +70,11 @@ async function send(){
   S.toolCalls=[];  // clear tool calls from previous turn
   clearLiveToolCards();  // clear any leftover live cards from last turn
   S.messages.push(userMsg);renderMessages();appendThinking();setBusy(true);
+  // 记录发送消息时的员工ID（完成后用此ID重置状态，而非selectedId）
+  const _sendEmpId = (typeof EMPLOYEE_STORE!=='undefined') ? EMPLOYEE_STORE.selectedId : null;
   // 更新员工状态为思考中
-  if(typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof setEmployeeStatus==='function'){
-    setEmployeeStatus(EMPLOYEE_STORE.selectedId,'thinking');
+  if(_sendEmpId && typeof setEmployeeStatus==='function'){
+    setEmployeeStatus(_sendEmpId,'thinking');
   }
   INFLIGHT[activeSid]={messages:[...S.messages],uploaded};
   startApprovalPolling(activeSid);
@@ -110,12 +115,12 @@ async function send(){
     delete INFLIGHT[activeSid];
     stopApprovalPolling();
     // Only hide approval card if it belongs to the session that just finished
-    if(!_approvalSessionId || _approvalSessionId===activeSid) hideApprovalCard(true);removeThinking();
+    if(!_approvalSessionId || _approvalSessionId===activeSid) hideApprovalCard(true);hideClarifyCard();removeThinking();
     S.messages.push({role:'assistant',content:`**Error:** ${e.message}`});
     renderMessages();setBusy(false);setComposerStatus(`Error: ${e.message}`);
-    // 更新员工状态为出错
-    if(typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof setEmployeeStatus==='function'){
-      setEmployeeStatus(EMPLOYEE_STORE.selectedId,'error');
+    // 更新员工状态为出错（使用发送时记录的ID）
+    if(_sendEmpId && typeof setEmployeeStatus==='function'){
+      setEmployeeStatus(_sendEmpId,'error');
     }
     return;
   }
@@ -132,6 +137,8 @@ async function send(){
 
   function ensureAssistantRow(){
     if(assistantRow)return;
+    // ★ 总群打开时不追加员工消息行（防止覆盖总群内容）
+    if(typeof GROUP_CHAT_STATE!=='undefined'&&GROUP_CHAT_STATE.isOpen) return;
     removeThinking();
     const tr=$('toolRunningRow');if(tr)tr.remove();
     const emp = typeof EMPLOYEE_STORE!=='undefined'?getEmployee(EMPLOYEE_STORE.selectedId):null;
@@ -224,6 +231,13 @@ async function send(){
       sendBrowserNotification('Approval required',d.description||'Tool approval needed');
     });
 
+    source.addEventListener('clarify',e=>{
+      const d=JSON.parse(e.data);
+      showClarifyCard(d);
+      playNotificationSound();
+      sendBrowserNotification('Question',d.question||'Agent is asking a question');
+    });
+
     source.addEventListener('done',e=>{
       source.close();
       const d=JSON.parse(e.data);
@@ -231,6 +245,7 @@ async function send(){
       clearInflight();
       stopApprovalPolling();
       if(!_approvalSessionId || _approvalSessionId===activeSid) hideApprovalCard(true);
+      hideClarifyCard();
       if(S.session&&S.session.session_id===activeSid){
         S.activeStreamId=null;
         const _cb=$('btnCancel');if(_cb)_cb.style.display='none';
@@ -270,12 +285,87 @@ async function send(){
       }
       renderSessionList();setBusy(false);setStatus('');
       setComposerStatus('');
-      // 更新员工状态为空闲
-      if(typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof setEmployeeStatus==='function'){
-        setEmployeeStatus(EMPLOYEE_STORE.selectedId,'idle');
+      // 更新员工状态为空闲（使用发送时记录的ID，而非当前selectedId）
+      if(_sendEmpId && typeof setEmployeeStatus==='function'){
+        setEmployeeStatus(_sendEmpId,'idle');
       }
       playNotificationSound();
       sendBrowserNotification('Response complete',assistantText?assistantText.slice(0,100):'Task finished');
+    });
+
+    source.addEventListener('employee_created',e=>{
+      // Agent called delegate_task with employee_name — auto-create
+      // employee card + connection line on the canvas.
+      if(!S.session||S.session.session_id!==activeSid) return;
+      try{
+        const d=JSON.parse(e.data);
+        const empName=d.name;
+        if(!empName) return;
+        // Check if employee already exists on canvas
+        const existing=typeof EMPLOYEE_STORE!=='undefined'&&
+          EMPLOYEE_STORE.employees.find(emp=>emp.name===empName);
+        if(existing) return;
+        if(typeof createEmployee==='function'){
+          // Try to match a preset by name first
+          let presetMatch=null;
+          if(typeof AGENT_PRESETS!=='undefined'){
+            presetMatch=AGENT_PRESETS.find(p=>p.name===empName);
+          }
+          const empOpts={
+            name:empName,
+            role:d.role||'',
+            subagentOf:_sendEmpId||null,
+          };
+          if(presetMatch){
+            empOpts.presetId=presetMatch.id;
+            empOpts.characterImg=presetMatch.characterImg;
+            empOpts.model=presetMatch.model;
+            empOpts.skills=presetMatch.skills;
+            empOpts.role=presetMatch.role;
+          }
+          const emp=createEmployee(empOpts);
+          // Create connection line from sender to new employee
+          if(_sendEmpId&&typeof addConnection==='function'){
+            addConnection(_sendEmpId,emp.id);
+          }
+          showToast(presetMatch
+            ?`已创建员工: ${empName}（${presetMatch.role}）`
+            :`已创建员工: ${empName}`);
+        }
+      }catch(err){
+        console.warn('[employee_created] Failed:',err);
+      }
+    });
+
+    source.addEventListener('team_created',e=>{
+      // Agent returned a structured team definition via team_structure
+      // parameter — batch-create employee cards with connections.
+      if(!S.session||S.session.session_id!==activeSid) return;
+      try{
+        const d=JSON.parse(e.data);
+        if(typeof createTeamFromJSON==='function'){
+          createTeamFromJSON(d);
+        }
+      }catch(err){
+        console.warn('[team_created] Failed:',err);
+      }
+    });
+
+    source.addEventListener('employee_session_bound',e=>{
+      // delegate_task completed — bind child_session_id to the
+      // corresponding employee card so clicking it opens the right session.
+      try{
+        const d=JSON.parse(e.data);
+        if(!d.name||!d.child_session_id) return;
+        if(typeof EMPLOYEE_STORE==='undefined') return;
+        const emp=EMPLOYEE_STORE.employees.find(x=>x.name===d.name);
+        if(emp){
+          emp.sessionId=d.child_session_id;
+          if(typeof _saveEmployees==='function') _saveEmployees();
+        }
+      }catch(err){
+        console.warn('[employee_session_bound] Failed:',err);
+      }
     });
 
     source.addEventListener('compressed',e=>{
@@ -295,6 +385,7 @@ async function send(){
       source.close();
       delete INFLIGHT[activeSid];clearInflight();stopApprovalPolling();
       if(!_approvalSessionId||_approvalSessionId===activeSid) hideApprovalCard(true);
+      hideClarifyCard();
       if(S.session&&S.session.session_id===activeSid){
         S.activeStreamId=null;const _cbe=$('btnCancel');if(_cbe)_cbe.style.display='none';
         clearLiveToolCards();if(!assistantText)removeThinking();
@@ -315,6 +406,10 @@ async function send(){
         catch(_){trackBackgroundError(activeSid,_errTitle,'Error');}
       }
       if(!S.session||!INFLIGHT[S.session.session_id]){setBusy(false);setComposerStatus('');}
+      // 更新员工状态为出错
+      if(_sendEmpId && typeof setEmployeeStatus==='function'){
+        setEmployeeStatus(_sendEmpId,'error');
+      }
     });
 
     source.addEventListener('warning',e=>{
@@ -355,6 +450,7 @@ async function send(){
       source.close();
       delete INFLIGHT[activeSid];clearInflight();stopApprovalPolling();
       if(!_approvalSessionId||_approvalSessionId===activeSid) hideApprovalCard(true);
+      hideClarifyCard();
       if(S.session&&S.session.session_id===activeSid){
         S.activeStreamId=null;const _cbc=$('btnCancel');if(_cbc)_cbc.style.display='none';
       }
@@ -364,12 +460,17 @@ async function send(){
       }
       renderSessionList();
       if(!S.session||!INFLIGHT[S.session.session_id]){setBusy(false);setComposerStatus('');}
+      // 更新员工状态为空闲
+      if(_sendEmpId && typeof setEmployeeStatus==='function'){
+        setEmployeeStatus(_sendEmpId,'idle');
+      }
     });
   }
 
   function _handleStreamError(){
     delete INFLIGHT[activeSid];clearInflight();stopApprovalPolling();
     if(!_approvalSessionId||_approvalSessionId===activeSid) hideApprovalCard(true);
+    hideClarifyCard();
     if(S.session&&S.session.session_id===activeSid){
       S.activeStreamId=null;const _cbe=$('btnCancel');if(_cbe)_cbe.style.display='none';
       clearLiveToolCards();if(!assistantText)removeThinking();
@@ -383,6 +484,10 @@ async function send(){
       }
     }
     if(!S.session||!INFLIGHT[S.session.session_id]){setBusy(false);setComposerStatus('');}
+    // 更新员工状态为出错
+    if(_sendEmpId && typeof setEmployeeStatus==='function'){
+      setEmployeeStatus(_sendEmpId,'error');
+    }
   }
 
   _wireSSE(new EventSource(new URL(`/api/chat/stream?stream_id=${encodeURIComponent(streamId)}`,location.origin).href,{withCredentials:true}));
@@ -548,6 +653,85 @@ function sendBrowserNotification(title,body){
       if(p==='granted') new Notification(title||botName,{body:body});
     });
   }
+}
+
+// ── Clarify card (interactive question from agent) ──────────────────────────
+
+let _clarifySessionId = null;
+
+function showClarifyCard(data) {
+  const card = $('clarifyCard');
+  const qEl = $('clarifyQuestion');
+  const choicesEl = $('clarifyChoices');
+  const openEl = $('clarifyOpen');
+  const inputEl = $('clarifyInput');
+
+  _clarifySessionId = data.session_id || (S.session && S.session.session_id) || null;
+  qEl.textContent = data.question || '';
+
+  // Render choices
+  const choices = data.choices || [];
+  choicesEl.innerHTML = '';
+  if (choices.length) {
+    const letters = 'ABCD';
+    choices.forEach((c, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'clarify-choice';
+      btn.innerHTML = `<span class="choice-letter">${letters[i] || ''}</span><span class="choice-text">${escHtml(c)}</span>`;
+      btn.onclick = () => respondClarify(c);
+      choicesEl.appendChild(btn);
+    });
+    choicesEl.style.display = 'flex';
+  } else {
+    choicesEl.style.display = 'none';
+  }
+
+  // Always show the open input as the last option
+  openEl.style.display = 'flex';
+  inputEl.value = '';
+  inputEl.placeholder = choices.length ? 'Other (type your answer)…' : 'Type your answer…';
+
+  card.classList.add('visible');
+  card.scrollIntoView({block:'nearest', behavior:'smooth'});
+
+  // Focus input
+  setTimeout(() => inputEl.focus(), 50);
+
+  // Enter key to submit
+  inputEl.onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      respondClarify();
+    }
+  };
+}
+
+function hideClarifyCard() {
+  const card = $('clarifyCard');
+  if (card) card.classList.remove('visible');
+  _clarifySessionId = null;
+}
+
+async function respondClarify(answer) {
+  if (!answer && $('clarifyInput')) answer = $('clarifyInput').value.trim();
+  if (!answer) return;
+  const sid = _clarifySessionId || (S.session && S.session.session_id);
+  if (!sid) return;
+  hideClarifyCard();
+  try {
+    await api('/api/clarify/respond', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sid, answer }),
+    });
+  } catch(e) {
+    console.warn('Clarify respond failed:', e);
+  }
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
 }
 
 // ── Panel navigation (Chat / Tasks / Skills / Memory) ──

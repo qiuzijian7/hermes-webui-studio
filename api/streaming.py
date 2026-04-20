@@ -24,6 +24,59 @@ from api.helpers import redact_session_data
 # save/restore around the entire agent run.
 _ENV_LOCK = threading.Lock()
 
+
+# ── Clarify (interactive questions) support ────────────────────────────────────
+# When the agent calls the clarify tool, we push a "clarify" SSE event to the
+# frontend and block the agent thread until the user responds via
+# POST /api/clarify/respond.
+
+class _ClarifyEntry:
+    """One pending clarify question, blocking an agent thread."""
+    __slots__ = ('question', 'choices', 'event', 'result')
+
+    def __init__(self, question, choices):
+        self.question = question
+        self.choices = choices
+        self.event = threading.Event()
+        self.result = None          # set by resolve_clarify()
+
+
+_CLARIFY_LOCK = threading.Lock()
+_CLARIFY_QUEUES: dict[str, list[_ClarifyEntry]] = {}   # session_id → [_ClarifyEntry, …]
+
+
+def submit_clarify(session_id: str, question: str, choices: list | None) -> _ClarifyEntry:
+    """Create a pending clarify entry and enqueue it.  Returns the entry
+    (caller should entry.event.wait() then read entry.result)."""
+    entry = _ClarifyEntry(question, choices)
+    with _CLARIFY_LOCK:
+        _CLARIFY_QUEUES.setdefault(session_id, []).append(entry)
+    return entry
+
+
+def resolve_clarify(session_id: str, answer: str) -> bool:
+    """Resolve the oldest pending clarify for *session_id* with *answer*.
+    Returns True if a pending clarify was found and resolved."""
+    with _CLARIFY_LOCK:
+        q = _CLARIFY_QUEUES.get(session_id)
+        if not q:
+            return False
+        entry = q.pop(0)
+        if not q:
+            _CLARIFY_QUEUES.pop(session_id, None)
+    entry.result = answer
+    entry.event.set()
+    return True
+
+
+def cancel_all_clarifies(session_id: str):
+    """Cancel (unblock) all pending clarify entries for a session."""
+    with _CLARIFY_LOCK:
+        entries = _CLARIFY_QUEUES.pop(session_id, [])
+    for entry in entries:
+        entry.result = ""
+        entry.event.set()
+
 # Lazy import to avoid circular deps -- hermes-agent is on sys.path via api/config.py
 try:
     from run_agent import AIAgent
@@ -165,12 +218,41 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                     return  # end-of-stream sentinel
                 put('token', {'text': text})
 
+            def on_clarify(question, choices):
+                """clarify_callback for WebUI: push SSE event, block until user answers."""
+                entry = submit_clarify(session_id, question, choices)
+                # Push clarify SSE event so the frontend can show the question
+                put('clarify', {
+                    'session_id': session_id,
+                    'question': question,
+                    'choices': choices or [],
+                })
+                # Block the agent thread until the user responds
+                entry.event.wait(timeout=300)
+                return entry.result or ""
+
             def on_tool(name, preview, args):
                 args_snap = {}
                 if isinstance(args, dict):
                     for k, v in list(args.items())[:4]:
                         s2 = str(v); args_snap[k] = s2[:120]+('...' if len(s2)>120 else '')
                 put('tool', {'name': name, 'preview': preview, 'args': args_snap})
+                # When delegate_task is called with an employee_name,
+                # push an employee_created event so the frontend can
+                # auto-create the employee card + connection line.
+                if name == 'delegate_task' and isinstance(args, dict):
+                    emp_name = args.get('employee_name')
+                    if emp_name:
+                        put('employee_created', {
+                            'name': emp_name,
+                            'role': args.get('employee_role', ''),
+                        })
+                    # Team structure: when agent returns a structured team
+                    # definition, push a team_created event so the frontend
+                    # can batch-create employee cards with connections.
+                    team = args.get('team_structure')
+                    if team and isinstance(team, dict) and team.get('members'):
+                        put('team_created', team)
                 # Fallback: poll for pending approval in case notify_cb wasn't
                 # registered (e.g. older approval module without gateway support).
                 try:
@@ -237,6 +319,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 session_id=session_id,
                 stream_delta_callback=on_token,
                 tool_progress_callback=on_tool,
+                clarify_callback=on_clarify,
             )
 
             # Store agent instance for cancel/interrupt propagation
@@ -304,6 +387,58 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 persist_user_message=msg_text,
             )
             s.messages = result.get('messages') or s.messages
+
+            # ── Extract delegate_task results for employee-session binding ──
+            # After run_conversation completes, scan tool results for
+            # delegate_task calls that created subagents. Push an
+            # employee_session_bound SSE event for each so the frontend
+            # can bind the child_session_id to the corresponding employee card.
+            _pending_names = {}  # tool_call_id -> employee_name
+            _pending_roles = {}  # tool_call_id -> employee_role
+            for _m in s.messages:
+                if not isinstance(_m, dict):
+                    continue
+                if _m.get('role') == 'assistant':
+                    # Collect delegate_task call args (employee_name)
+                    c = _m.get('content', '')
+                    if isinstance(c, list):
+                        for p in c:
+                            if isinstance(p, dict) and p.get('type') == 'tool_use' and p.get('name') == 'delegate_task':
+                                inp = p.get('input', {})
+                                if isinstance(inp, dict) and inp.get('employee_name'):
+                                    _pending_names[p.get('id', '')] = inp['employee_name']
+                                    _pending_roles[p.get('id', '')] = inp.get('employee_role', '')
+                    for tc in _m.get('tool_calls', []):
+                        if not isinstance(tc, dict):
+                            continue
+                        fn = tc.get('function', {})
+                        if fn.get('name') == 'delegate_task':
+                            try:
+                                args = json.loads(fn.get('arguments', '{}') or '{}')
+                            except Exception:
+                                args = {}
+                            if isinstance(args, dict) and args.get('employee_name'):
+                                tid = tc.get('id', '') or tc.get('call_id', '')
+                                _pending_names[tid] = args['employee_name']
+                                _pending_roles[tid] = args.get('employee_role', '')
+                elif _m.get('role') == 'tool':
+                    tid = _m.get('tool_call_id') or _m.get('tool_use_id', '')
+                    emp_name = _pending_names.pop(tid, None)
+                    emp_role = _pending_roles.pop(tid, None)
+                    if emp_name:
+                        raw = str(_m.get('content', ''))
+                        try:
+                            rd = json.loads(raw)
+                            for r in rd.get('results', []):
+                                child_sid = r.get('child_session_id')
+                                if child_sid:
+                                    put('employee_session_bound', {
+                                        'name': emp_name,
+                                        'role': emp_role or '',
+                                        'child_session_id': child_sid,
+                                    })
+                        except Exception:
+                            pass
 
             # If the agent failed (e.g. 401/403/429 from the LLM provider),
             # send an apperror event so the frontend shows the error clearly
@@ -477,6 +612,8 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                     _unreg_notify(session_id)
                 except Exception:
                     pass
+            # Unblock any pending clarify questions
+            cancel_all_clarifies(session_id)
             with _ENV_LOCK:
                 if old_cwd is None: os.environ.pop('TERMINAL_CWD', None)
                 else: os.environ['TERMINAL_CWD'] = old_cwd

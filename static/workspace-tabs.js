@@ -725,7 +725,7 @@ function renderEmployeeCards() {
     // 重新绑定操作按钮
     clone.querySelectorAll('.emp-action-btn').forEach(btn => {
       const title = btn.getAttribute('title');
-      if (title === '对话') btn.onclick = (e) => { e.stopPropagation(); selectEmployee(emp.id); };
+      if (title === '对话') btn.onclick = (e) => { e.stopPropagation(); selectEmployee(emp.id, true); };
     });
 
     _positionCard(clone, emp);

@@ -562,14 +562,17 @@ def handle_get(handler, parsed) -> bool:
 
 def handle_post(handler, parsed) -> bool:
     """Handle all POST routes. Returns True if handled, False for 404."""
+    print(f"[POST] path={parsed.path}", file=sys.stderr, flush=True)
     # CSRF: reject cross-origin browser requests
     if not _check_csrf(handler):
+        print(f"[POST] CSRF REJECTED path={parsed.path}", file=sys.stderr, flush=True)
         return j(handler, {"error": "Cross-origin request rejected"}, status=403)
 
     if parsed.path == "/api/upload":
         return handle_upload(handler)
 
     body = read_body(handler)
+    print(f"[POST] path={parsed.path} body_keys={list(body.keys())[:5]}", file=sys.stderr, flush=True)
 
     if parsed.path == "/api/session/new":
         s = new_session(workspace=body.get("workspace"), model=body.get("model"))
@@ -782,6 +785,9 @@ def handle_post(handler, parsed) -> bool:
     # ── Approval (POST) ──
     if parsed.path == "/api/approval/respond":
         return _handle_approval_respond(handler, body)
+
+    if parsed.path == "/api/clarify/respond":
+        return _handle_clarify_respond(handler, body)
 
     # ── Skills (POST) ──
     if parsed.path == "/api/skills/save":
@@ -2129,6 +2135,26 @@ def _handle_approval_respond(handler, body):
     return j(handler, {"ok": True, "choice": choice})
 
 
+def _handle_clarify_respond(handler, body):
+    """POST /api/clarify/respond
+
+    User answers a pending clarify question.  Body:
+        session_id: str
+        answer: str
+    """
+    from api.streaming import resolve_clarify
+    sid = body.get("session_id", "")
+    answer = body.get("answer", "").strip()
+    if not sid:
+        return bad(handler, "session_id is required")
+    if not answer:
+        return bad(handler, "answer is required")
+    ok = resolve_clarify(sid, answer)
+    if not ok:
+        return bad(handler, "No pending clarify question for this session", 404)
+    return j(handler, {"ok": True, "answer": answer})
+
+
 def _handle_skill_save(handler, body):
     try:
         require(body, "name", "content")
@@ -2354,7 +2380,7 @@ def _handle_group_chat_send(handler, body):
     Body: {
         workspace: str,
         message: str,
-        sender_name: str (optional, defaults to "用户")
+        sender_name: str (optional, defaults to "你")
     }
 
     Returns: {
@@ -2367,7 +2393,9 @@ def _handle_group_chat_send(handler, body):
 
     workspace = body.get("workspace", "").strip()
     message = body.get("message", "").strip()
-    sender_name = body.get("sender_name", "用户").strip()
+    sender_name = body.get("sender_name", "你").strip()
+
+    print(f"[group_chat_send] workspace={workspace}, message={message[:50]}...", file=sys.stderr, flush=True)
 
     if not workspace:
         return bad(handler, "workspace is required")
@@ -2377,6 +2405,7 @@ def _handle_group_chat_send(handler, body):
     try:
         # Parse @mentions from the message
         mentioned_names = parse_mentions(message)
+        print(f"[group_chat_send] mentions={mentioned_names}", file=sys.stderr, flush=True)
         mentions_with_tasks = []
         for name in mentioned_names:
             task_id = f"task-{uuid.uuid4().hex[:8]}"
@@ -2400,12 +2429,15 @@ def _handle_group_chat_send(handler, body):
                 content=f"已将任务委派给 {dispatch_text}",
             )
 
+        print(f"[group_chat_send] returning ok, mentions_with_tasks={mentions_with_tasks}", file=sys.stderr, flush=True)
         return j(handler, {
             "ok": True,
             "message": msg,
             "mentions": mentions_with_tasks,
         })
     except Exception as e:
+        print(f"[group_chat_send] ERROR: {e}", file=sys.stderr, flush=True)
+        import traceback; traceback.print_exc(file=sys.stderr)
         return bad(handler, _sanitize_error(e), 500)
 
 

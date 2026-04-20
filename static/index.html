@@ -325,6 +325,17 @@
           </div>
         </div>
       </div>
+      <div class="clarify-card" id="clarifyCard" role="dialog" aria-labelledby="clarifyHeading">
+        <div class="clarify-inner">
+          <div class="clarify-header"><span class="clarify-icon">❓</span><span id="clarifyHeading">Question</span></div>
+          <div class="clarify-question" id="clarifyQuestion"></div>
+          <div class="clarify-choices" id="clarifyChoices"></div>
+          <div class="clarify-open" id="clarifyOpen">
+            <input type="text" class="clarify-input" id="clarifyInput" placeholder="Type your answer…" autocomplete="off">
+            <button class="clarify-submit" id="clarifySubmit" onclick="respondClarify()">↵</button>
+          </div>
+        </div>
+      </div>
       <div class="update-banner" id="updateBanner"><span id="updateMsg"></span><div style="display:flex;gap:8px;flex-shrink:0"><button class="update-btn" onclick="dismissUpdate()">Later</button><button class="update-btn update-primary" id="btnApplyUpdate" onclick="applyUpdates()">Update Now</button></div></div>
       <div class="rp-composer" id="rpComposer">
         <div class="cmd-dropdown" id="cmdDropdown"></div>
@@ -677,7 +688,7 @@
 <script src="/static/workspace.js?v=20260417f"></script>
 <script src="/static/sessions.js?v=20260418d"></script>
 <script src="/static/commands.js?v=20260414"></script>
-<script src="/static/messages.js?v=20260418d"></script>
+<script src="/static/messages.js?v=20260420m"></script>
 <script src="/static/panels.js?v=20260417a"></script>
 <script src="/static/employee.js?v=20260420f"></script>
 <script src="/static/canvas-connections.js?v=20260417u"></script>
@@ -686,11 +697,11 @@
 
 
 
-<script src="/static/right-panel.js?v=20260420e"></script>
+<script src="/static/right-panel.js?v=20260420f"></script>
 <!-- CodeMirror 6 editor module (async, non-blocking) -->
 <script type="module" src="/static/cm-editor.js?v=20260416d"></script>
 <script src="/static/onboarding.js?v=20260414"></script>
-<script src="/static/group-chat.js?v=20260420f"></script>
+<script src="/static/group-chat.js?v=20260420o"></script>
 <script src="/static/boot.js?v=20260418d"></script>
 </body>
 </html>

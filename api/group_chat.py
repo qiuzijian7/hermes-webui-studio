@@ -22,12 +22,15 @@ from api.models import Session, get_session, new_session, _write_session_index
 # Persisted to SESSION_DIR/_group_chats.json
 _GROUP_CHAT_MAP: dict[str, str] = {}
 _GROUP_CHAT_MAP_FILE = SESSION_DIR / "_group_chats.json"
-_GROUP_CHAT_MAP_LOCK = threading.Lock()
+_GROUP_CHAT_MAP_LOCK = threading.RLock()
 
 
 def _load_group_chat_map():
+    """Load the group chat map from disk (only if not already loaded)."""
     global _GROUP_CHAT_MAP
     with _GROUP_CHAT_MAP_LOCK:
+        if _GROUP_CHAT_MAP:  # already loaded
+            return
         if _GROUP_CHAT_MAP_FILE.exists():
             try:
                 _GROUP_CHAT_MAP = json.loads(
@@ -40,6 +43,7 @@ def _load_group_chat_map():
 
 
 def _save_group_chat_map():
+    """Save the group chat map to disk."""
     with _GROUP_CHAT_MAP_LOCK:
         _GROUP_CHAT_MAP_FILE.write_text(
             json.dumps(_GROUP_CHAT_MAP, ensure_ascii=False, indent=2),
@@ -127,9 +131,12 @@ def add_group_message(workspace: str, role: str, content: str,
     Returns:
         The message dict that was added.
     """
+    import sys
+    print(f"[group_chat] add_group_message: workspace={workspace}, role={role}, content_len={len(content)}", file=sys.stderr, flush=True)
     data = get_or_create_group_chat(workspace)
     sid = data["session_id"]
     s = get_session(sid)
+    print(f"[group_chat] add_group_message: session_id={sid}", file=sys.stderr, flush=True)
 
     msg = {
         "role": role,

@@ -414,7 +414,7 @@ function _buildCard(emp) {
       </div>
       ${skillsHtml ? `<div class="emp-card-skills">${skillsHtml}</div>` : ''}
       <div class="emp-card-actions">
-        <button class="emp-action-btn" onclick="event.stopPropagation();selectEmployee('${emp.id}')" title="对话">${li('message-square',13)}</button>
+        <button class="emp-action-btn" onclick="event.stopPropagation();selectEmployee('${emp.id}', true)" title="对话">${li('message-square',13)}</button>
         <button class="emp-action-btn" onclick="event.stopPropagation();_showEmployeeSkillConfig('${emp.id}')" title="技能">${li('book-open',13)}</button>
       </div>
     </div>
@@ -556,7 +556,7 @@ function _showCardMenu(event, empId) {
   const menu = document.createElement('div');
   menu.className = 'emp-card-menu';
   menu.innerHTML = `
-    <div class="emp-menu-item" onclick="selectEmployee('${empId}');_hideCardMenu()">${li('message-square',13)} 打开对话</div>
+    <div class="emp-menu-item" onclick="selectEmployee('${empId}', true);_hideCardMenu()">${li('message-square',13)} 打开对话</div>
     <div class="emp-menu-item" onclick="_startRenameEmployee('${empId}');_hideCardMenu()">${li('pencil',13)} 重命名</div>
     <div class="emp-menu-item" onclick="_showEmployeeSkillConfig('${empId}');_hideCardMenu()">${li('book-open',13)} 配置技能</div>
     <div class="emp-menu-item" onclick="showEditEmployeeDialog('${empId}');_hideCardMenu()">${li('settings',13)} 编辑员工</div>
@@ -752,7 +752,7 @@ async function condenseConversationToSkill() {
     // 生成技能内容
     let skillContent = `---\nname: ${emp.name}-skill\ncreated: ${new Date().toISOString()}\nsource: employee-${emp.id}\n---\n\n`;
     for (const m of msgs) {
-      const role = m.role === 'user' ? '用户' : '助手';
+      const role = m.role === 'user' ? '你' : '助手';
       let content = m.content || '';
       if (Array.isArray(content)) content = content.filter(p => p.type === 'text').map(p => p.text || '').join('\n');
       skillContent += `### ${role}\n${String(content).trim()}\n\n`;
@@ -805,4 +805,135 @@ function _migrateGlobalEmployees() {
     localStorage.removeItem(oldKey);
     localStorage.removeItem('hermes-employee-next-id');
   } catch(e) {}
+}
+
+// ── 团队批量创建（基于 agent 返回的结构化 JSON）───────────────────────────────
+/**
+ * 根据结构化 JSON 在画布上批量创建员工卡片 + 连线。
+ *
+ * JSON 格式：
+ * {
+ *   "team_name": "Godot 游戏开发团队",
+ *   "members": [
+ *     {
+ *       "name": "制作人",            // 必填
+ *       "presetId": "producer",     // 可选：优先从 AGENT_PRESETS 精确匹配
+ *       "role": "总监层",            // 可选：无预设时使用
+ *       "model": "opus",            // 可选：覆盖预设的模型
+ *       "manages": ["创意总监","技术总监"]  // 可选：该成员管理的下属名称
+ *     },
+ *     ...
+ *   ]
+ * }
+ *
+ * 预设匹配优先级：
+ * 1. presetId 精确匹配 AGENT_PRESETS[].id
+ * 2. name 匹配 AGENT_PRESETS[].name
+ * 3. 无匹配 → 创建通用员工
+ */
+function createTeamFromJSON(teamData) {
+  if (!teamData || !teamData.members || !teamData.members.length) return;
+
+  const members = teamData.members;
+  const nameToEmp = {};  // name → emp 对象（用于后续连线）
+
+  // ── 第一步：按层级分组 ──
+  const tiers = {};  // tier → [member, ...]
+  for (const m of members) {
+    let tier = 3; // 默认 tier 3（最底层）
+    let preset = null;
+
+    // 尝试从预设获取 tier
+    if (typeof AGENT_PRESETS !== 'undefined') {
+      // 优先 presetId 精确匹配
+      if (m.presetId) {
+        preset = AGENT_PRESETS.find(p => p.id === m.presetId);
+      }
+      // 其次 name 匹配
+      if (!preset && m.name) {
+        preset = AGENT_PRESETS.find(p => p.name === m.name);
+      }
+    }
+    if (preset && typeof AGENT_CATEGORIES !== 'undefined') {
+      const cat = AGENT_CATEGORIES.find(c => c.id === preset.category);
+      if (cat) tier = cat.tier;
+    }
+    if (!tiers[tier]) tiers[tier] = [];
+    tiers[tier].push({ ...m, _preset: preset, _tier: tier });
+  }
+
+  // ── 第二步：按层级布局 + 创建员工 ──
+  const CARD_W = 240, CARD_H = 160;
+  const COL_GAP = 24, ROW_GAP = 80;
+  const sortedTiers = Object.keys(tiers).map(Number).sort((a, b) => a - b);
+
+  for (const tier of sortedTiers) {
+    const rowIdx = sortedTiers.indexOf(tier);
+    const rowMembers = tiers[tier];
+    const totalWidth = rowMembers.length * CARD_W + (rowMembers.length - 1) * COL_GAP;
+    const startX = Math.max(50, 400 - totalWidth / 2);
+    const y = 50 + rowIdx * (CARD_H + ROW_GAP);
+
+    for (let i = 0; i < rowMembers.length; i++) {
+      const m = rowMembers[i];
+      // 检查是否已存在同名员工
+      const existing = EMPLOYEE_STORE.employees.find(e => e.name === m.name);
+      if (existing) {
+        nameToEmp[m.name] = existing;
+        continue;
+      }
+
+      const preset = m._preset;
+      const empOpts = {
+        name: m.name,
+        role: m.role || (preset ? preset.role : '通用助手'),
+        _pos: { x: startX + i * (CARD_W + COL_GAP), y },
+      };
+
+      // 从预设填充配置
+      if (preset) {
+        empOpts.presetId = preset.id;
+        empOpts.characterImg = preset.characterImg;
+        // 将预设的 skills 字符串数组转为 createEmployee 期望的对象数组格式
+        if (preset.skills && Array.isArray(preset.skills)) {
+          empOpts.skills = preset.skills.map(s =>
+            typeof s === 'string' ? { name: s, enabled: true } : s
+          );
+        }
+        empOpts.role = preset.role;
+        empOpts.avatar = preset.avatar || preset.icon;
+        if (preset.model) empOpts.model = preset.model;
+      }
+
+      // 显式指定的 model 覆盖预设
+      if (m.model) empOpts.model = m.model;
+
+      const emp = createEmployee(empOpts);
+      nameToEmp[m.name] = emp;
+    }
+  }
+
+  // ── 第三步：根据 manages 建立连线 ──
+  let connCount = 0;
+  for (const m of members) {
+    if (!m.manages || !m.manages.length) continue;
+    const manager = nameToEmp[m.name];
+    if (!manager) continue;
+    for (const subName of m.manages) {
+      const sub = nameToEmp[subName];
+      if (sub && typeof addConnection === 'function') {
+        const conn = addConnection(manager.id, sub.id);
+        if (conn) {
+          connCount++;
+          // 同步 subagentOf 字段
+          sub.subagentOf = manager.id;
+        }
+      }
+    }
+  }
+  if (connCount) _saveEmployees();
+
+  // ── 第四步：自动切换到画布 + 显示提示 ──
+  if (typeof switchWorkspaceTab === 'function') switchWorkspaceTab('canvas');
+  showToast(`已创建团队: ${teamData.team_name || '自定义团队'}（${members.length} 人, ${connCount} 条连线）`);
 }

@@ -71,6 +71,12 @@ async function openEmployeeChat(empId) {
   const emp = getEmployee(empId);
   if (!emp) return;
 
+  // ★ 如果总群正在打开中，不覆盖总群面板（防止竞态条件）
+  if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) {
+    console.log('[openEmployeeChat] 总群打开中，跳过员工聊天渲染');
+    return;
+  }
+
   _setRightPanelView('chat');
 
   // 更新头部信息
@@ -109,6 +115,11 @@ async function openEmployeeChat(empId) {
         model: emp.model || $('modelSelect')?.value || '',
         workspace: currentWs || undefined,
       }) });
+      // ★ 异步完成后再次检查总群状态（防止竞态条件）
+      if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) {
+        console.log('[openEmployeeChat] 异步创建会话完成，但总群已打开，跳过渲染');
+        return;
+      }
       if (data.session) {
         emp.sessionId = data.session.session_id;
         _saveEmployees();
@@ -129,6 +140,11 @@ async function openEmployeeChat(empId) {
     // 加载已有会话
     try {
       const data = await api(`/api/session?session_id=${encodeURIComponent(emp.sessionId)}`);
+      // ★ 异步完成后再次检查总群状态（防止竞态条件）
+      if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) {
+        console.log('[openEmployeeChat] 异步加载会话完成，但总群已打开，跳过渲染');
+        return;
+      }
       if (data.session) {
         S.session = data.session;
         S.messages = (data.session.messages || []).filter(m => m.role !== 'tool');
@@ -166,6 +182,21 @@ async function openEmployeeChat(empId) {
   // 更新委派关系信息条
   _updateDelegationBar(emp);
 
+  // ── 如果员工正在执行总群委派的任务，显示委派消息 + "思考中..."并接入 SSE 流 ──
+  if (emp._activeStreamId && (emp.status === 'thinking' || emp.status === 'working')) {
+    // 如果 session 消息中没有这条委派消息（后端可能还没持久化），前端侧手动追加
+    const taskPrefix = `[总群委派任务 #${emp._activeTaskId}]`;
+    const hasTaskMsg = S.messages.some(m =>
+      m.role === 'user' && String(m.content || '').includes(taskPrefix)
+    );
+    if (!hasTaskMsg && emp._activeTaskContent) {
+      const taskMsg = { role: 'user', content: emp._activeTaskContent, _ts: Date.now() / 1000 };
+      S.messages.push(taskMsg);
+      _renderRpMessages();
+    }
+    _attachLiveStreamToChat(emp);
+  }
+
   // 更新 topbar — 显示工作区信息
   const ws = _activeWorkspacePath();
   const wsName = ws ? (typeof getWorkspaceFriendlyName === 'function' ? getWorkspaceFriendlyName(ws) : ws.split(/[\/\\]/).filter(Boolean).pop()) : '';
@@ -181,10 +212,155 @@ async function openEmployeeChat(empId) {
   }
 }
 
+/**
+ * 当用户从总群跳转到正在执行任务的员工聊天框时，
+ * 接入已有的 SSE 流实时渲染 token 输出。
+ */
+function _attachLiveStreamToChat(emp) {
+  const streamId = emp._activeStreamId;
+  if (!streamId) return;
+
+  // ★ 总群打开时不追加流式消息（防止覆盖总群内容）
+  if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) return;
+
+  const inner = $('rpMsgInner');
+  if (!inner) return;
+
+  // 在聊天框末尾追加"思考中..."占位行
+  const thinkRow = document.createElement('div');
+  thinkRow.className = 'rp-msg-row';
+  thinkRow.id = 'rpLiveThinkingRow';
+  thinkRow.dataset.role = 'assistant';
+  thinkRow.innerHTML = `
+    <div class="rp-msg-role assistant">
+      <span class="rp-msg-icon">${emp.avatar || '🤖'}</span>
+      <span class="rp-msg-name">${esc(emp.name || 'Hermes')}</span>${_fmtMsgTime({_ts: Date.now() / 1000})}
+    </div>
+    <div class="rp-msg-body" id="rpLiveStreamBody">
+      <span style="color:var(--muted);font-size:13px">Thinking…</span>
+    </div>
+  `;
+  inner.appendChild(thinkRow);
+
+  // 滚动到底部
+  const msgArea = $('rpMessages');
+  if (msgArea) msgArea.scrollTop = msgArea.scrollHeight;
+
+  // 连接 SSE 流
+  const source = new EventSource(
+    new URL(`/api/chat/stream?stream_id=${encodeURIComponent(streamId)}`, location.origin).href,
+    { withCredentials: true }
+  );
+
+  let assistantText = '';
+  const bodyEl = $('rpLiveStreamBody');
+
+  // Thinking tag patterns for streaming display
+  const _thinkPairs = [
+    { open: '<tool_call>', close: '</think>' },
+    { open: '<|channel>thought\n', close: '<channel|>' }
+  ];
+
+  function _streamDisplay(raw) {
+    for (const { open, close } of _thinkPairs) {
+      const trimmed = raw.trimStart();
+      if (trimmed.startsWith(open)) {
+        const ci = trimmed.indexOf(close, open.length);
+        if (ci !== -1) return trimmed.slice(ci + close.length).replace(/^\s+/, '');
+        return '';
+      }
+      if (open.startsWith(trimmed)) return '';
+    }
+    return raw;
+  }
+
+  let _renderPending = false;
+  function _scheduleRender() {
+    if (_renderPending) return;
+    _renderPending = true;
+    requestAnimationFrame(() => {
+      _renderPending = false;
+      if (bodyEl) {
+        const txt = _streamDisplay(assistantText);
+        const isThinking = !txt && assistantText.length > 0;
+        bodyEl.innerHTML = txt ? renderMd(txt) : (isThinking ? '<span style="color:var(--muted);font-size:13px">Thinking…</span>' : '');
+      }
+      const ma = $('rpMessages');
+      if (ma) ma.scrollTop = ma.scrollHeight;
+    });
+  }
+
+  source.addEventListener('token', e => {
+    try {
+      const d = JSON.parse(e.data);
+      assistantText += d.text;
+      _scheduleRender();
+    } catch (_) {}
+  });
+
+  source.addEventListener('done', async e => {
+    source.close();
+    emp._activeStreamId = null;
+    emp._activeTaskId = null;
+
+    // 移除占位行，用实际消息替换
+    const liveRow = $('rpLiveThinkingRow');
+    if (liveRow) liveRow.remove();
+
+    // 从服务端刷新完整的 session 消息
+    if (emp.sessionId) {
+      try {
+        const data = await api(`/api/session?session_id=${encodeURIComponent(emp.sessionId)}`);
+        if (data.session) {
+          S.session = data.session;
+          S.messages = (data.session.messages || []).filter(m => m.role !== 'tool');
+          _renderRpMessages();
+        }
+      } catch (_) {}
+    }
+  });
+
+  source.addEventListener('error', () => {
+    source.close();
+    emp._activeStreamId = null;
+    emp._activeTaskId = null;
+    const liveRow = $('rpLiveThinkingRow');
+    if (liveRow) liveRow.remove();
+  });
+
+  source.addEventListener('apperror', () => {
+    source.close();
+    emp._activeStreamId = null;
+    emp._activeTaskId = null;
+    const liveRow = $('rpLiveThinkingRow');
+    if (liveRow) liveRow.remove();
+  });
+}
+
+/** 格式化消息时间，显示在人名后面 */
+function _fmtMsgTime(m) {
+  const ts = m._ts || m.timestamp;
+  if (!ts) return '';
+  const t = new Date(ts * 1000);
+  const now = new Date();
+  const isToday = t.toDateString() === now.toDateString();
+  const timeStr = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const fullStr = t.toLocaleString();
+  if (isToday) return `<span class="msg-time" title="${esc(fullStr)}">${esc(timeStr)}</span>`;
+  const dateStr = `${(t.getMonth() + 1).toString().padStart(2, '0')}-${t.getDate().toString().padStart(2, '0')} ${timeStr}`;
+  return `<span class="msg-time" title="${esc(fullStr)}">${esc(dateStr)}</span>`;
+}
+
 function _renderRpMessages() {
   const inner = $('rpMsgInner');
   const emptyChat = $('rpEmptyChat');
   if (!inner) return;
+
+  // ★ 总群打开时不渲染员工消息（防止覆盖总群内容）
+  if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) {
+    console.log('[_renderRpMessages] 总群打开中，跳过员工消息渲染');
+    return;
+  }
 
   const vis = S.messages.filter(m => m && m.role && m.role !== 'tool' && msgContent(m));
   if (emptyChat) emptyChat.style.display = vis.length ? 'none' : '';
@@ -192,8 +368,42 @@ function _renderRpMessages() {
 
   for (const m of vis) {
     let content = m.content || '';
-    if (Array.isArray(content)) content = content.filter(p => p.type === 'text').map(p => p.text || '').join('\n');
+    let thinkingText = '';
+
+    // ── 提取思考过程（与 ui.js renderMessages 逻辑一致）──
+    // 结构化内容中的 thinking/reasoning 块
+    if (Array.isArray(content)) {
+      thinkingText = content.filter(p => p && (p.type === 'thinking' || p.type === 'reasoning')).map(p => p.thinking || p.reasoning || p.text || '').join('\n');
+      content = content.filter(p => p && p.type === 'text').map(p => p.text || p.content || '').join('\n');
+    }
+    // 顶层 reasoning 字段
+    if (!thinkingText && m.reasoning) thinkingText = m.reasoning;
+    // 内联 <think>...</think> 标签
+    if (!thinkingText && typeof content === 'string') {
+      const thinkMatch = content.match(/<tool_call>([\s\S]*?)<\/think>/);
+      if (thinkMatch) {
+        thinkingText = thinkMatch[1].trim();
+        content = content.replace(/<tool_call>[\s\S]*?<\/think>\s*/, '').trimStart();
+      }
+      if (!thinkingText) {
+        const gemmaMatch = content.match(/<\|channel>thought\n([\s\S]*?)<channel\|>/);
+        if (gemmaMatch) {
+          thinkingText = gemmaMatch[1].trim();
+          content = content.replace(/<\|channel>thought\n[\s\S]*?<channel\|>\s*/, '').trimStart();
+        }
+      }
+    }
+
     const isUser = m.role === 'user';
+
+    // 渲染思考卡片（可折叠，默认收起）
+    if (thinkingText && !isUser) {
+      const thinkRow = document.createElement('div');
+      thinkRow.className = 'rp-msg-row thinking-card-row';
+      thinkRow.innerHTML = `<div class="thinking-card"><div class="thinking-card-header" onclick="this.parentElement.classList.toggle('open')"><span class="thinking-card-icon">${typeof li === 'function' ? li('lightbulb', 14) : '💡'}</span><span class="thinking-card-label">思考过程</span><span class="thinking-card-toggle">${typeof li === 'function' ? li('chevron-right', 12) : '▶'}</span></div><div class="thinking-card-body"><pre>${esc(thinkingText)}</pre></div></div>`;
+      inner.appendChild(thinkRow);
+    }
+
     const bodyHtml = isUser ? esc(String(content)).replace(/\n/g, '<br>') : renderMd(String(content));
     const row = document.createElement('div');
     row.className = 'rp-msg-row';
@@ -201,7 +411,7 @@ function _renderRpMessages() {
     row.innerHTML = `
       <div class="rp-msg-role ${m.role}">
         <span class="rp-msg-icon">${isUser ? '👤' : (getEmployee(EMPLOYEE_STORE.selectedId)?.avatar || '🤖')}</span>
-        <span class="rp-msg-name">${isUser ? '你' : (getEmployee(EMPLOYEE_STORE.selectedId)?.name || 'Hermes')}</span>
+        <span class="rp-msg-name">${isUser ? '你' : (getEmployee(EMPLOYEE_STORE.selectedId)?.name || 'Hermes')}</span>${_fmtMsgTime(m)}
       </div>
       <div class="rp-msg-body">${bodyHtml}</div>
     `;
@@ -501,6 +711,19 @@ function _updateDelegationBar(emp) {
   if (!emp) { bar.style.display = 'none'; return; }
 
   const parts = [];
+
+  // 总群链接（始终显示在最前）
+  if (typeof _groupChatTitle === 'function') {
+    let ws = (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.workspace) || '';
+    if (!ws || ws === '__default__') ws = (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '');
+    if (!ws || ws === '__default__') ws = (S.session?.workspace || '');
+    if (!ws || ws === '__default__') ws = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '');
+    if (!ws && typeof _currentCanvasWorkspace !== 'undefined') ws = _currentCanvasWorkspace;
+    if (ws) {
+      const groupTitle = _groupChatTitle(ws);
+      parts.push(`<span class="rp-del-label">总群：</span><span class="rp-del-name gc-link" onclick="openGroupChat()" title="打开${esc(groupTitle)}">${esc(groupTitle)}</span>`);
+    }
+  }
 
   // 管理者（从连线关系）
   if (emp.subagentOf && typeof getEmployee === 'function') {
