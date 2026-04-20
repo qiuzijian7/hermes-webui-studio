@@ -815,13 +815,68 @@ def get_available_models() -> dict:
     # Primary: ask hermes-agent's auth layer — the authoritative source. It checks
     # auth.json, credential pools, and env vars the same way the agent does at runtime,
     # so the dropdown reflects exactly what the user has configured.
-    # Fallback: scan raw API key env vars (matches old behaviour if hermes not available).
+    # 4. Detect available providers — only those with verified, usable credentials.
+    # We always scan API-key env vars (the most reliable signal) and supplement
+    # with hermes_cli auth checks for OAuth / credential-pool providers.
     detected_providers = set()
-    if active_provider:
-        detected_providers.add(active_provider)
+    # NOTE: Do NOT blindly add active_provider here. The active_provider
+    # from auth.json/config may be stale (e.g. a previous login whose token
+    # has expired). Only providers with verified credentials should appear
+    # in the chat dropdown — see the authentication checks below.
     all_env: dict = {}  # profile .env keys — populated below, used by custom endpoint auth
 
-    _hermes_auth_used = False
+    # 4a. Always scan .env and os.environ for known API key variables.
+    # This is the most reliable detection for API-key providers because
+    # hermes_cli.auth may not see env vars loaded by start.bat.
+    try:
+        from api.profiles import get_active_hermes_home as _gah2
+
+        hermes_env_path = _gah2() / ".env"
+    except ImportError:
+        hermes_env_path = HOME / ".hermes" / ".env"
+    env_keys = {}
+    if hermes_env_path.exists():
+        try:
+            for line in hermes_env_path.read_text().splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    env_keys[k.strip()] = v.strip().strip('"').strip("'")
+        except Exception:
+            pass
+    all_env = {**env_keys}
+    for k in (
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+        "OPENROUTER_API_KEY",
+        "GOOGLE_API_KEY",
+        "GLM_API_KEY",
+        "KIMI_API_KEY",
+        "DEEPSEEK_API_KEY",
+    ):
+        val = os.getenv(k)
+        if val:
+            all_env[k] = val
+    if all_env.get("ANTHROPIC_API_KEY"):
+        detected_providers.add("anthropic")
+    if all_env.get("OPENAI_API_KEY"):
+        detected_providers.add("openai")
+    if all_env.get("OPENROUTER_API_KEY"):
+        detected_providers.add("openrouter")
+    if all_env.get("GOOGLE_API_KEY"):
+        detected_providers.add("google")
+    if all_env.get("GLM_API_KEY"):
+        detected_providers.add("zai")
+    if all_env.get("KIMI_API_KEY"):
+        detected_providers.add("kimi-coding")
+    if all_env.get("MINIMAX_API_KEY") or all_env.get("MINIMAX_CN_API_KEY"):
+        detected_providers.add("minimax")
+    if all_env.get("DEEPSEEK_API_KEY"):
+        detected_providers.add("deepseek")
+
+    # 4b. Supplement with hermes_cli auth layer for OAuth / credential-pool
+    # providers (nous, copilot, etc.) that don't use simple API keys.
+    # Verify token validity — skip providers with expired credentials.
     try:
         from hermes_cli.models import list_available_providers as _lap
         from hermes_cli.auth import get_auth_status as _gas
@@ -829,67 +884,40 @@ def get_available_models() -> dict:
         for _p in _lap():
             if not _p.get("authenticated"):
                 continue
+            _pid = _p["id"]
+            # API-key providers are already handled above via env var scan;
+            # skip them here to avoid relying on potentially stale auth checks.
+            if _pid in ("anthropic", "openai", "openrouter", "google",
+                        "zai", "kimi-coding", "minimax", "deepseek"):
+                continue
             # Exclude providers whose credential came from an ambient token
             # (e.g. 'gh auth token' for Copilot on a machine with gh CLI auth).
             # Only include providers with an explicit, dedicated credential.
             try:
-                _src = _gas(_p["id"]).get("key_source", "")
+                _status = _gas(_pid)
+                _src = _status.get("key_source", "")
                 if _src == "gh auth token":
                     continue
+                # For OAuth providers, verify the access token hasn't expired.
+                _exp = _status.get("access_expires_at")
+                if _exp:
+                    try:
+                        from datetime import datetime, timezone
+                        if isinstance(_exp, str):
+                            _exp_dt = datetime.fromisoformat(_exp)
+                        else:
+                            _exp_dt = _exp
+                        if _exp_dt.tzinfo is None:
+                            _exp_dt = _exp_dt.replace(tzinfo=timezone.utc)
+                        if _exp_dt < datetime.now(timezone.utc):
+                            continue  # token expired — skip this provider
+                    except Exception:
+                        pass  # can't parse expiry — trust the authenticated flag
             except Exception:
                 pass
-            detected_providers.add(_p["id"])
-        _hermes_auth_used = True
+            detected_providers.add(_pid)
     except Exception:
         pass
-
-    if not _hermes_auth_used:
-        # Fallback: scan .env and os.environ for known API key variables
-        try:
-            from api.profiles import get_active_hermes_home as _gah2
-
-            hermes_env_path = _gah2() / ".env"
-        except ImportError:
-            hermes_env_path = HOME / ".hermes" / ".env"
-        env_keys = {}
-        if hermes_env_path.exists():
-            try:
-                for line in hermes_env_path.read_text().splitlines():
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        k, v = line.split("=", 1)
-                        env_keys[k.strip()] = v.strip().strip('"').strip("'")
-            except Exception:
-                pass
-        all_env = {**env_keys}
-        for k in (
-            "ANTHROPIC_API_KEY",
-            "OPENAI_API_KEY",
-            "OPENROUTER_API_KEY",
-            "GOOGLE_API_KEY",
-            "GLM_API_KEY",
-            "KIMI_API_KEY",
-            "DEEPSEEK_API_KEY",
-        ):
-            val = os.getenv(k)
-            if val:
-                all_env[k] = val
-        if all_env.get("ANTHROPIC_API_KEY"):
-            detected_providers.add("anthropic")
-        if all_env.get("OPENAI_API_KEY"):
-            detected_providers.add("openai")
-        if all_env.get("OPENROUTER_API_KEY"):
-            detected_providers.add("openrouter")
-        if all_env.get("GOOGLE_API_KEY"):
-            detected_providers.add("google")
-        if all_env.get("GLM_API_KEY"):
-            detected_providers.add("zai")
-        if all_env.get("KIMI_API_KEY"):
-            detected_providers.add("kimi-coding")
-        if all_env.get("MINIMAX_API_KEY") or all_env.get("MINIMAX_CN_API_KEY"):
-            detected_providers.add("minimax")
-        if all_env.get("DEEPSEEK_API_KEY"):
-            detected_providers.add("deepseek")
 
     # 3. Fetch models from custom endpoint if base_url is configured
     auto_detected_models = []
