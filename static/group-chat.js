@@ -371,7 +371,7 @@ async function _dispatchTaskToEmployee(empName, taskContent, taskId) {
   const sysPrompt = typeof buildEmployeeSystemPrompt === 'function' ? buildEmployeeSystemPrompt(emp) : '';
   const model = emp.model || $('modelSelect')?.value || '';
 
-  try {
+    try {
     console.log('[总群] 调用 /api/chat/start, session_id=', emp.sessionId, 'model=', model);
     const startData = await api('/api/chat/start', {
       method: 'POST',
@@ -381,6 +381,7 @@ async function _dispatchTaskToEmployee(empName, taskContent, taskId) {
         model: model,
         workspace: emp.sessionId ? (await api(`/api/session?session_id=${encodeURIComponent(emp.sessionId)}`)).session?.workspace : undefined,
         system_prompt: sysPrompt || undefined,
+        employee_name: emp.name || '',
       }),
     });
 
@@ -419,6 +420,7 @@ function _watchEmployeeStream(emp, streamId, taskId) {
   );
 
   let resultText = '';
+  let _delegatedTo = null;  // Track if employee delegated to a sub-employee
 
   source.addEventListener('token', e => {
     try {
@@ -427,9 +429,44 @@ function _watchEmployeeStream(emp, streamId, taskId) {
     } catch(_) {}
   });
 
+  // Listen for tool events — detect delegate_task calls to show progress
+  source.addEventListener('tool', e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.name === 'delegate_task') {
+        const targetName = (d.args && d.args.employee_name) || '';
+        if (targetName) {
+          _delegatedTo = targetName;
+          // Post a progress message to the group chat
+          let ws = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : (S.session?.workspace || '');
+          if (ws === '__default__') ws = GROUP_CHAT_STATE.workspace || S.session?.workspace || '';
+          if (ws) {
+            api('/api/group-chat/send', {
+              method: 'POST',
+              body: JSON.stringify({
+                workspace: ws,
+                message: `**${emp.name}** 正在将任务委派给 **${targetName}**...`,
+                sender_name: emp.name,
+              }),
+            }).catch(() => {});  // fire-and-forget
+          }
+        }
+      } else if (d.name === 'send_group_message') {
+        // Employee sent a message to the group chat via the tool — refresh messages
+        let ws = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : (S.session?.workspace || '');
+        if (ws === '__default__') ws = GROUP_CHAT_STATE.workspace || S.session?.workspace || '';
+        if (ws) {
+          loadGroupChat(ws).then(() => {
+            if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+          }).catch(() => {});
+        }
+      }
+    } catch(_) {}
+  });
+
   source.addEventListener('done', async e => {
     source.close();
-    console.log('[总群] _watchEmployeeStream done, emp=', emp.name, 'resultLen=', resultText.length);
+    console.log('[总群] _watchEmployeeStream done, emp=', emp.name, 'resultLen=', resultText.length, 'delegatedTo=', _delegatedTo);
     if (typeof setEmployeeStatus === 'function') setEmployeeStatus(emp.id, 'idle');
     // 清除活跃流标记
     emp._activeStreamId = null;
@@ -438,7 +475,12 @@ function _watchEmployeeStream(emp, streamId, taskId) {
 
     // 剥离思考标签后回传到总群
     const displayResult = _stripThinkingTags(resultText.trim());
-    if (displayResult) {
+
+    // If employee delegated to a sub-employee, the delegate_tool.py
+    // already posted the sub-result to the group chat via
+    // _post_delegation_to_group_chat. We still post the parent
+    // employee's own summary.
+    if (displayResult && !_delegatedTo) {
       let ws = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : (S.session?.workspace || '');
       if (ws === '__default__') ws = GROUP_CHAT_STATE.workspace || S.session?.workspace || '';
       try {
@@ -452,12 +494,19 @@ function _watchEmployeeStream(emp, streamId, taskId) {
             requester_name: '你',
           }),
         });
-        // 刷新总群消息
-        await loadGroupChat(ws);
-        if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
       } catch(e) {
         console.warn('回传结果失败:', e);
       }
+    }
+
+    // Always refresh group chat messages (sub-results may have been posted by backend)
+    let ws2 = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : (S.session?.workspace || '');
+    if (ws2 === '__default__') ws2 = GROUP_CHAT_STATE.workspace || S.session?.workspace || '';
+    try {
+      await loadGroupChat(ws2);
+      if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+    } catch(e) {
+      console.warn('刷新总群消息失败:', e);
     }
   });
 

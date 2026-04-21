@@ -132,7 +132,7 @@ def _sse(handler, event, data):
     handler.wfile.flush()
 
 
-def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, attachments=None, system_prompt=""):
+def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, attachments=None, system_prompt="", employee_name=""):
     """Run agent in background thread, writing SSE events to STREAMS[stream_id]."""
     q = STREAMS.get(stream_id)
     if q is None:
@@ -176,6 +176,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             HERMES_EXEC_ASK='1',
             HERMES_SESSION_KEY=session_id,
             HERMES_HOME=_profile_home,
+            HERMES_EMPLOYEE_NAME=employee_name or '',
         )
         # Still set process-level env as fallback for tools that bypass thread-local
         # Acquire lock only for the env mutation, then release before the agent runs.
@@ -186,11 +187,16 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             old_exec_ask = os.environ.get('HERMES_EXEC_ASK')
             old_session_key = os.environ.get('HERMES_SESSION_KEY')
             old_hermes_home = os.environ.get('HERMES_HOME')
+            old_employee_name = os.environ.get('HERMES_EMPLOYEE_NAME')
             os.environ['TERMINAL_CWD'] = str(s.workspace)
             os.environ['HERMES_EXEC_ASK'] = '1'
             os.environ['HERMES_SESSION_KEY'] = session_id
             if _profile_home:
                 os.environ['HERMES_HOME'] = _profile_home
+            # Set employee name so tools like delegate_task and send_group_message
+            # know which employee is running
+            if employee_name:
+                os.environ['HERMES_EMPLOYEE_NAME'] = employee_name
         # Lock released — agent runs without holding it
         # Register a gateway-style notify callback so the approval system can
         # push the `approval` SSE event the moment a dangerous command is
@@ -623,6 +629,8 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 else: os.environ['HERMES_SESSION_KEY'] = old_session_key
                 if old_hermes_home is None: os.environ.pop('HERMES_HOME', None)
                 else: os.environ['HERMES_HOME'] = old_hermes_home
+                if old_employee_name is None: os.environ.pop('HERMES_EMPLOYEE_NAME', None)
+                else: os.environ['HERMES_EMPLOYEE_NAME'] = old_employee_name
 
     except Exception as e:
         print('[webui] stream error:\n' + traceback.format_exc(), flush=True)

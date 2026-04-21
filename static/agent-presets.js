@@ -357,8 +357,10 @@ function initCanvasDropZone() {
       // 计算放置位置（相对于画布，考虑缩放）
       const rect = canvas.getBoundingClientRect();
       const zoom = typeof _canvasZoomLevel !== 'undefined' ? _canvasZoomLevel : 1;
-      const x = Math.max(0, (e.clientX - rect.left + canvas.scrollLeft) / zoom - 120);
-      const y = Math.max(0, (e.clientY - rect.top + canvas.scrollTop) / zoom - 80);
+      const panX = typeof _canvasPanX !== 'undefined' ? _canvasPanX : 0;
+      const panY = typeof _canvasPanY !== 'undefined' ? _canvasPanY : 0;
+      const x = (e.clientX - rect.left - panX) / zoom - 120;
+      const y = (e.clientY - rect.top - panY) / zoom - 80;
 
       // 创建员工实例并设定位置
       const emp = createEmployee({
@@ -379,8 +381,215 @@ function initCanvasDropZone() {
   });
 }
 
+// ── 团队预设 ──────────────────────────────────────────────────────────────────
+// 一键创建完整团队，包含管理层级和连线关系
+const TEAM_PRESETS = [
+  {
+    id: 'godot-game-team',
+    name: 'Godot 游戏团队',
+    icon: '🎮',
+    desc: '基于 Godot 4 引擎的完整游戏开发团队，覆盖策划、程序、美术、QA 全流程',
+    color: '#478CBF',
+    members: [
+      { name: '制作人', presetId: 'producer' },
+      { name: '技术总监', presetId: 'technical-director' },
+      { name: '游戏设计师', presetId: 'game-designer' },
+      { name: '主程序员', presetId: 'lead-programmer' },
+      { name: '艺术总监', presetId: 'art-director' },
+      { name: 'QA 负责人', presetId: 'qa-lead' },
+      { name: 'Godot 专家', presetId: 'godot-specialist' },
+      { name: 'GDScript 专家', presetId: 'godot-gdscript-specialist' },
+      { name: 'Godot Shader 专家', presetId: 'godot-shader-specialist' },
+      { name: 'GDExtension 专家', presetId: 'godot-gdextension-specialist' },
+      { name: 'Godot C# 专家', presetId: 'godot-csharp-specialist' },
+      { name: '游戏逻辑程序员', presetId: 'gameplay-programmer' },
+      { name: 'AI 程序员', presetId: 'ai-programmer' },
+      { name: 'UI 程序员', presetId: 'ui-programmer' },
+      { name: '网络程序员', presetId: 'network-programmer' },
+      { name: '关卡设计师', presetId: 'level-designer' },
+      { name: '系统设计师', presetId: 'systems-designer' },
+      { name: '技术美术', presetId: 'technical-artist' },
+      { name: '音效设计师', presetId: 'sound-designer' },
+      { name: 'QA 测试员', presetId: 'qa-tester' },
+    ],
+    manages: {
+      '制作人': ['技术总监', '游戏设计师', '艺术总监', 'QA 负责人'],
+      '技术总监': ['主程序员', 'Godot 专家'],
+      '主程序员': ['游戏逻辑程序员', 'AI 程序员', 'UI 程序员', '网络程序员'],
+      'Godot 专家': ['GDScript 专家', 'Godot Shader 专家', 'GDExtension 专家', 'Godot C# 专家'],
+      '游戏设计师': ['关卡设计师', '系统设计师'],
+      '艺术总监': ['技术美术', '音效设计师'],
+      'QA 负责人': ['QA 测试员'],
+    },
+  },
+  {
+    id: 'unity-game-team',
+    name: 'Unity 游戏团队',
+    icon: '🕹️',
+    desc: '基于 Unity 引擎的完整游戏开发团队，包含 DOTS/ECS、Shader Graph 等专业分工',
+    color: '#000000',
+    members: [
+      { name: '制作人', presetId: 'producer' },
+      { name: '技术总监', presetId: 'technical-director' },
+      { name: '游戏设计师', presetId: 'game-designer' },
+      { name: '主程序员', presetId: 'lead-programmer' },
+      { name: '艺术总监', presetId: 'art-director' },
+      { name: 'QA 负责人', presetId: 'qa-lead' },
+      { name: 'Unity 专家', presetId: 'unity-specialist' },
+      { name: 'DOTS/ECS 专家', presetId: 'unity-dots-specialist' },
+      { name: 'Unity Shader 专家', presetId: 'unity-shader-specialist' },
+      { name: 'Addressables 专家', presetId: 'unity-addressables-specialist' },
+      { name: 'UI Toolkit 专家', presetId: 'unity-ui-specialist' },
+      { name: '游戏逻辑程序员', presetId: 'gameplay-programmer' },
+      { name: 'AI 程序员', presetId: 'ai-programmer' },
+      { name: 'UI 程序员', presetId: 'ui-programmer' },
+      { name: '网络程序员', presetId: 'network-programmer' },
+      { name: '关卡设计师', presetId: 'level-designer' },
+      { name: '系统设计师', presetId: 'systems-designer' },
+      { name: '技术美术', presetId: 'technical-artist' },
+      { name: '音效设计师', presetId: 'sound-designer' },
+      { name: 'QA 测试员', presetId: 'qa-tester' },
+    ],
+    manages: {
+      '制作人': ['技术总监', '游戏设计师', '艺术总监', 'QA 负责人'],
+      '技术总监': ['主程序员', 'Unity 专家'],
+      '主程序员': ['游戏逻辑程序员', 'AI 程序员', 'UI 程序员', '网络程序员'],
+      'Unity 专家': ['DOTS/ECS 专家', 'Unity Shader 专家', 'Addressables 专家', 'UI Toolkit 专家'],
+      '游戏设计师': ['关卡设计师', '系统设计师'],
+      '艺术总监': ['技术美术', '音效设计师'],
+      'QA 负责人': ['QA 测试员'],
+    },
+  },
+  {
+    id: 'unreal-game-team',
+    name: 'Unreal 游戏团队',
+    icon: '🎬',
+    desc: '基于 Unreal Engine 5 的完整游戏开发团队，包含 GAS、Blueprint、Replication 等专业分工',
+    color: '#0E84B5',
+    members: [
+      { name: '制作人', presetId: 'producer' },
+      { name: '技术总监', presetId: 'technical-director' },
+      { name: '游戏设计师', presetId: 'game-designer' },
+      { name: '主程序员', presetId: 'lead-programmer' },
+      { name: '艺术总监', presetId: 'art-director' },
+      { name: 'QA 负责人', presetId: 'qa-lead' },
+      { name: 'UE5 专家', presetId: 'unreal-specialist' },
+      { name: 'GAS 专家', presetId: 'ue-gas-specialist' },
+      { name: 'Blueprint 专家', presetId: 'ue-blueprint-specialist' },
+      { name: 'Replication 专家', presetId: 'ue-replication-specialist' },
+      { name: 'UMG/CommonUI 专家', presetId: 'ue-umg-specialist' },
+      { name: '游戏逻辑程序员', presetId: 'gameplay-programmer' },
+      { name: 'AI 程序员', presetId: 'ai-programmer' },
+      { name: 'UI 程序员', presetId: 'ui-programmer' },
+      { name: '网络程序员', presetId: 'network-programmer' },
+      { name: '关卡设计师', presetId: 'level-designer' },
+      { name: '系统设计师', presetId: 'systems-designer' },
+      { name: '技术美术', presetId: 'technical-artist' },
+      { name: '音效设计师', presetId: 'sound-designer' },
+      { name: 'QA 测试员', presetId: 'qa-tester' },
+    ],
+    manages: {
+      '制作人': ['技术总监', '游戏设计师', '艺术总监', 'QA 负责人'],
+      '技术总监': ['主程序员', 'UE5 专家'],
+      '主程序员': ['游戏逻辑程序员', 'AI 程序员', 'UI 程序员', '网络程序员'],
+      'UE5 专家': ['GAS 专家', 'Blueprint 专家', 'Replication 专家', 'UMG/CommonUI 专家'],
+      '游戏设计师': ['关卡设计师', '系统设计师'],
+      '艺术总监': ['技术美术', '音效设计师'],
+      'QA 负责人': ['QA 测试员'],
+    },
+  },
+];
+
+// ── 团队预设渲染 ──────────────────────────────────────────────────────────────
+
+let _teamPresetSearchQuery = '';
+
+function getFilteredTeamPresets() {
+  let list = TEAM_PRESETS;
+  if (_teamPresetSearchQuery) {
+    const q = _teamPresetSearchQuery.toLowerCase();
+    list = list.filter(t =>
+      t.name.toLowerCase().includes(q) ||
+      t.desc.toLowerCase().includes(q) ||
+      t.members.some(m => m.name.toLowerCase().includes(q)) ||
+      Object.keys(t.manages).some(k => k.toLowerCase().includes(q))
+    );
+  }
+  return list;
+}
+
+function filterTeamPresets() {
+  const input = $('teamPresetSearch');
+  if (input) _teamPresetSearchQuery = input.value.trim();
+  renderTeamPresets();
+}
+
+function renderTeamPresets() {
+  const container = $('teamPresetList');
+  if (!container) return;
+  const teams = getFilteredTeamPresets();
+  if (teams.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:20px 12px;color:var(--muted);font-size:12px">未找到匹配的团队预设</div>';
+    return;
+  }
+  container.innerHTML = teams.map(team => {
+    const memberCount = team.members.length;
+    const connCount = Object.values(team.manages).reduce((s, a) => s + a.length, 0);
+    // 收集成员的角色标签（最多显示3个分类）
+    const categories = new Set();
+    team.members.forEach(m => {
+      const preset = AGENT_PRESETS.find(p => p.id === m.presetId);
+      if (preset) categories.add(preset.category);
+    });
+    const catLabels = [...categories].slice(0, 3).map(catId => {
+      const cat = AGENT_CATEGORIES.find(c => c.id === catId);
+      return cat ? cat.label : catId;
+    }).join(' · ');
+    return `
+      <div class="team-preset-card" data-team-id="${team.id}">
+        <div class="team-preset-header">
+          <div class="team-preset-icon" style="background:${team.color}">${team.icon}</div>
+          <div class="team-preset-info">
+            <div class="team-preset-name">${team.name}</div>
+            <div class="team-preset-desc">${team.desc}</div>
+          </div>
+        </div>
+        <div class="team-preset-meta">
+          <span class="team-preset-stat">👤 ${memberCount} 人</span>
+          <span class="team-preset-stat">🔗 ${connCount} 条连线</span>
+          <span class="team-preset-cats">${catLabels}</span>
+        </div>
+        <button class="team-preset-create-btn" onclick="createTeamFromPreset('${team.id}')">
+          一键创建团队
+        </button>
+      </div>`;
+  }).join('');
+}
+
+// ── 从团队预设创建 ────────────────────────────────────────────────────────────
+
+function createTeamFromPreset(teamPresetId) {
+  const team = TEAM_PRESETS.find(t => t.id === teamPresetId);
+  if (!team) return;
+
+  // 构建 createTeamFromJSON 所需的 JSON 格式
+  const teamData = {
+    team_name: team.name,
+    members: team.members.map(m => ({
+      name: m.name,
+      presetId: m.presetId,
+      manages: team.manages[m.name] || [],
+    })),
+  };
+
+  if (typeof createTeamFromJSON === 'function') {
+    createTeamFromJSON(teamData);
+  }
+}
+
 // ── 初始化 ────────────────────────────────────────────────────────────────────
 function initPresetPanel() {
   renderPresetList();
+  renderTeamPresets();
   initCanvasDropZone();
 }

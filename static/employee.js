@@ -87,8 +87,9 @@ function switchCanvasWorkspace(newWsPath) {
   if (typeof closeRightPanel === 'function') closeRightPanel();
   // 6. 重新渲染
   renderEmployeeCards();
-  // 6.5 重新加载连线数据
+  // 6.5 重新加载连线数据并重绘
   if (typeof _loadConnections === 'function') _loadConnections();
+  if (typeof refreshConnections === 'function') refreshConnections();
   // 7. 恢复新工作区的画布视觉状态
   if (typeof _loadCanvasState === 'function') _loadCanvasState();
 }
@@ -216,13 +217,22 @@ function buildEmployeeSystemPrompt(emp) {
     }
   }
 
-  // 6. 用户自定义提示词
-  // 当 customPrompt 存在时，以用户编辑的完整提示词为基础，但仍追加关系上下文
-  if (emp.customPrompt && emp.customPrompt.trim()) {
-    return emp.customPrompt.trim() + relationCtx;
+  // 6. 总群协作指引（始终追加，告知员工如何使用 send_group_message 和 delegate_task 协作）
+  let groupChatCtx = '';
+  if (emp.subagentOf || (typeof getSubagentsOf === 'function' && getSubagentsOf(emp.id)?.length)) {
+    groupChatCtx = `\n\n## 总群协作\n你当前在总群上下文中工作。你可以使用以下工具与团队成员协作：\n- **send_group_message**: 向总群发送消息，汇报进度、请求帮助、或与其他员工协调。支持 @mention 其他员工来委派任务。\n- **delegate_task**: 向下属员工委派子任务。委派结果会自动回传到总群，所有成员可见。\n\n协作建议：\n- 复杂任务请使用 delegate_task 分解给下属，不要自己全部执行\n- 需要其他员工协助时，使用 send_group_message @对方名\n- 定期用 send_group_message 汇报进度，让团队了解你的工作状态`;
+  } else {
+    // 普通员工（无上下级关系）也可以向总群发消息
+    groupChatCtx = `\n\n## 总群协作\n你当前在总群上下文中工作。你可以使用 **send_group_message** 工具向总群发送消息，汇报进度或请求帮助。`;
   }
 
-  return parts.join('\n\n') + relationCtx;
+  // 7. 用户自定义提示词
+  // 当 customPrompt 存在时，以用户编辑的完整提示词为基础，但仍追加关系上下文和总群指引
+  if (emp.customPrompt && emp.customPrompt.trim()) {
+    return emp.customPrompt.trim() + relationCtx + groupChatCtx;
+  }
+
+  return parts.join('\n\n') + relationCtx + groupChatCtx;
 }
 
 function updateEmployee(id, updates) {

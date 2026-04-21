@@ -379,12 +379,143 @@ function switchWorkspaceTab(tab) {
   }
 }
 
+// ── 框选 + 多选 + 整体移动 ──────────────────────────────────────────────────
+
+/** 当前被框选/多选的卡片 ID 集合 */
+let _selectedCardIds = new Set();
+
+/** 框选状态 */
+let _boxSelecting = false;
+let _boxStartX = 0, _boxStartY = 0;   // 鼠标按下时的 client 坐标
+let _boxEl = null;                      // 框选矩形 DOM
+
+/** 清除所有选中状态 */
+function _clearCardSelection() {
+  _selectedCardIds.clear();
+  document.querySelectorAll('.emp-card.emp-multi-selected').forEach(c => c.classList.remove('emp-multi-selected'));
+}
+
+/** 切换单张卡片的选中状态（Ctrl/Meta 点击） */
+function _toggleCardSelection(cardId) {
+  if (_selectedCardIds.has(cardId)) {
+    _selectedCardIds.delete(cardId);
+  } else {
+    _selectedCardIds.add(cardId);
+  }
+  _syncSelectionClasses();
+}
+
+/** 同步 DOM 上的选中 class */
+function _syncSelectionClasses() {
+  const layer = $('canvasZoomLayer') || $('employeeCanvas');
+  if (!layer) return;
+  layer.querySelectorAll('.emp-card').forEach(card => {
+    card.classList.toggle('emp-multi-selected', _selectedCardIds.has(card.dataset.id));
+  });
+}
+
+/** 判断两个矩形是否相交 */
+function _rectsIntersect(a, b) {
+  return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+}
+
+/** 初始化框选功能 */
+function _initBoxSelection() {
+  const canvas = $('employeeCanvas');
+  if (!canvas) return;
+
+  // 创建框选矩形元素
+  _boxEl = document.createElement('div');
+  _boxEl.className = 'canvas-box-select';
+  _boxEl.style.display = 'none';
+  canvas.appendChild(_boxEl);
+
+  // 鼠标按下：只在画布空白处（非卡片、非连线手柄）触发框选
+  canvas.addEventListener('mousedown', (e) => {
+    // 右键/中键不做框选
+    if (e.button !== 0) return;
+    // 如果点在卡片上、按钮上、连线手柄上则跳过
+    if (e.target.closest('.emp-card') || e.target.closest('button') || e.target.closest('.emp-conn-handle')) return;
+    // 如果正在画布平移或连线，不框选
+    if (_isDrawingConnection) return;
+
+    _boxSelecting = true;
+    _boxStartX = e.clientX;
+    _boxStartY = e.clientY;
+    _boxEl.style.display = 'block';
+    _boxEl.style.left = '0';
+    _boxEl.style.top = '0';
+    _boxEl.style.width = '0';
+    _boxEl.style.height = '0';
+
+    // 如果没有按 Ctrl/Meta/Shift，清除之前的选择
+    if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      _clearCardSelection();
+    }
+
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!_boxSelecting) return;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    // 框选矩形在视口坐标系中的范围
+    const x1 = Math.min(_boxStartX, e.clientX);
+    const y1 = Math.min(_boxStartY, e.clientY);
+    const x2 = Math.max(_boxStartX, e.clientX);
+    const y2 = Math.max(_boxStartY, e.clientY);
+
+    // 定位框选矩形（相对于 canvas 容器）
+    _boxEl.style.left = (x1 - canvasRect.left) + 'px';
+    _boxEl.style.top = (y1 - canvasRect.top) + 'px';
+    _boxEl.style.width = (x2 - x1) + 'px';
+    _boxEl.style.height = (y2 - y1) + 'px';
+
+    // 实时高亮相交的卡片
+    const selRect = { left: x1, top: y1, right: x2, bottom: y2 };
+    const layer = $('canvasZoomLayer') || $('employeeCanvas');
+    layer.querySelectorAll('.emp-card').forEach(card => {
+      const cardRect = card.getBoundingClientRect();
+      if (_rectsIntersect(selRect, cardRect)) {
+        _selectedCardIds.add(card.dataset.id);
+      } else if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+        _selectedCardIds.delete(card.dataset.id);
+      }
+    });
+    _syncSelectionClasses();
+  });
+
+  document.addEventListener('mouseup', (e) => {
+    if (!_boxSelecting) return;
+    _boxSelecting = false;
+    _boxEl.style.display = 'none';
+  });
+
+  // 点击空白处清除选择（非框选、非平移）
+  canvas.addEventListener('click', (e) => {
+    if (e.target.closest('.emp-card') || e.target.closest('button')) return;
+    // 如果框选刚结束（有选中卡片），不清除
+    if (_selectedCardIds.size > 0) return;
+    _clearCardSelection();
+  });
+
+  // ESC 键取消选择
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && _selectedCardIds.size > 0) {
+      _clearCardSelection();
+    }
+  });
+}
+
 // ── 画布自由拖动 ─────────────────────────────────────────────────────────────
 
 /** 为员工卡片在画布上设置自由拖动 */
 function _initFreeDrag(card, emp) {
   let isDragging = false;
   let startX, startY, origX, origY;
+  let _isGroupDrag = false;          // 是否正在整体拖动多张选中卡片
+  let _groupOrigPositions = null;    // 整体拖动时记录每张卡片的初始位置
 
   card.addEventListener('mousedown', onMouseDown);
   card.addEventListener('touchstart', onTouchStart, { passive: false });
@@ -394,6 +525,13 @@ function _initFreeDrag(card, emp) {
     if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.emp-card-menu-btn') || e.target.closest('.emp-conn-handle')) return;
     if (e.button !== 0) return;
     e.preventDefault();
+
+    // Ctrl/Meta 点击切换选择
+    if (e.ctrlKey || e.metaKey) {
+      _toggleCardSelection(card.dataset.id);
+      return; // 不开始拖动
+    }
+
     startDrag(e.clientX, e.clientY);
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
@@ -409,11 +547,30 @@ function _initFreeDrag(card, emp) {
 
   function startDrag(clientX, clientY) {
     isDragging = false;
+    _isGroupDrag = false;
+    _groupOrigPositions = null;
     startX = clientX;
     startY = clientY;
     const style = card.style;
     origX = parseInt(style.left) || card.offsetLeft || 0;
     origY = parseInt(style.top) || card.offsetTop || 0;
+
+    // 判断是否属于多选拖动
+    if (_selectedCardIds.size > 1 && _selectedCardIds.has(card.dataset.id)) {
+      _isGroupDrag = true;
+      // 记录所有选中卡片的初始位置
+      _groupOrigPositions = new Map();
+      const layer = $('canvasZoomLayer') || $('employeeCanvas');
+      layer.querySelectorAll('.emp-card').forEach(c => {
+        if (_selectedCardIds.has(c.dataset.id)) {
+          _groupOrigPositions.set(c.dataset.id, {
+            el: c,
+            x: parseInt(c.style.left) || 0,
+            y: parseInt(c.style.top) || 0
+          });
+        }
+      });
+    }
   }
 
   function onMouseMove(e) { moveDrag(e.clientX, e.clientY); }
@@ -428,14 +585,25 @@ function _initFreeDrag(card, emp) {
     if (!isDragging && (Math.abs(clientX - startX) > 3 || Math.abs(clientY - startY) > 3)) {
       isDragging = true;
       card.classList.add('emp-dragging-free');
+      if (_isGroupDrag && _groupOrigPositions) {
+        _groupOrigPositions.forEach((pos) => {
+          pos.el.classList.add('emp-dragging-free');
+        });
+      }
     }
     if (!isDragging) return;
 
-    const newX = Math.max(0, origX + dx);
-    const newY = Math.max(0, origY + dy);
-
-    card.style.left = newX + 'px';
-    card.style.top = newY + 'px';
+    if (_isGroupDrag && _groupOrigPositions) {
+      // 整体移动所有选中卡片
+      _groupOrigPositions.forEach((pos) => {
+        pos.el.style.left = (pos.x + dx) + 'px';
+        pos.el.style.top = (pos.y + dy) + 'px';
+      });
+    } else {
+      // 单卡拖动
+      card.style.left = (origX + dx) + 'px';
+      card.style.top = (origY + dy) + 'px';
+    }
 
     // 拖拽时用 rAF 节流刷新连线
     if (typeof renderConnections === 'function') {
@@ -458,18 +626,35 @@ function _initFreeDrag(card, emp) {
   function endDrag() {
     if (isDragging) {
       card.classList.remove('emp-dragging-free');
-      // 保存位置到员工数据
-      const x = parseInt(card.style.left) || 0;
-      const y = parseInt(card.style.top) || 0;
-      const emp = getEmployee(card.dataset.id);
-      if (emp) {
-        emp._pos = { x, y };
+
+      if (_isGroupDrag && _groupOrigPositions) {
+        // 整体拖动：保存所有选中卡片的位置
+        _groupOrigPositions.forEach((pos) => {
+          pos.el.classList.remove('emp-dragging-free');
+          const x = parseInt(pos.el.style.left) || 0;
+          const y = parseInt(pos.el.style.top) || 0;
+          const empData = getEmployee(pos.el.dataset.id);
+          if (empData) {
+            empData._pos = { x, y };
+          }
+        });
         _saveEmployees();
+      } else {
+        // 单卡拖动：保存位置到员工数据
+        const x = parseInt(card.style.left) || 0;
+        const y = parseInt(card.style.top) || 0;
+        const emp = getEmployee(card.dataset.id);
+        if (emp) {
+          emp._pos = { x, y };
+          _saveEmployees();
+        }
       }
       // 拖拽结束后刷新连线
       if (typeof refreshConnections === 'function') refreshConnections();
     }
     isDragging = false;
+    _isGroupDrag = false;
+    _groupOrigPositions = null;
   }
 }
 
@@ -730,6 +915,8 @@ function renderEmployeeCards() {
 
     _positionCard(clone, emp);
     _initFreeDrag(clone, emp);
+    // 恢复多选状态
+    if (_selectedCardIds.has(emp.id)) clone.classList.add('emp-multi-selected');
     canvas.appendChild(clone);
   }
 
@@ -774,6 +961,8 @@ function initWorkspaceTabs() {
   }
   // 初始化画布缩放
   _initCanvasZoom();
+  // 初始化框选功能
+  _initBoxSelection();
   // 初始化工作区选择器标签
   syncWsSelectorLabel();
 }

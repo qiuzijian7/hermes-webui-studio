@@ -11,6 +11,7 @@ async function switchPanel(name) {
   if (panelEl) panelEl.classList.add('active');
   // Lazy-load panel data
   if (name === 'tasks') await loadCrons();
+  if (name === 'teams') { if (typeof renderTeamPresets === 'function') renderTeamPresets(); }
   if (name === 'skills') await loadSkills();
   if (name === 'memory') await loadMemory();
   if (name === 'workspaces') await loadWorkspacesPanel();

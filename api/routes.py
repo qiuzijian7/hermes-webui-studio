@@ -1602,6 +1602,7 @@ def _handle_chat_start(handler, body):
     workspace = str(Path(body.get("workspace") or s.workspace).expanduser().resolve())
     model = body.get("model") or s.model or DEFAULT_MODEL
     system_prompt = body.get("system_prompt") or getattr(s, 'system_prompt', '') or ""
+    employee_name = body.get("employee_name", "") or ""
     s.workspace = workspace
     s.model = model
     if system_prompt:
@@ -1614,7 +1615,7 @@ def _handle_chat_start(handler, body):
         STREAMS[stream_id] = q
     thr = threading.Thread(
         target=_run_agent_streaming,
-        args=(s.session_id, msg, model, workspace, stream_id, attachments, system_prompt),
+        args=(s.session_id, msg, model, workspace, stream_id, attachments, system_prompt, employee_name),
         daemon=True,
     )
     thr.start()

@@ -104,6 +104,7 @@ async function send(){
       workspace:S.session.workspace,
       attachments:uploaded.length?uploaded:undefined,
       system_prompt:_empSysPrompt||undefined,
+      employee_name:(_emp&&_emp.name)||'',
     })});
     streamId=startData.stream_id;
     S.activeStreamId = streamId;
