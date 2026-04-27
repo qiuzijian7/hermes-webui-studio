@@ -143,6 +143,12 @@ async function openGroupChat() {
   GROUP_CHAT_STATE.isOpen = true;
   console.log('[总群] openGroupChat: isOpen set to true');
 
+  // ★ 确保聊天 dock panel 处于 active tab 状态（与员工聊天同理），
+  //   否则若用户把画布和聊天合并到同一 leaf，总群界面会被 detach 不可见
+  if (typeof dockFocusPanel === 'function') {
+    try { dockFocusPanel('chat'); } catch (_) {}
+  }
+
   // 更新头部 — 显示总群头像（不显示成员，成员在委派栏中）
   const avatarEl = $('rpEmployeeAvatar');
   if (avatarEl) avatarEl.innerHTML = '<span class="gc-avatar">🏠</span>';
@@ -1549,7 +1555,11 @@ function _toggleGroupMembersDropdown(evt) {
   const _existingInput = dd.querySelector('.gc-members-search-input');
   if (_existingInput) _existingInput.value = '';
   _renderGroupMembersDropdown();
-  dd.style.display = 'block';
+  // ★ 2026-04-27 修复：原来用 'block' 覆盖了 CSS 的 `display:flex; flex-direction:column`，
+  //   导致内部 .gc-members-list 的 `flex:1 1 auto; min-height:0` 无法生效，
+  //   进而 max-height 被子列表撑破，整个下拉长到溢出视口、没有滚动条。
+  //   必须保持 flex 布局才能让列表区独立滚动。
+  dd.style.display = 'flex';
   btn.setAttribute('aria-expanded', 'true');
   btn.classList.add('open');
   // 聚焦搜索框

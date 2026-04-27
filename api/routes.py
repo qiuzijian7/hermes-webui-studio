@@ -473,6 +473,19 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/host/open":
         return _handle_host_open(handler, parsed)
 
+    # ★ P0/P1/P3: 浏览器面板支持
+    if parsed.path == "/api/browser/shot":
+        return _handle_browser_shot(handler, parsed)
+    if parsed.path == "/api/browser/continue/pending":
+        return _handle_browser_continue_pending(handler, parsed)
+    # ★ P5: 外部员工包（Agent Packs）
+    if parsed.path == "/api/agent-packs":
+        return _handle_agent_packs_list(handler)
+    if parsed.path.startswith("/api/agent-packs/") and parsed.path.endswith("/definition"):
+        return _handle_agent_pack_definition(handler, parsed)
+    if parsed.path.startswith("/api/agent-packs/ui/"):
+        return _handle_agent_pack_ui_asset(handler, parsed)
+
     if parsed.path == "/api/pick-folder":
         return _handle_pick_folder(handler, parsed)
 
@@ -946,6 +959,17 @@ def handle_post(handler, parsed) -> bool:
 
     if parsed.path == "/api/clarify/respond":
         return _handle_clarify_respond(handler, body)
+
+    # ★ P3: "下一步"暂停机制
+    if parsed.path == "/api/browser/continue":
+        return _handle_browser_continue(handler, body)
+    # ★ P5: Agent Pack 安装/卸载/启停
+    if parsed.path == "/api/agent-packs/install":
+        return _handle_agent_pack_install(handler, body)
+    if parsed.path == "/api/agent-packs/uninstall":
+        return _handle_agent_pack_uninstall(handler, body)
+    if parsed.path == "/api/agent-packs/enable":
+        return _handle_agent_pack_set_enabled(handler, body)
 
     # ── Skills (POST) ──
     if parsed.path == "/api/skills/save":
@@ -2818,6 +2842,188 @@ def _handle_clarify_respond(handler, body):
     if not ok:
         return bad(handler, "No pending clarify question for this session", 404)
     return j(handler, {"ok": True, "answer": answer})
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# P3: "下一步"暂停机制（Pausable Agent）
+# ═════════════════════════════════════════════════════════════════════════
+
+def _handle_browser_continue(handler, body):
+    """
+    POST /api/browser/continue
+    Body: { session_id: str, action: "continue" | "cancel" }
+
+    用户点了「下一步」或「取消任务」，解除 agent 阻塞。
+    """
+    sid = (body.get("session_id") or "").strip()
+    action = (body.get("action") or "continue").strip().lower()
+    if not sid:
+        return bad(handler, "session_id is required")
+    if action not in ("continue", "cancel"):
+        action = "continue"
+    try:
+        from tools.user_continue_tool import resolve_pending
+    except Exception as e:
+        return bad(handler, f"user_continue_tool not available: {e}", 500)
+    ok = resolve_pending(sid, action)
+    if not ok:
+        return bad(handler, "No pending 'continue' request for this session", 404)
+    return j(handler, {"ok": True, "action": action})
+
+
+def _handle_browser_continue_pending(handler, parsed):
+    """
+    GET /api/browser/continue/pending?session_id=...
+    查询当前 session 是否有挂起的 "下一步" 请求（用于页面刷新后恢复显示按钮）。
+    """
+    qs = parse_qs(parsed.query)
+    sid = (qs.get("session_id", [""])[0] or "").strip()
+    if not sid:
+        return bad(handler, "session_id is required")
+    try:
+        from tools.user_continue_tool import get_pending
+    except Exception:
+        return j(handler, {"pending": None})
+    p = get_pending(sid)
+    return j(handler, {"pending": p})
+
+
+def _handle_browser_shot(handler, parsed):
+    """
+    GET /api/browser/shot?session_id=<sid>&file=<shot_xxx.png>
+    返回浏览器截图 PNG（由 BrowserEventCapture 生成）。
+    """
+    qs = parse_qs(parsed.query)
+    sid = (qs.get("session_id", [""])[0] or "").strip()
+    fname = (qs.get("file", [""])[0] or "").strip()
+    # 严格校验：只允许 shot_xxx.png
+    if not sid or not fname:
+        return bad(handler, "session_id and file required")
+    import re as _re_shot
+    if not _re_shot.match(r"^shot_[a-f0-9]{6,32}\.png$", fname):
+        return bad(handler, "Invalid file name")
+    if "/" in sid or ".." in sid or "\\" in sid:
+        return bad(handler, "Invalid session_id")
+    try:
+        from api.browser_events import _get_webui_home
+        shots_dir = _get_webui_home() / sid
+        path = (shots_dir / fname).resolve()
+        # 防越狱
+        try:
+            path.relative_to(shots_dir.resolve())
+        except ValueError:
+            return bad(handler, "Forbidden path")
+        if not path.exists():
+            return bad(handler, "Shot not found", 404)
+        data = path.read_bytes()
+    except Exception as e:
+        return bad(handler, f"Read failed: {e}", 500)
+    return t(handler, data, content_type="image/png")
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# P5: Agent Packs（外部员工包） — ComfyUI 式插件化员工
+# ═════════════════════════════════════════════════════════════════════════
+
+def _handle_agent_packs_list(handler):
+    """GET /api/agent-packs  列出所有已安装的外部员工包。"""
+    try:
+        from api.agent_packs import get_registry
+        packs = get_registry().list()
+    except Exception as e:
+        return bad(handler, f"agent_packs unavailable: {e}", 500)
+    return j(handler, {"packs": packs})
+
+
+def _handle_agent_pack_definition(handler, parsed):
+    """GET /api/agent-packs/<pack_id>/definition
+    返回包内所有员工的完整定义（含 system_prompt、toolsets、skills 等）。
+    """
+    import re as _re_pk
+    m = _re_pk.match(r"^/api/agent-packs/([^/]+)/definition$", parsed.path)
+    if not m:
+        return bad(handler, "Bad path")
+    pack_id = m.group(1)
+    try:
+        from api.agent_packs import get_registry
+        pack = get_registry().get_pack(pack_id)
+    except Exception as e:
+        return bad(handler, f"Failed: {e}", 500)
+    if pack is None:
+        return bad(handler, "Pack not found", 404)
+    return j(handler, pack)
+
+
+def _handle_agent_pack_ui_asset(handler, parsed):
+    """GET /api/agent-packs/ui/<pack_id>/<...path>
+    提供包内 ui/ 目录下的静态资源（html/js/css/png）。
+    """
+    import re as _re_pk
+    m = _re_pk.match(r"^/api/agent-packs/ui/([^/]+)/(.+)$", parsed.path)
+    if not m:
+        return bad(handler, "Bad path")
+    pack_id, rel = m.group(1), m.group(2)
+    try:
+        from api.agent_packs import get_registry
+        path = get_registry().resolve_ui_asset(pack_id, rel)
+    except Exception as e:
+        return bad(handler, f"Failed: {e}", 500)
+    if path is None or not path.exists():
+        return bad(handler, "Asset not found", 404)
+    # 推断 MIME
+    ext = path.suffix.lower()
+    ctype = {
+        ".html": "text/html; charset=utf-8",
+        ".js":   "application/javascript; charset=utf-8",
+        ".css":  "text/css; charset=utf-8",
+        ".png":  "image/png",
+        ".jpg":  "image/jpeg", ".jpeg": "image/jpeg",
+        ".svg":  "image/svg+xml",
+        ".json": "application/json; charset=utf-8",
+    }.get(ext, "application/octet-stream")
+    try:
+        data = path.read_bytes()
+    except Exception as e:
+        return bad(handler, f"Read failed: {e}", 500)
+    return t(handler, data, content_type=ctype)
+
+
+def _handle_agent_pack_install(handler, body):
+    """POST /api/agent-packs/install  Body: { source: str } — file path / git url / zip upload。"""
+    src = (body.get("source") or "").strip()
+    if not src:
+        return bad(handler, "source is required")
+    try:
+        from api.agent_packs import get_registry
+        result = get_registry().install(src)
+    except Exception as e:
+        return bad(handler, f"Install failed: {e}", 500)
+    return j(handler, result)
+
+
+def _handle_agent_pack_uninstall(handler, body):
+    pack_id = (body.get("id") or body.get("pack_id") or "").strip()
+    if not pack_id:
+        return bad(handler, "id is required")
+    try:
+        from api.agent_packs import get_registry
+        result = get_registry().uninstall(pack_id)
+    except Exception as e:
+        return bad(handler, f"Uninstall failed: {e}", 500)
+    return j(handler, result)
+
+
+def _handle_agent_pack_set_enabled(handler, body):
+    pack_id = (body.get("id") or body.get("pack_id") or "").strip()
+    enabled = bool(body.get("enabled", True))
+    if not pack_id:
+        return bad(handler, "id is required")
+    try:
+        from api.agent_packs import get_registry
+        result = get_registry().set_enabled(pack_id, enabled)
+    except Exception as e:
+        return bad(handler, f"Failed: {e}", 500)
+    return j(handler, result)
 
 
 def _handle_skill_save(handler, body):

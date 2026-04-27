@@ -698,6 +698,29 @@ def resolve_model_provider(model_id: str) -> tuple:
         config_provider = model_cfg.get("provider")
         config_base_url = model_cfg.get("base_url")
 
+    # ★ 2026-04-27 Bug 修复：用户的 hermes config.yaml 没有 `model:` 段，
+    #   但配置了 `custom_providers: [{name: ollama, base_url: http://localhost:11434/v1}]`。
+    #   旧逻辑此时 config_provider=None, config_base_url=None，导致任何在下拉里选的
+    #   ollama 模型（如 qwen3.5:9b）都会被下游 resolve_runtime_provider 当作 "auto"，
+    #   最终走 .env 里的 OPENROUTER_API_KEY 路由到 OpenRouter。OpenRouter 根本不认识
+    #   本地 ollama 模型名，返回的是 fallback 或 error 文本——用户看到的就是 "模型偷懒只写
+    #   tool-use: list_files ..." 的假 tool call（实际是错误路由 + 非 tool-capable fallback）。
+    #
+    #   修复：当 cfg.model 缺失时，取第一个 custom_providers 条目（按配置书写顺序）
+    #   作为默认路由目标。name="ollama" → provider="custom:ollama"。
+    if config_provider is None and config_base_url is None:
+        _cp_fallback = cfg.get("custom_providers", [])
+        if isinstance(_cp_fallback, list):
+            for _entry in _cp_fallback:
+                if not isinstance(_entry, dict):
+                    continue
+                _ep_name = (_entry.get("name") or "").strip()
+                _ep_base = (_entry.get("base_url") or "").strip()
+                if _ep_name and _ep_base:
+                    config_provider = "custom:" + _ep_name.lower().replace(" ", "-")
+                    config_base_url = _ep_base
+                    break
+
     model_id = (model_id or "").strip()
     if not model_id:
         return model_id, config_provider, config_base_url

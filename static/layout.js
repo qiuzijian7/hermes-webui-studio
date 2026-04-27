@@ -53,6 +53,17 @@
     if (_dock) _dock.resetLayout();
   };
 
+  /**
+   * 全局便捷函数：激活某个 dock panel（如 'chat' / 'canvas'）。
+   * 点击员工卡片、打开总群等入口都应调用 `dockFocusPanel('chat')`，
+   * 保证该面板当前是 active tab（否则若用户把画布和聊天合并到同一 leaf，
+   * 聊天 panel 可能被 detach 在内存里不可见）。
+   */
+  window.dockFocusPanel = function(panelId) {
+    if (!_dock || typeof _dock.focusPanel !== 'function') return false;
+    try { return _dock.focusPanel(panelId); } catch (e) { return false; }
+  };
+
   // ── 左/右栏折叠切换 ──────────────────────────────────────────────────────
   const COLLAPSE_LS = {
     sidebar:    'hermes-sidebar-collapsed',
@@ -104,7 +115,7 @@
   const OUT_TAB_KEY = 'hermes-output-tab';
 
   function switchOutputTab(tab) {
-    const tabs = ['files', 'changes', 'browser', 'logs', 'agents'];
+    const tabs = ['files', 'changes', 'browser', 'logs', 'agents', 'detail'];
     if (!tabs.includes(tab)) tab = 'files';
     localStorage.setItem(OUT_TAB_KEY, tab);
 
@@ -120,6 +131,7 @@
       browser:  'outputPanelBrowser',
       logs:     'outputPanelLogs',
       agents:   'outputPanelAgents',
+      detail:   'outputPanelDetail',
     };
     Object.entries(panelMap).forEach(([k, id]) => {
       const el = document.getElementById(id);

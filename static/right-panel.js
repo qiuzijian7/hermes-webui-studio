@@ -29,7 +29,12 @@ function _scrollMsgAreaIfSticky() {
   const el = document.getElementById('rpMessages');
   if (!el) return;
   if (_rpStickyState.sticky) {
-    el.scrollTop = el.scrollHeight;
+    // ★ 2026-04-27: 显式 instant，防御将来 CSS 或上游全局样式加了 scroll-behavior: smooth
+    try {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'instant' });
+    } catch (_) {
+      el.scrollTop = el.scrollHeight;
+    }
   }
 }
 
@@ -37,6 +42,8 @@ function _scrollMsgAreaIfSticky() {
  *  ★ 微信聊天式体验：由于消息 DOM 插入后，图片/代码高亮/字体布局等可能异步
  *    使 scrollHeight 持续增长若干毫秒；单次设置 scrollTop 会停在"中间"。
  *    这里用多帧稳定策略：立即置底 → requestAnimationFrame 再置底 → 再延时 60ms/160ms 各置底一次。
+ *  ★ 2026-04-27: 全程用 behavior:'instant' 瞬时置底，防止 CSS scroll-behavior:smooth
+ *    被意外加回后导致"从顶部慢慢滚到底"的动画。
  */
 function _scrollMsgAreaToBottom() {
   _attachMsgAreaStickyListener();
@@ -44,7 +51,11 @@ function _scrollMsgAreaToBottom() {
   if (!el) return;
   const snap = () => {
     if (!document.body.contains(el)) return;
-    el.scrollTop = el.scrollHeight;
+    try {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'instant' });
+    } catch (_) {
+      el.scrollTop = el.scrollHeight;
+    }
     _rpStickyState.sticky = true;
   };
   snap();
@@ -304,6 +315,14 @@ function closeRightPanel() {
 async function openEmployeeChat(empId, taskId) {
   const emp = getEmployee(empId);
   if (!emp) return;
+
+  // ★ 确保聊天面板（dock chat panel）在当前 leaf 中处于 active tab 状态。
+  //   若用户把画布和聊天合并到同一 leaf（通过 tab 拖拽），不激活的话
+  //   chat 的 DOM 会被 dock detach 在内存中，用户看到的仍是画布，
+  //   表现为"点击员工卡片的聊天按钮没有跳转"。
+  if (typeof dockFocusPanel === 'function') {
+    try { dockFocusPanel('chat'); } catch (_) {}
+  }
 
   // ★ 用户显式点击员工卡片 / 调用 openEmployeeChat 时：关闭总群模式
   //   原先这里为"防竞态"直接 return，但会导致"切换总群↔员工"时员工聊天无法刷新。
@@ -1727,14 +1746,20 @@ function _renderRpMessages() {
 
 // ── 技能详情模式 ────────────────────────────────────────────────────────────
 function openSkillDetail(skillName, category, content) {
-  _setRightPanelView('skill');
+  // ★ 2026-04-27 变更：技能详情不再占用中栏聊天页签（原 rpSkillView），
+  //   改为在右侧栏新增的「详情」tab 中展示，避免干扰员工对话。
+  //   - 会自动显示并切换到右侧栏的「详情」tab
+  //   - 右侧栏始终可见（不折叠）
+  //   - 保留 assignSkillToEmployee 的入口按钮
+  const tabBtn = document.getElementById('outputTabDetail');
+  if (tabBtn) tabBtn.style.display = '';
 
-  const nameEl = $('rpSkillName');
-  if (nameEl) nameEl.textContent = skillName;
-  const catEl = $('rpSkillCategory');
-  if (catEl) catEl.textContent = category || '未分类';
+  const titleEl = document.getElementById('outDetailTitle');
+  if (titleEl) titleEl.textContent = skillName || '技能详情';
+  const subtitleEl = document.getElementById('outDetailSubtitle');
+  if (subtitleEl) subtitleEl.textContent = category || '未分类';
 
-  const metaEl = $('rpSkillMeta');
+  const metaEl = document.getElementById('outDetailMeta');
   if (metaEl) {
     metaEl.innerHTML = `
       <div class="rp-skill-info"><strong>名称:</strong> ${esc(skillName)}</div>
@@ -1743,14 +1768,62 @@ function openSkillDetail(skillName, category, content) {
     `;
   }
 
-  const bodyEl = $('rpSkillBody');
+  const bodyEl = document.getElementById('outDetailBody');
   if (bodyEl) {
     bodyEl.innerHTML = content ? renderMd(content) : '<p style="color:var(--muted)">暂无详细内容</p>';
   }
 
+  // 动作区：重建（清空后插入"分配给员工" + 关闭按钮）
+  const actionsEl = document.getElementById('outDetailActions');
+  if (actionsEl) {
+    actionsEl.innerHTML = `
+      <button class="panel-icon-btn" title="分配给员工" onclick="assignSkillToEmployee()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></button>
+      <button class="panel-icon-btn close-preview" title="关闭详情" onclick="closeDetailPanel()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    `;
+  }
+
   // 保存当前查看的技能名，用于分配
   window._currentViewSkill = skillName;
+
+  // 切到详情 tab
+  if (typeof switchOutputTab === 'function') {
+    try { switchOutputTab('detail'); } catch (_) {}
+  }
+
+  // 确保右侧栏不折叠
+  const panel = document.getElementById('rightPanel');
+  const layout = document.querySelector('.layout');
+  if (panel) {
+    panel.classList.remove('rp-collapsed');
+    panel.style.display = 'flex';
+  }
+  if (layout) layout.classList.remove('workspace-panel-collapsed');
 }
+
+/**
+ * 关闭右侧栏「详情」tab：
+ *  - 隐藏 tab 按钮；
+ *  - 切回默认的「全部文件」tab；
+ *  - 清空内容避免下次打开时短暂看到旧数据。
+ */
+function closeDetailPanel() {
+  const tabBtn = document.getElementById('outputTabDetail');
+  if (tabBtn) tabBtn.style.display = 'none';
+
+  const bodyEl = document.getElementById('outDetailBody');
+  if (bodyEl) bodyEl.innerHTML = '';
+  const metaEl = document.getElementById('outDetailMeta');
+  if (metaEl) metaEl.innerHTML = '';
+  window._currentViewSkill = null;
+
+  // 切回默认 tab
+  if (typeof switchOutputTab === 'function') {
+    try { switchOutputTab('files'); } catch (_) {}
+  }
+}
+
+// 暴露到 window（onclick 需要）
+window.closeDetailPanel = closeDetailPanel;
 
 function assignSkillToEmployee() {
   const skillName = window._currentViewSkill;
@@ -1867,9 +1940,27 @@ function removeEmployeeSkill(empId, skillName) {
 }
 
 // ── 技能快速添加 ─────────────────────────────────────────────────────────────
-function addSkillToEmployeeInline(empId) {
+/**
+ * 弹出"添加技能"对话框。
+ * ★ 2026-04-27 增强：输入框下方实时显示可添加技能的自动补全下拉，
+ *   数据源 = `GET /api/skills`（缓存为 `window._allSkillsCache`），
+ *   过滤规则 = （名称或描述含输入关键字）且 员工尚未拥有该技能。
+ *   支持键盘 ↑/↓/Enter/Esc 导航。允许输入自定义技能名（不在列表中也可添加）。
+ */
+async function addSkillToEmployeeInline(empId) {
   const emp = getEmployee(empId);
   if (!emp) return;
+
+  // 1) 预取所有可用技能（带简单缓存，避免每次点击都请求）
+  if (!window._allSkillsCache) {
+    try {
+      const data = await api('/api/skills');
+      window._allSkillsCache = Array.isArray(data.skills) ? data.skills : [];
+    } catch (_) {
+      window._allSkillsCache = [];
+    }
+  }
+
   // 弹出添加技能对话框
   const overlay = document.createElement('div');
   overlay.className = 'app-dialog-overlay';
@@ -1882,7 +1973,10 @@ function addSkillToEmployeeInline(empId) {
       </div>
       <div style="padding:4px 20px 16px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:10px">为「${esc(emp.name)}」添加一项专业技能</div>
-        <input class="emp-dialog-input" id="addSkillInput" placeholder="输入技能名称，如：Python、代码审查、架构设计" style="width:100%" maxlength="40">
+        <div class="skill-ac-wrap" style="position:relative">
+          <input class="emp-dialog-input" id="addSkillInput" placeholder="输入技能名称，如：Python、代码审查、架构设计" style="width:100%" maxlength="40" autocomplete="off">
+          <div class="skill-ac-dropdown" id="addSkillDropdown" style="display:none"></div>
+        </div>
       </div>
       <div class="app-dialog-actions">
         <button class="app-dialog-btn" id="addSkillCancel">取消</button>
@@ -1892,10 +1986,84 @@ function addSkillToEmployeeInline(empId) {
   `;
   document.body.appendChild(overlay);
   const input = overlay.querySelector('#addSkillInput');
+  const dd = overlay.querySelector('#addSkillDropdown');
   setTimeout(() => input.focus(), 50);
+
   const close = () => overlay.remove();
   overlay.querySelector('#addSkillClose').onclick = close;
   overlay.querySelector('#addSkillCancel').onclick = close;
+
+  // 已拥有技能名集合（大小写不敏感）
+  const ownedNames = new Set(emp.skills.map(s => ((s.name || s) + '').toLowerCase()));
+
+  // 当前下拉高亮项索引（-1 表示无高亮）
+  let activeIdx = -1;
+  let currentMatches = [];
+
+  /** 渲染下拉列表（最多 8 条） */
+  function renderDropdown(q) {
+    const qLower = (q || '').trim().toLowerCase();
+    const skills = window._allSkillsCache || [];
+    // 过滤：未被该员工拥有 + 名称或描述包含关键字
+    currentMatches = skills
+      .filter(sk => sk && sk.name && !ownedNames.has(sk.name.toLowerCase()))
+      .filter(sk => {
+        if (!qLower) return true;
+        const n = (sk.name || '').toLowerCase();
+        const d = (sk.description || '').toLowerCase();
+        return n.includes(qLower) || d.includes(qLower);
+      })
+      .slice(0, 8);
+
+    if (!currentMatches.length) {
+      dd.style.display = 'none';
+      dd.innerHTML = '';
+      activeIdx = -1;
+      return;
+    }
+    dd.style.display = 'block';
+    dd.innerHTML = currentMatches.map((sk, i) => `
+      <div class="skill-ac-item${i === activeIdx ? ' active' : ''}" data-idx="${i}">
+        <div class="skill-ac-name">${esc(sk.name)}</div>
+        ${sk.description ? `<div class="skill-ac-desc">${esc(sk.description)}</div>` : ''}
+      </div>
+    `).join('');
+
+    // 点击选中某项 → 填入输入框 + 自动提交
+    dd.querySelectorAll('.skill-ac-item').forEach(el => {
+      el.onclick = () => {
+        const idx = parseInt(el.dataset.idx, 10);
+        if (currentMatches[idx]) {
+          input.value = currentMatches[idx].name;
+          overlay.querySelector('#addSkillOk').click();
+        }
+      };
+      el.onmouseenter = () => {
+        activeIdx = parseInt(el.dataset.idx, 10);
+        updateActiveHighlight();
+      };
+    });
+  }
+
+  function updateActiveHighlight() {
+    dd.querySelectorAll('.skill-ac-item').forEach((el, i) => {
+      el.classList.toggle('active', i === activeIdx);
+    });
+    // 滚动到可视区
+    const activeEl = dd.querySelector('.skill-ac-item.active');
+    if (activeEl && activeEl.scrollIntoView) {
+      activeEl.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  // 初始显示（空关键字 → 全量候选）
+  renderDropdown('');
+
+  input.addEventListener('input', () => {
+    activeIdx = -1;
+    renderDropdown(input.value);
+  });
+
   overlay.querySelector('#addSkillOk').onclick = () => {
     const name = input.value.trim();
     if (!name) return;
@@ -1911,9 +2079,28 @@ function addSkillToEmployeeInline(empId) {
     showToast(`已添加技能「${name}」`);
     close();
   };
+
   input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') overlay.querySelector('#addSkillOk').click();
-    if (e.key === 'Escape') close();
+    if (e.key === 'ArrowDown') {
+      if (!currentMatches.length) return;
+      e.preventDefault();
+      activeIdx = (activeIdx + 1) % currentMatches.length;
+      updateActiveHighlight();
+    } else if (e.key === 'ArrowUp') {
+      if (!currentMatches.length) return;
+      e.preventDefault();
+      activeIdx = (activeIdx - 1 + currentMatches.length) % currentMatches.length;
+      updateActiveHighlight();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      // 若下拉有高亮项，用高亮项填入后再添加；否则按当前输入值添加
+      if (activeIdx >= 0 && currentMatches[activeIdx]) {
+        input.value = currentMatches[activeIdx].name;
+      }
+      overlay.querySelector('#addSkillOk').click();
+    } else if (e.key === 'Escape') {
+      close();
+    }
   });
 }
 

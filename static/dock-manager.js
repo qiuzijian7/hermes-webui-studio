@@ -187,6 +187,25 @@
       this.render();
     }
 
+    /**
+     * 激活某个 panel：查找其所在的 leaf 并将 activeId 设为它。
+     * 若 leaf 当前显示的是其他 panel（比如 chat 和 canvas 合并到同一 leaf 时
+     * 只能显示一个），会重新渲染以挂载目标 panel 的 contentEl。
+     * 若 panel 不存在或未在树中，静默忽略。
+     * @returns {boolean} 是否触发了 activeId 切换
+     */
+    focusPanel(panelId) {
+      if (!panelId || !this.tree) return false;
+      const info = _findLeafWithPanel(this.tree, panelId);
+      if (!info) return false;
+      const leaf = info.leaf;
+      if (leaf.activeId === panelId) return false; // 已激活
+      leaf.activeId = panelId;
+      this.render();
+      this.saveLayout();
+      return true;
+    }
+
     /** 渲染整棵树到 rootEl。保留 panel 的 contentEl（re-parent 而非 recreate）。 */
     render() {
       if (!this.rootEl || !this.tree) return;

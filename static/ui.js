@@ -45,10 +45,18 @@ async function populateModelDropdown(){
   if(!sel) return;
   try{
     const data=await fetch(new URL('/api/models',location.origin).href,{credentials:'include'}).then(r=>r.json());
-    if(!data.groups||!data.groups.length) return; // keep HTML defaults
+    // ★ 2026-04-27 Bug 修复：即使 data.groups 为空也要清空占位 <option>，
+    //   否则用户会看到 HTML 里的 "Loading models…" 一直不消失；或者更坏——
+    //   原 HTML 里硬编码的 OpenAI/Anthropic/Other optgroup 一直留着，和
+    //   后端实际检测到的 provider 完全不符（用户反馈的真实 bug 场景）。
+    if(!data.groups||!data.groups.length){
+      sel.innerHTML='<option value="" disabled selected>No models available — configure an API key or custom_provider in your config</option>';
+      if(typeof syncModelChip==='function') syncModelChip();
+      return;
+    }
     // Store active provider globally so the send path can warn on mismatch
     window._activeProvider=data.active_provider||null;
-    // Clear existing options
+    // Clear existing options (包含启动占位 <option> 和任何 HTML 硬编码残留)
     sel.innerHTML='';
     _dynamicModelLabels={};
     const ap=(data.active_provider||'').toLowerCase();
@@ -78,9 +86,30 @@ async function populateModelDropdown(){
       _applyModelToDropdown(savedModel, sel);
     }
     if(typeof syncModelChip==='function') syncModelChip();
+
+    // ★ 2026-04-27 Bug 修复：清理掉 syncTopbar 先前可能追加的"(unavailable)"条目。
+    //   场景：populateModelDropdown 是异步 fetch，在它完成前浏览器可能已经走过
+    //   renderModelDropdown 或 syncTopbar，syncTopbar 里会把 session.model append
+    //   为 unavailable option。populate 完成后这些 stale option 仍会留在 sel 末尾
+    //   （sel.innerHTML='' 只在本函数顶部执行一次），下一次 syncTopbar 又可能再加。
+    //   这里保险起见：清除所有不在真正 optgroup 下的散落 option。
+    Array.from(sel.children).forEach(child => {
+      if (child.tagName === 'OPTION') {
+        sel.removeChild(child);
+      }
+    });
+
+    // ★ 如果 composer model dropdown 当前是打开状态（用户早于 populate 完成前点开），
+    //   主动重新渲染，让用户立刻看到真实模型列表而不是过时/空状态。
+    const _dd = $('composerModelDropdown');
+    if (_dd && _dd.classList.contains('open') && typeof renderModelDropdown === 'function') {
+      try { renderModelDropdown(); } catch(_) {}
+    }
   }catch(e){
-    // API unavailable -- keep the hardcoded HTML options as fallback
+    // ★ 2026-04-27 Bug 修复：API 不可达时不再保留 HTML 硬编码 fallback（那些是
+    //   错误的假模型名，与用户实际配置的 provider 无关）。显示明确的错误占位。
     console.warn('Failed to load models from server:',e.message);
+    sel.innerHTML='<option value="" disabled selected>Failed to load models — check server connectivity</option>';
     if(typeof syncModelChip==='function') syncModelChip();
   }
 }
@@ -144,6 +173,20 @@ function renderModelDropdown(){
   const sel=$('modelSelect');
   if(!dd||!sel) return;
   dd.innerHTML='';
+
+  // ★ 2026-04-27 Bug 修复：如果打开 dropdown 时 #modelSelect 里没有任何真实
+  //   optgroup（只剩启动占位 option 或只有 syncTopbar 追加的 unavailable 条目），
+  //   说明 populateModelDropdown 还没跑完或失败了。此时触发一次后台重试，
+  //   让用户不用手动刷新页面就能拿到最新列表。
+  const hasRealOptgroups = Array.from(sel.children).some(c => c.tagName === 'OPTGROUP' && c.children && c.children.length > 0);
+  if (!hasRealOptgroups && typeof populateModelDropdown === 'function') {
+    // 异步触发重试——不阻塞本次 dropdown 渲染（用户仍能看到当前状态）
+    populateModelDropdown().then(() => {
+      // 重试成功后如果下拉仍开着，重新渲染
+      if (dd.classList.contains('open')) renderModelDropdown();
+    }).catch(() => {});
+  }
+
   const ap=(window._activeProvider||'').toLowerCase();
   // ── Provider tabs ──
   const providerBar=document.createElement('div');
@@ -1042,6 +1085,20 @@ async function checkInflightOnBoot(sid) {
 }
 
 function syncTopbar(){
+  // ★ 2026-04-27 Bug 修复：抽取出一个通用的"把当前工作区信息写到 #wsInfoBtn"逻辑，
+  //   无论是否有 session 都应该让按钮显示工作区名——因为它本质是"工作区切换按钮"。
+  const _syncWsInfoBtn = () => {
+    const _currentWs = (typeof _currentCanvasWorkspace !== 'undefined' && _currentCanvasWorkspace && _currentCanvasWorkspace !== '__default__')
+      ? _currentCanvasWorkspace
+      : ((S.session && S.session.workspace) ? S.session.workspace : '');
+    if (!_currentWs) return; // 无工作区信息就保留 HTML 默认
+    const wsName = typeof getWorkspaceFriendlyName === 'function'
+      ? getWorkspaceFriendlyName(_currentWs)
+      : _currentWs.split(/[\/\\]/).filter(Boolean).pop();
+    const _ttW = $('topbarTitle'); if (_ttW) _ttW.textContent = wsName || _ttW.textContent;
+    const _tmW = $('topbarMeta'); if (_tmW) _tmW.textContent = _currentWs;
+  };
+
   if(!S.session){
     document.title=window._botName||'Hermes';
     if(typeof syncWorkspaceDisplays==='function') syncWorkspaceDisplays();
@@ -1053,6 +1110,8 @@ function syncTopbar(){
         sidebarName.textContent=t('no_workspace');
       }
     }
+    // ★ 无 session 时也要用 _currentCanvasWorkspace 更新顶部按钮
+    _syncWsInfoBtn();
     return;
   }
   const sessionTitle=S.session.title||t('untitled');
@@ -1074,14 +1133,29 @@ function syncTopbar(){
     // "(unavailable)" entry so the session value is preserved without misleading the user.
     // Selecting it will still attempt to send (same as before), but the label makes
     // clear it's a stale model from a previous session.
-    if(!applied && currentModel){
+    //
+    // ★ 2026-04-27 Bug 修复：只在 modelSelect 里已经有真实的 <optgroup> 时才
+    //   追加 unavailable 条目。如果 populateModelDropdown 还没跑完 / 失败（modelSelect
+    //   里只有 "Loading models…" 占位或 nothing），追加 unavailable 条目会让用户看到
+    //   "Loading models... + xxx(unavailable)" 这种奇怪的组合且无法修复——populate
+    //   成功后的 sel.innerHTML='' 会清掉 unavailable 条目，但 syncTopbar 的下一次调用
+    //   又会再 append 一次，陷入循环。正确做法：populate 失败时这里什么也不做，
+    //   让模型列表保持为空，renderModelDropdown 会 lazy-retry populate。
+    const _ms = $('modelSelect');
+    const _hasRealGroups = _ms && Array.from(_ms.children).some(c => c.tagName === 'OPTGROUP' && c.children.length > 0);
+    if(!applied && currentModel && _hasRealGroups){
       const opt=document.createElement('option');
       opt.value=currentModel;
       opt.textContent=getModelLabel(currentModel)+t('model_unavailable');
       opt.style.color='var(--muted, #888)';
       opt.title=t('model_unavailable_title');
-      $('modelSelect').appendChild(opt);
-      $('modelSelect').value=currentModel;
+      _ms.appendChild(opt);
+      _ms.value=currentModel;
+    } else if(!applied && currentModel && !_hasRealGroups){
+      // populate 还没跑完：只设 value（如果 option 存在会生效，否则保持原状），
+      // 不追加 unavailable 条目。当 populate 成功后，会有新一次 syncTopbar 触发
+      // 正常路径，或者 renderModelDropdown 里的 lazy-retry 填充后自动 sync。
+      if (_ms) _ms.value = currentModel;
     }
   }
   if(typeof syncModelChip==='function') syncModelChip();
@@ -1092,11 +1166,15 @@ function syncTopbar(){
   if(typeof syncWorkspaceDisplays==='function') syncWorkspaceDisplays();
   // 员工模式下，topbar 显示工作区信息
   if(typeof syncWsSelectorLabel==='function') syncWsSelectorLabel();
-  if(S.session && S.session.workspace){
-    const wsName = typeof getWorkspaceFriendlyName==='function' ? getWorkspaceFriendlyName(S.session.workspace) : S.session.workspace.split(/[\/\\]/).filter(Boolean).pop();
-    const _ttW=$('topbarTitle');if(_ttW)_ttW.textContent = wsName || _ttW.textContent;
-    const _tmW=$('topbarMeta');if(_tmW)_tmW.textContent = S.session.workspace;
-  }
+  // ★ 2026-04-27 Bug 修复：topbar 按钮（#wsInfoBtn）是"工作区切换"按钮，
+  //   原代码前面把 sessionTitle（"Untitled"）和 n_messages（"160 messages"）
+  //   写到 #topbarTitle / #topbarMeta 上——与按钮语义不符。
+  //   原覆盖逻辑只在 S.session.workspace 非空时执行；某些场景（session 刚从
+  //   本地存储恢复、首次访问、workspace 字段为空串）下 S.session.workspace=''
+  //   → 分支跳过 → 按钮残留 "Untitled / 160 messages"。
+  //   修复：复用 _syncWsInfoBtn，优先使用 _currentCanvasWorkspace，与工作区
+  //   下拉里"当前工作区"显示逻辑保持一致。
+  _syncWsInfoBtn();
   // modelSelect already set above
   // Update profile chip label
   const profileLabel=$('profileChipLabel');

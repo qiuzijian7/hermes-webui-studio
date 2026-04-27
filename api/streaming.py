@@ -10,6 +10,7 @@ import threading
 import time
 import traceback
 from pathlib import Path
+from typing import Any
 
 from api.config import (
     STREAMS, STREAMS_LOCK, CANCEL_FLAGS, AGENT_INSTANCES, CLI_TOOLSETS,
@@ -273,6 +274,74 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
         # the chat stuck in "Thinking…" forever.
         _approval_registered = False
         _unreg_notify = None
+        # ── P0/P1/P2 + P3: Browser 事件捕获 + "下一步"暂停机制 ──
+        # 在这里创建一个 BrowserEventCapture，让 tool_progress/tool_complete 回调
+        # 把 browser_* 工具进度打包成 SSE browser_step 事件推给前端；
+        # 同时给 user_continue_tool 注册一个 notify 回调，请求发 SSE
+        # user_continue_required 事件。
+        try:
+            from api.browser_events import BrowserEventCapture
+            _browser_cap = BrowserEventCapture(session_id=session_id, put_sse=put)
+        except Exception as _e:
+            _browser_cap = None
+            print(f"[webui] WARN: BrowserEventCapture init failed: {_e}", flush=True)
+
+        _user_continue_registered = False
+        try:
+            from tools.user_continue_tool import (
+                register_notify as _reg_uc_notify,
+                unregister_notify as _unreg_uc_notify,
+            )
+            def _uc_notify_cb(data):
+                # data: {continue_id, reason, timeout_seconds}
+                payload = dict(data) if isinstance(data, dict) else {}
+                payload["session_id"] = session_id
+                put("user_continue_required", payload)
+            _reg_uc_notify(session_id, _uc_notify_cb)
+            _user_continue_registered = True
+        except Exception as _e:
+            _unreg_uc_notify = None
+            print(f"[webui] WARN: user_continue notify reg failed: {_e}", flush=True)
+
+        # ★ 2026-04-27: 注册 delegation observer —— 解决"制作人调 delegate_task 后
+        #   被委派员工聊天框看不到任务与思考过程"的问题。当父 agent 调用 delegate_task
+        #   创建子 agent 时，delegate_hooks 会通知所有观察者，我们在这里把事件转换成
+        #   delegation_* 系列 SSE 事件推给前端；前端 messages.js 监听后：
+        #     1. 在对应员工的 session 中插入一条"制作人派的任务" user message
+        #     2. 把 child 的 token/reasoning/tool 事件实时渲染到该员工聊天面板
+        #     3. 在 DelegationVM 登记一个 Task，刷新后仍能通过 session_id 拉历史
+        _delegation_observer_registered = False
+        try:
+            from tools.delegate_hooks import (
+                register_delegation_observer as _reg_deleg,
+                unregister_delegation_observer as _unreg_deleg,
+            )
+
+            def _delegation_observer(event: str, data: dict) -> None:
+                # event ∈ {"child.spawned", "child.token", "child.reasoning",
+                #          "child.tool.started", "child.tool.completed", "child.completed"}
+                try:
+                    payload = dict(data) if isinstance(data, dict) else {}
+                    payload.setdefault("session_id", session_id)
+                    _mapping = {
+                        "child.spawned":          "delegation_started",
+                        "child.token":            "delegation_token",
+                        "child.reasoning":        "delegation_reasoning",
+                        "child.tool.started":     "delegation_tool",
+                        "child.tool.completed":   "delegation_tool_done",
+                        "child.completed":        "delegation_completed",
+                    }
+                    sse_event = _mapping.get(event, event)
+                    put(sse_event, payload)
+                except Exception as _e:
+                    print(f"[webui] delegation observer err: {_e}", flush=True)
+
+            _reg_deleg(session_id, _delegation_observer)
+            _delegation_observer_registered = True
+        except Exception as _e:
+            _unreg_deleg = None
+            print(f"[webui] WARN: delegation observer reg failed: {_e}", flush=True)
+
         try:
             from tools.approval import (
                 register_gateway_notify as _reg_notify,
@@ -309,7 +378,50 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 entry.event.wait(timeout=300)
                 return entry.result or ""
 
-            def on_tool(name, preview, args):
+            def on_tool(*cb_args, **cb_kwargs):
+                """
+                ★ 2026-04-27 升级为可变参数回调：
+                  原实现 on_tool(name, preview, args) 只认 3 参数，但 run_agent.py 实际
+                  以 4 位置参数调用：on_tool(phase, name, preview, args) 和
+                  on_tool("tool.completed", name, None, None, duration=..., is_error=...)；
+                  调用方错配时会抛 TypeError 被 except 吞掉，导致 'tool' 事件 **从未** 真正
+                  推送到前端（UI 上的 tool 卡是从 done 事件的 tool_calls 数组渲染的）。
+                  现在统一解析 phase/name/preview/args，打通两条路：
+                    (1) 原有 put('tool', …) 仍在 tool.started 阶段推（保持向后兼容）
+                    (2) BrowserEventCapture 接收 started/completed 两阶段，推 browser_step
+                """
+                phase = "tool.started"
+                name = ""
+                preview = ""
+                args: Any = None
+                # 兼容 3 参数旧调用（如果还有调用方这样传）
+                if len(cb_args) == 3:
+                    name, preview, args = cb_args
+                elif len(cb_args) >= 4:
+                    phase, name, preview, args = cb_args[0], cb_args[1], cb_args[2], cb_args[3]
+                elif len(cb_args) == 2:
+                    # _thinking / reasoning.available 等特殊阶段 —— 忽略
+                    phase = cb_args[0] or "tool.misc"
+                    name = cb_args[1] or ""
+                elif len(cb_args) == 1:
+                    name = cb_args[0] or ""
+
+                # 过滤掉非工具阶段（_thinking / reasoning.available）
+                if phase not in ("tool.started", "tool.completed"):
+                    return
+
+                # ── P0/P1/P2: browser_* 工具事件打桩 ──
+                # 只在 started 阶段打桩 —— completed 由 tool_complete_callback 做（能拿到 result）
+                if _browser_cap is not None and phase == "tool.started":
+                    try:
+                        _browser_cap.on_started(name, args, preview=str(preview or ""))
+                    except Exception as _e:
+                        print(f"[webui] browser_cap err: {_e}", flush=True)
+
+                # 仅在 started 阶段推 'tool' SSE（避免一次调用双推重复卡片）
+                if phase != "tool.started":
+                    return
+
                 args_snap = {}
                 if isinstance(args, dict):
                     for k, v in list(args.items())[:4]:
@@ -342,6 +454,21 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                             put('approval', p)
                 except ImportError:
                     pass
+
+            def on_tool_complete(tc_id, tool_name, tool_args, tool_result):
+                """
+                tool_complete_callback — 工具完成时拿到 result（拼接到 browser_step 里方便前端展示 url/title）。
+                （注意：这个回调在 run_agent.py 里另有独立调用路径，**不是** tool_progress_callback 的一部分）
+                """
+                if _browser_cap is None:
+                    return
+                try:
+                    _browser_cap.on_completed(
+                        tool_name, tool_args, result=tool_result,
+                        duration=0.0, is_error=False,
+                    )
+                except Exception as _e:
+                    print(f"[webui] on_tool_complete err: {_e}", flush=True)
 
             _AIAgent = _get_ai_agent()
             if _AIAgent is None:
@@ -398,6 +525,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 stream_delta_callback=on_token,
                 reasoning_callback=on_reasoning,
                 tool_progress_callback=on_tool,
+                tool_complete_callback=on_tool_complete,  # ★ P0/P1: 工具完成后拍截图、推 browser_step(done)
                 clarify_callback=on_clarify,
             )
 
@@ -479,6 +607,117 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 persist_user_message=msg_text,
             )
             s.messages = result.get('messages') or s.messages
+
+            # ★ 2026-04-27 纠错循环：检测"模型只输出文本伪装成工具调用"的偷懒行为
+            #   场景：用户从总群派"规划/分派"类任务给制作人（或其它有下属的员工），
+            #   模型没有真正发起任何 tool_call，只输出一段类似：
+            #       ```bash
+            #       list_files G:\HermesWorkspaces\GodotWorkspace
+            #       ```
+            #       （等待结果...）
+            #   或者更"高级"的 JSON 伪调用：
+            #       ```json
+            #       { "name": "list_files", "arguments": { "path": "..." } }
+            #       ```
+            #   然后结束。这种回复 api_calls==1 且末尾 assistant 消息无 tool_calls。
+            #
+            #   Prompt 已明确禁止，但模型仍会偷懒。这里做**最多 2 次**硬纠错：
+            #   注入 system-like user message 强制重跑，并允许它继续正常使用工具。
+            #   2 次后若仍偷懒（例如模型根本不支持 function calling），停止避免无限循环。
+            _is_delegation_task = isinstance(msg_text, str) and (
+                msg_text.startswith('[总群委派任务 #') or
+                msg_text.startswith('[制作人委派任务 ')
+            )
+
+            def _detect_tool_loafing() -> bool:
+                """检查末尾 assistant 消息是否是"偷懒"回复（无 tool_call 但文本伪装成工具调用）"""
+                _last_assistant = None
+                for _m in reversed(s.messages or []):
+                    if isinstance(_m, dict) and _m.get('role') == 'assistant':
+                        _last_assistant = _m
+                        break
+                if _last_assistant is None:
+                    return False
+                _tcs = _last_assistant.get('tool_calls') or []
+                _content = _last_assistant.get('content', '')
+                _has_tool_use = bool(_tcs)
+                if not _has_tool_use and isinstance(_content, list):
+                    for _p in _content:
+                        if isinstance(_p, dict) and _p.get('type') == 'tool_use':
+                            _has_tool_use = True
+                            break
+                if _has_tool_use:
+                    return False  # 真的调了工具 → 不是偷懒
+                _content_text = _content if isinstance(_content, str) else (
+                    ''.join(p.get('text', '') for p in _content if isinstance(p, dict) and p.get('type') == 'text')
+                    if isinstance(_content, list) else ''
+                )
+                if not _content_text:
+                    return False
+                # 偷懒特征：
+                _TOOL_NAMES = ('list_files', 'read_file', 'write_to_file',
+                               'delegate_task', 'terminal', 'search_in_files',
+                               'edit_file', 'send_group_message')
+                _mentions_tool = any(n in _content_text for n in _TOOL_NAMES)
+                _has_fake_codeblock = (
+                    '```bash' in _content_text
+                    or '```json' in _content_text
+                    or '```python' in _content_text
+                )
+                # ★ 2026-04-27: 更强的 JSON 伪调用检测：  "name": "<tool>" 模式
+                import re as _re
+                _json_fake_call = bool(_re.search(
+                    r'"name"\s*:\s*"(?:' + '|'.join(_TOOL_NAMES) + r')"',
+                    _content_text,
+                ))
+                # tool-use: <name> 这种纯文本伪装（用户第一次日志里的那个）
+                _tooluse_prefix = any(f'tool-use: {n}' in _content_text for n in _TOOL_NAMES)
+                return _mentions_tool or _has_fake_codeblock or _json_fake_call or _tooluse_prefix
+
+            try:
+                _CORRECTION_PROMPTS = [
+                    (
+                        '⚠️ **系统自动纠错（第 1 次）**：你刚才的回复没有调用任何真实工具，'
+                        '只在文本/代码块里写了工具名（如 ```bash list_files ...```）。这只是**纯文本**，'
+                        '不会被执行。现在请立即通过真正的 function call（tool_call）机制'
+                        '发起你承诺的操作：先 `list_files` 扫描工作区根目录，'
+                        '然后 `read_file` 读取 PLAN/TASK/SPRINT/README 等规划文档，'
+                        '再用 `write_to_file` 落地任务拆解，最后通过 `delegate_task` 并行分派给下属。'
+                        '禁止只在文本里描述，必须真正调用工具。'
+                    ),
+                    (
+                        '⚠️ **系统自动纠错（第 2 次，最后一次）**：你仍然没有发起真正的 tool_call。'
+                        '写 JSON 到代码块里（例如 ```json\n{"name":"list_files","arguments":{...}}\n```）'
+                        '**不是**工具调用——这依然只是纯文本。你必须通过你的客户端提供的 function_call / tool_call 协议字段'
+                        '去触发工具。如果你的模型支持 function calling，现在就请发出结构化的 tool_call；'
+                        '如果你的模型不支持，请**直接用自然语言输出最终答案/拆解结论**，不要再写任何假装调用的代码块。'
+                    ),
+                ]
+                _correction_count = 0
+                while (
+                    _is_delegation_task
+                    and _correction_count < len(_CORRECTION_PROMPTS)
+                    and _detect_tool_loafing()
+                ):
+                    _correction = _CORRECTION_PROMPTS[_correction_count]
+                    _correction_count += 1
+                    print(f"[webui] delegation-task loafing detected ({_correction_count}/{len(_CORRECTION_PROMPTS)}): "
+                          f"sid={session_id} — injecting corrective continue",
+                          flush=True)
+                    _result2 = agent.run_conversation(
+                        user_message=_correction,
+                        conversation_history=_sanitize_messages_for_api(s.messages),
+                        task_id=session_id,
+                        persist_user_message=_correction,
+                    )
+                    s.messages = _result2.get('messages') or s.messages
+                    try:
+                        result['api_calls'] = int(result.get('api_calls', 0) or 0) + int(_result2.get('api_calls', 0) or 0)
+                        result['final_response'] = _result2.get('final_response') or result.get('final_response')
+                    except Exception:
+                        pass
+            except Exception as _lle:
+                print(f"[webui] delegation loafing detector err: {_lle}", flush=True)
 
             # 发射 agent.complete 事件（供 hooks 订阅 — graceful no-op）
             try:
@@ -717,6 +956,18 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             if _approval_registered and _unreg_notify is not None:
                 try:
                     _unreg_notify(session_id)
+                except Exception:
+                    pass
+            # ★ P3: 清理 user_continue notify + 解除所有挂起的"下一步"条目
+            if _user_continue_registered:
+                try:
+                    _unreg_uc_notify(session_id)
+                except Exception:
+                    pass
+            # ★ 2026-04-27: 清理 delegation observer
+            if _delegation_observer_registered:
+                try:
+                    _unreg_deleg(session_id)
                 except Exception:
                     pass
             # Unblock any pending clarify questions

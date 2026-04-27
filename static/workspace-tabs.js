@@ -343,6 +343,53 @@ function _initCanvasZoom() {
 // ── 工作区选择下拉框 ──────────────────────────────────────────────────────────
 let _wsSelectorList = [];
 
+/**
+ * 定位下拉到触发按钮的正下方。
+ * 下拉使用 position: fixed（见 style.css），因此 top/left 以视口为参考。
+ * 好处：不受祖先 stacking context 影响，不会被画布/dock-content 盖住。
+ *
+ * ★ 关键：需要先把下拉从 .topbar 移到 document.body 才能正确 fixed 定位。
+ *   因为 .topbar 有 backdrop-filter: blur(...)，按 CSS 规范会创建
+ *   fixed 定位的包含块（containing block），导致 left/top 以 topbar
+ *   左上角为原点而非视口——下拉会向右偏移 sidebar 宽度。
+ *
+ * @param {HTMLElement} dd 下拉元素
+ * @param {HTMLElement} btn 触发按钮
+ */
+function _positionWsDropdown(dd, btn) {
+  if (!dd || !btn) return;
+  // 提升到 body 层，摆脱 .topbar 的 backdrop-filter 包含块
+  if (dd.parentElement !== document.body) {
+    document.body.appendChild(dd);
+  }
+  const r = btn.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const margin = 4;
+
+  // ★ 2026-04-27 再次调整：按钮改为自适应宽度后（不再填满 topbar），
+  //   下拉不能再"严格等按钮宽"，否则按钮很窄时下拉跟着窄，工作区名/路径
+  //   会被截成一条非常挤的列表。改为：
+  //     - 下限：max(按钮宽, 360) —— 保证下拉足够宽能看清工作区信息
+  //     - 上限：min(视口-16, 900) —— 防止在超宽屏上过分拉伸
+  //   这样视觉上"按钮 <= 下拉"，仍然左对齐到按钮左边；对齐上舒服但不僵硬等宽。
+  const MIN_DROPDOWN_W = 360;
+  const MAX_DROPDOWN_W = Math.min(vw - 16, 900);
+  const btnW = Math.round(r.width);
+  const wantW = Math.max(MIN_DROPDOWN_W, Math.min(MAX_DROPDOWN_W, btnW));
+  // 用 inline 强制覆盖 CSS 的 min/max，确保下拉精确宽度
+  dd.style.width = wantW + 'px';
+  dd.style.minWidth = wantW + 'px';
+  dd.style.maxWidth = wantW + 'px';
+
+  // 默认左对齐到按钮左边；若下拉会溢出视口右边，则右对齐到按钮右边
+  let left = r.left;
+  if (left + wantW > vw - 8) {
+    left = Math.max(8, r.right - wantW);
+  }
+  dd.style.top = (r.bottom + margin) + 'px';
+  dd.style.left = left + 'px';
+}
+
 function toggleWsSelector() {
   const dd = $('wsSelectorDropdown');
   if (!dd) return;
@@ -354,6 +401,9 @@ function toggleWsSelector() {
       _wsSelectorList = data.workspaces || [];
       _renderWsSelectorDropdown(dd);
       dd.classList.add('open');
+      // 定位到触发按钮的正下方（fixed 定位）
+      const btn = $('wsSelectorBtn') || (dd.parentElement && dd.parentElement.querySelector('button'));
+      _positionWsDropdown(dd, btn);
     });
   }
 }
@@ -376,6 +426,8 @@ function toggleWsInfoSelector() {
       _wsSelectorList = data.workspaces || [];
       _renderWsSelectorDropdown(dd);
       dd.classList.add('open');
+      // 定位到 wsInfoBtn 的正下方（fixed 定位）
+      _positionWsDropdown(dd, $('wsInfoBtn'));
     });
   }
 }
@@ -455,8 +507,18 @@ function syncWsSelectorLabel() {
 
 // 点击外部关闭下拉
 document.addEventListener('click', e => {
-  if (!e.target.closest('#wsSelectorWrap')) closeWsSelector();
-  if (!e.target.closest('#wsInfoWrap')) closeWsInfoSelector();
+  if (!e.target.closest('#wsSelectorWrap')
+      && !e.target.closest('#wsSelectorDropdown')) closeWsSelector();
+  if (!e.target.closest('#wsInfoWrap')
+      && !e.target.closest('#wsInfoDropdown')) closeWsInfoSelector();
+});
+
+// 视口变化时重新定位打开中的下拉（fixed 定位需跟随按钮移动）
+window.addEventListener('resize', () => {
+  const sel = $('wsSelectorDropdown');
+  if (sel && sel.classList.contains('open')) _positionWsDropdown(sel, $('wsSelectorBtn'));
+  const info = $('wsInfoDropdown');
+  if (info && info.classList.contains('open')) _positionWsDropdown(info, $('wsInfoBtn'));
 });
 
 function switchWorkspaceTab(tab) {

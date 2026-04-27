@@ -53,7 +53,47 @@ function _saveEmployees() {
 
 function _loadEmployees() {
   try {
-    const raw = localStorage.getItem(_wsEmployeeKey());
+    let key = _wsEmployeeKey();
+    let raw = localStorage.getItem(key);
+
+    // ★ 2026-04-27(v3) Bug 修复：路径归一化模糊匹配兜底
+    //   用户反馈"切换到 GodotWorkspace 后画布空，点全部按钮才刷新出员工"。
+    //   root cause 之一：路径 key 大小写/分隔符不一致导致 key mismatch。
+    //   例：
+    //     - 创建员工时 _currentCanvasWorkspace='G:\HermesWorkspaces\GodotWorkspace'
+    //     - 切换时传入 path='G:/HermesWorkspaces/GodotWorkspace'（正斜杠）
+    //       或盘符大小写不同（'g:\...')
+    //   两个 key 不相等 → 读不到数据 → 显示"还没有员工"空态。
+    //   兜底策略：精确 key 没命中时，遍历 localStorage 所有 hermes-employees:*
+    //   条目，对比归一化路径（小写 + 统一正斜杠 + trim），找到相同工作区
+    //   的另一种写法就使用其数据，同时**把数据迁移到当前规范 key**避免下次再绕路。
+    if (!raw) {
+      const wanted = _normalizeWsPath(_currentCanvasWorkspace || '__default__');
+      if (wanted) {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k || !k.startsWith('hermes-employees:')) continue;
+          if (k === key) continue;
+          const wsPartRaw = k.slice('hermes-employees:'.length);
+          if (_normalizeWsPath(wsPartRaw) === wanted) {
+            const altRaw = localStorage.getItem(k);
+            if (altRaw) {
+              console.warn('[_loadEmployees] key mismatch recovered: "' + k +
+                           '" (data) vs "' + key + '" (expected). Migrating data to expected key.');
+              // 迁移到规范 key
+              try {
+                localStorage.setItem(key, altRaw);
+                const altNid = localStorage.getItem('hermes-employees-nextid:' + wsPartRaw);
+                if (altNid) localStorage.setItem(_wsNextIdKey(), altNid);
+              } catch(_) {}
+              raw = altRaw;
+              break;
+            }
+          }
+        }
+      }
+    }
+
     if (raw) {
       EMPLOYEE_STORE.employees = JSON.parse(raw);
     } else {
@@ -63,36 +103,116 @@ function _loadEmployees() {
     if (nid) EMPLOYEE_STORE._nextId = parseInt(nid, 10);
     else EMPLOYEE_STORE._nextId = 1;
   } catch(e) {
+    console.error('[_loadEmployees] err:', e);
     EMPLOYEE_STORE.employees = [];
     EMPLOYEE_STORE._nextId = 1;
   }
+}
+
+/** 归一化工作区路径用于 key 比较：小写、统一正斜杠、去首尾空白 */
+function _normalizeWsPath(p) {
+  if (!p) return '';
+  return String(p).trim().toLowerCase().replace(/\\/g, '/').replace(/\/+$/, '');
 }
 
 /** 切换画布工作区：保存当前画布 → 切换 → 加载新画布 */
 function switchCanvasWorkspace(newWsPath) {
   const newWs = newWsPath || '__default__';
   const oldWs = _currentCanvasWorkspace || '__default__';
-  if (newWs === oldWs) return;
+
+  // ★ 2026-04-27(v3) Bug 修复：newWs === oldWs 时不再直接 early-return。
+  //   原实现完全什么都不做 → 画布维持原状。但用户实际场景里：
+  //     1) 某些路径下 DOM 里的 .emp-card 可能被旁路副作用清空（如
+  //        右面板重建、画布 transform 重置、syncTopbar 重绘等），
+  //        而 _currentCanvasWorkspace 未变；
+  //     2) panels.js 的 ws-dropdown 点击不检查 w.path===currentWs，
+  //        用户选中当前激活的工作区也进来 → early-return 导致
+  //        "画布没更新/空态 placeholder 留着/选择没反馈"；
+  //     3) renderEmployeeCards 是幂等的，重复渲染几乎零成本。
+  //   新策略：同工作区跳过保存/加载（避免覆盖未持久化状态），但**仍然
+  //   执行一次 renderEmployeeCards** 保证 DOM 与 store 一致。
+  if (newWs === oldWs) {
+    try { renderEmployeeCards(); } catch(e) { console.error('[switchCanvasWorkspace] same-ws rerender err:', e); }
+    try { if (typeof refreshConnections === 'function') refreshConnections(); } catch(_) {}
+    try { if (typeof syncTopbar === 'function') syncTopbar(); } catch(_) {}
+    return;
+  }
+
   // 1. 保存当前工作区的员工数据
-  _saveEmployees();
+  try { _saveEmployees(); } catch(e) { console.error('[switchCanvasWorkspace] save employees err:', e); }
   // 2. 保存当前画布视觉状态（zoom/pan）
-  if (typeof _saveCanvasState === 'function') _saveCanvasState();
+  try { if (typeof _saveCanvasState === 'function') _saveCanvasState(); } catch(e) { console.error('[switchCanvasWorkspace] save canvas state err:', e); }
   // 3. 切换
   _currentCanvasWorkspace = newWs;
   localStorage.setItem('hermes-canvas-workspace', newWs);
   // 4. 加载新工作区的员工数据
-  _loadEmployees();
+  try { _loadEmployees(); } catch(e) { console.error('[switchCanvasWorkspace] load employees err:', e); }
   EMPLOYEE_STORE.selectedId = null;
-  localStorage.removeItem('hermes-webui-selected-employee');
-  // 5. 关闭右侧面板（旧工作区的对话不再显示）
-  if (typeof closeRightPanel === 'function') closeRightPanel();
-  // 6. 重新渲染
-  renderEmployeeCards();
-  // 6.5 重新加载连线数据并重绘
-  if (typeof _loadConnections === 'function') _loadConnections();
-  if (typeof refreshConnections === 'function') refreshConnections();
-  // 7. 恢复新工作区的画布视觉状态
-  if (typeof _loadCanvasState === 'function') _loadCanvasState();
+  try { localStorage.removeItem('hermes-webui-selected-employee'); } catch(_) {}
+  // 5. 关闭右侧面板（旧工作区的对话不再显示）——try/catch 保护，防止 selectEmployee 异常中断
+  try { if (typeof closeRightPanel === 'function') closeRightPanel(); } catch(e) { console.error('[switchCanvasWorkspace] closeRightPanel err:', e); }
+
+  // ★ 2026-04-27 Bug 修复：重置员工过滤器为"全部"，并同步 DOM
+  //   原问题：切换工作区后，如果用户之前选了"工作中"/"空闲"过滤器，
+  //   _empFilter 仍是旧值，新工作区的员工被过滤掉，画布空着，
+  //   必须手动点"全部"才显示。
+  //   每个工作区的员工状态独立，没理由沿用旧工作区的过滤状态。
+  _empFilter = 'all';
+  _empSearchQuery = '';
+  const _empSearchInput = $('empSearch');
+  if (_empSearchInput) _empSearchInput.value = '';
+  document.querySelectorAll('.emp-filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === 'all');
+  });
+
+  // ★ 2026-04-27 修复渲染顺序：先恢复新工作区的画布 transform（zoom/pan），
+  //   再渲染员工卡片，这样卡片位置以新 transform 为基准，不会因旧 transform
+  //   导致卡片跑到视口外被用户误以为"画布空"。
+  // 6. 恢复新工作区的画布视觉状态（移到前面）
+  try { if (typeof _loadCanvasState === 'function') _loadCanvasState(); } catch(e) { console.error('[switchCanvasWorkspace] load canvas state err:', e); }
+  // 7. 重新渲染
+  try { renderEmployeeCards(); } catch(e) { console.error('[switchCanvasWorkspace] render employees err:', e); }
+  // 7.5 重新加载连线数据并重绘
+  try { if (typeof _loadConnections === 'function') _loadConnections(); } catch(e) { console.error('[switchCanvasWorkspace] load connections err:', e); }
+  try { if (typeof refreshConnections === 'function') refreshConnections(); } catch(e) { console.error('[switchCanvasWorkspace] refresh connections err:', e); }
+
+  // ★ 2026-04-27(v3) 防御性异步兜底重渲染（强化版）：
+  //   兜底条件同时检测"DOM 无 .emp-card"和"空态 placeholder 处于显示态"，
+  //   两个条件任意一个命中都会触发重渲——这样即使 store 非空但
+  //   renderEmployeeCards 因时序/DOM 异常没挂上卡片，仍能通过异步重试修复。
+  //   检测时机扩展为 rAF + 100ms + 400ms + 1000ms 四次，覆盖 session update /
+  //   loadDir / 子组件重绘等更晚的异步副作用。
+  const _retryRenderIfNeeded = () => {
+    try {
+      if (EMPLOYEE_STORE.employees.length === 0) return;
+      const cardCount = document.querySelectorAll('.emp-card').length;
+      const emptyEl = document.getElementById('employeeEmptyState');
+      const emptyVisible = !!(emptyEl
+        && emptyEl.style.display !== 'none'
+        && emptyEl.offsetParent !== null);
+      if (cardCount === 0 || emptyVisible) {
+        console.warn('[switchCanvasWorkspace] post-switch canvas needs rerender (cards=' +
+                     cardCount + ', emptyVisible=' + emptyVisible +
+                     ', store=' + EMPLOYEE_STORE.employees.length + ')');
+        // 强制隐藏空态 placeholder（防止与卡片同时存在）
+        if (emptyEl) emptyEl.style.display = 'none';
+        renderEmployeeCards();
+        if (typeof refreshConnections === 'function') refreshConnections();
+      }
+    } catch(e) { console.error('[switchCanvasWorkspace] retry render err:', e); }
+  };
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(_retryRenderIfNeeded);
+  }
+  setTimeout(_retryRenderIfNeeded, 100);
+  setTimeout(_retryRenderIfNeeded, 400);
+  setTimeout(_retryRenderIfNeeded, 1000);
+
+  // ★ 2026-04-27 Bug 修复：切换画布工作区后立即刷新顶栏工作区按钮显示
+  //   （#wsInfoBtn 显示当前工作区名 + 路径）。panels.js::switchToWorkspace
+  //   会调 syncTopbar，但某些路径（仅调 switchCanvasWorkspace 而不走 session
+  //   update）时按钮不会更新，仍显示 "Untitled" 等旧文本。
+  try { if (typeof syncTopbar === 'function') syncTopbar(); } catch(_) {}
 }
 
 // ── CRUD ──────────────────────────────────────────────────────────────────
@@ -221,7 +341,13 @@ function buildEmployeeSystemPrompt(emp) {
 - **行动优先**：收到任务后，先用工具收集信息（\`list_files\` / \`read_file\` / \`search\`）再判断，**不要**在信息不足时立即反问用户；当你可以通过读文件/搜索得到答案时，**必须**自己去查
 - **合理假设**：对模糊目标，基于工作区现有文档做合理假设并**立即开始执行**；把假设写在回复中让用户纠偏，而非阻塞等待
 - 只有在**工具也拿不到答案且假设会导致重大错误**时，才向用户提问——且每次最多 1–2 个最关键问题
-- 如果问题超出你的专业领域，坦诚说明并给出力所能及的帮助`);
+- 如果问题超出你的专业领域，坦诚说明并给出力所能及的帮助
+
+## ⚠️ 工具调用的铁律（违反即任务失败）
+- **Markdown 代码块不是工具调用**：\`\`\`bash list_files ...\`\`\` / \`\`\`json {...}\`\`\` 这种只是**纯文本**，系统**不会**执行。你必须通过真正的 function call（tool call）机制来触发工具。
+- **禁止伪装执行**：严禁在回复中写"\`list_files G:\\...\`（等待结果...）"、"正在执行 read_file ..."之类的**伪代码块模拟**然后就结束回复。这样的回复会被视为**未完成任务**。
+- **识别自己是否真的调了工具**：如果你的这一轮回复里**没有任何 tool_call 产生**（不是文本，是真正的工具调用事件），那就意味着你**什么都没做**，哪怕你写了多漂亮的"计划"文字。
+- **正确做法**：直接发起工具调用——你的客户端会把你的工具调用发给用户可见的界面，工具结果会作为下一轮输入回传给你，你再根据结果继续行动。`);
 
   // 5. subagent 关系上下文（始终追加，不受 customPrompt 影响）
   let relationCtx = '';
@@ -251,7 +377,9 @@ function buildEmployeeSystemPrompt(emp) {
 **反模式（不要这样做）**：
 - ❌ 不读文件就向用户索要"本次冲刺目标 / 截止时间 / 范围边界 / 风险预案 / 优先级"
 - ❌ 只说"我将使用 write_to_file / delegate_task ..."而不实际调用工具
-- ❌ 一次只委派一个下属就结束（应在同一回合内并行 \`delegate_task\` 多个下属）`;
+- ❌ 一次只委派一个下属就结束（应在同一回合内并行 \`delegate_task\` 多个下属）
+- ❌ **把工具名写进 markdown 代码块假装执行**（例如 \`\`\`bash\\nlist_files G:\\\\...\\n\`\`\` 然后"（等待结果...）"就结束），这只是纯文本，系统不会执行任何工具。必须通过真正的 function call 调工具，工具结果才会作为下一轮输入回传给你
+- ❌ 回复中**没有任何真正的 tool_call** 就交还控制权——这会被视为任务失败`;
     }
   }
 
@@ -820,40 +948,101 @@ function assignSkillToEmployee(empId, skillName) {
 }
 
 // ── 技能沉淀（对话 → 技能）────────────────────────────────────────────────
+/**
+ * ★ 2026-04-27 修复 "对话为空 无法沉淀" bug
+ * 原问题：只从 `/api/session?session_id=emp.sessionId` 拉主 session 的消息。
+ *   但员工在右面板看到的对话 = 主 session + 所有委派子 session 的消息
+ *   （由 `_loadAllDelegatedTaskMessages` 合并到 S.messages）。
+ *   主 session 往往只包含 system prompt，用户通过总群 @ 员工的对话全部
+ *   存在委派子 session 里 → 主 session.messages 过滤后为空 → 误报"对话为空"。
+ *   另外，前端调用 `/api/skill/save`（单数）——后端 routes.py 只注册了
+ *   `/api/skills/save`（复数），实际请求会 404，导致沉淀失败不被感知。
+ *
+ * 修复策略：
+ *   1) 优先使用 S.messages（右面板已合并好的消息源，= 用户所见即所得）
+ *   2) 若 S.messages 不可用（比如当前没打开该员工），再拉主 session 作为兜底
+ *   3) 同时支持 content 为字符串 / Anthropic 数组两种格式，过滤纯工具调用消息
+ *   4) 调用后端正确的 `/api/skills/save` 路径
+ */
+function _extractTextFromMessageContent(content) {
+  if (content == null) return '';
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    // Anthropic 格式：[{type:'text',text:'...'},{type:'tool_use',...},...]
+    return content
+      .filter(p => p && (p.type === 'text' || p.type === 'output_text' || typeof p.text === 'string'))
+      .map(p => p.text || p.content || '')
+      .join('\n');
+  }
+  if (typeof content === 'object' && typeof content.text === 'string') return content.text;
+  return String(content);
+}
+
 async function condenseConversationToSkill() {
   const emp = getEmployee(EMPLOYEE_STORE.selectedId);
-  if (!emp || !emp.sessionId) {
-    showToast('当前没有活跃的对话可以沉淀');
+  if (!emp) {
+    showToast('请先选择一个员工');
     return;
   }
 
-  // 获取对话内容
   try {
-    const data = await api(`/api/session?session_id=${encodeURIComponent(emp.sessionId)}`);
-    const msgs = (data.session.messages || []).filter(m => m.role === 'user' || m.role === 'assistant');
-    if (!msgs.length) { showToast('对话为空，无法沉淀'); return; }
-
-    // 生成技能内容
-    let skillContent = `---\nname: ${emp.name}-skill\ncreated: ${new Date().toISOString()}\nsource: employee-${emp.id}\n---\n\n`;
-    for (const m of msgs) {
-      const role = m.role === 'user' ? '你' : '助手';
-      let content = m.content || '';
-      if (Array.isArray(content)) content = content.filter(p => p.type === 'text').map(p => p.text || '').join('\n');
-      skillContent += `### ${role}\n${String(content).trim()}\n\n`;
+    // ── 1. 收集消息：优先用右面板已合并的 S.messages（含委派子 session） ──
+    let rawMsgs = [];
+    let sourceDesc = '';
+    const sIsSelected = (typeof S !== 'undefined' && S.session && emp.sessionId &&
+                        S.session.session_id === emp.sessionId);
+    if (sIsSelected && Array.isArray(S.messages) && S.messages.length) {
+      rawMsgs = S.messages;
+      sourceDesc = `S.messages(${rawMsgs.length})`;
+    } else if (emp.sessionId) {
+      // 兜底：拉主 session（注意：可能不含委派子任务的消息）
+      const data = await api(`/api/session?session_id=${encodeURIComponent(emp.sessionId)}`);
+      rawMsgs = (data && data.session && data.session.messages) || [];
+      sourceDesc = `主session(${rawMsgs.length})`;
+    } else {
+      showToast('该员工还没有任何对话，无法沉淀');
+      return;
     }
 
-    // 保存为技能
+    // ── 2. 过滤：只保留有实际文本的 user / assistant 消息 ──
+    const textMsgs = [];
+    for (const m of rawMsgs) {
+      if (!m || (m.role !== 'user' && m.role !== 'assistant')) continue;
+      const text = _extractTextFromMessageContent(m.content).trim();
+      if (!text) continue;  // 纯工具调用 / 空消息跳过
+      textMsgs.push({ role: m.role, text });
+    }
+
+    if (!textMsgs.length) {
+      // 诊断信息：帮用户理解为什么"看到对话却被拒"
+      const rolesFound = [...new Set(rawMsgs.map(m => m && m.role).filter(Boolean))].join(',');
+      showToast(`对话为空，无法沉淀（来源=${sourceDesc}，消息角色=${rolesFound || '无'}）`);
+      return;
+    }
+
+    // ── 3. 生成技能 markdown ──
+    const createdIso = new Date().toISOString();
+    let skillContent = `---\nname: ${emp.name}-skill\ncreated: ${createdIso}\nsource: employee-${emp.id}\n---\n\n`;
+    skillContent += `# 从「${emp.name}」对话沉淀的技能\n\n共 ${textMsgs.length} 轮有效对话。\n\n`;
+    for (const m of textMsgs) {
+      const role = m.role === 'user' ? '你' : '助手';
+      skillContent += `### ${role}\n${m.text}\n\n`;
+    }
+
+    // ── 4. 保存为技能（★ 修正 URL：/api/skill/save → /api/skills/save） ──
     const skillName = `${emp.name}-skill-${Date.now().toString(36)}`;
-    await api('/api/skill/save', {
+    const resp = await api('/api/skills/save', {
       method: 'POST',
       body: JSON.stringify({ name: skillName, category: 'condensed', content: skillContent })
     });
+    if (resp && resp.error) throw new Error(resp.error);
 
-    // 自动分配给该员工
+    // ── 5. 自动分配给该员工 ──
     assignSkillToEmployee(emp.id, skillName);
-    showToast(`已沉淀为技能: ${skillName}`);
+    showToast(`已沉淀为技能：${skillName}（${textMsgs.length} 轮对话）`);
   } catch(e) {
-    showToast('沉淀失败: ' + e.message);
+    console.error('[condenseConversationToSkill] 失败:', e);
+    showToast('沉淀失败: ' + (e && e.message ? e.message : String(e)));
   }
 }
 

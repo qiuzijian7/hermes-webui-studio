@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hermes</title>
 <script>(function(){var t=localStorage.getItem('hermes-theme');if(t&&t!=='dark')document.documentElement.dataset.theme=t;})()</script>
-<link rel="stylesheet" href="/static/style.css?v=20260427j">
+<link rel="stylesheet" href="/static/style.css?v=20260427y">
+
 
 
   <!-- Marked.js — full-featured Markdown renderer (GFM tables, task lists, etc.) -->
@@ -206,8 +207,11 @@
       <button class="panel-toggle-btn" id="btnToggleSidebar" onclick="togglePanel('sidebar')" title="折叠/展开左侧栏 (Ctrl+B)" aria-label="Toggle sidebar">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
       </button>
-      <!-- 左侧工作区信息下拉：显示当前工作区名称+路径，点击切换工作区 -->
-      <div class="ws-selector-wrap topbar-ws-info" id="wsInfoWrap" style="flex:1;min-width:0;overflow:hidden">
+      <!-- 左侧工作区信息下拉：显示当前工作区名称+路径，点击切换工作区
+           ★ 2026-04-27 贴左：移除 inline 的 flex:1（它会 override style.css
+             里的 flex:0 1 auto，并让 topbar 的 space-between 把按钮推到中间）。
+             flex / max-width 等布局逻辑由 style.css 的 .topbar-ws-info 规则统一管理。 -->
+      <div class="ws-selector-wrap topbar-ws-info" id="wsInfoWrap">
         <button class="ws-info-btn" id="wsInfoBtn" type="button" onclick="toggleWsInfoSelector()" title="点击切换工作区">
           <div class="ws-info-btn-text">
             <div class="topbar-title" id="topbarTitle">Hermes Studio</div>
@@ -391,9 +395,13 @@
                   <span class="composer-model-chevron" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
                 </button>
                 <select id="modelSelect" class="composer-model-select" title="Conversation model" aria-hidden="true" tabindex="-1">
-                <optgroup label="OpenAI"><option value="openai/gpt-5.4-mini">GPT-5.4 Mini</option><option value="openai/gpt-4o">GPT-4o</option><option value="openai/o3">o3</option><option value="openai/o4-mini">o4-mini</option></optgroup>
-                <optgroup label="Anthropic"><option value="anthropic/claude-sonnet-4.6">Claude Sonnet 4.6</option><option value="anthropic/claude-sonnet-4-5">Claude Sonnet 4.5</option><option value="anthropic/claude-haiku-3-5">Claude Haiku 3.5</option></optgroup>
-                <optgroup label="Other"><option value="google/gemini-2.5-pro">Gemini 2.5 Pro</option><option value="deepseek/deepseek-chat-v3-0324">DeepSeek V3</option><option value="meta-llama/llama-4-scout">Llama 4 Scout</option></optgroup>
+                <!-- ★ 2026-04-27 Bug 修复：原本硬编码了 OpenAI / Anthropic / Other 三个 optgroup，
+                     即使用户没有配置这些 provider，模型选择 UI 也始终显示它们（"GPT-5.4 Mini" 等
+                     这种假/错误的模型名）。同时，ollama 等真实配置的本地 provider 反而不出现。
+                     真正的模型列表由 populateModelDropdown() 通过 /api/models 动态填充，后端已经
+                     正确地只返回检测到 API key / custom_providers / CLI backends 的 provider。
+                     这里留一个占位 option，表明加载中；API 返回后会被整个替换。 -->
+                <option value="" disabled selected>Loading models…</option>
                 </select>
               </div>
             </div>
@@ -488,6 +496,11 @@
         <span>Agents</span>
         <span class="output-tab-badge" id="outAgentsBadge" style="display:none">0</span>
       </button>
+      <!-- ★ 详情 tab：点击技能时显示技能信息；默认隐藏，仅在有详情内容时显示 -->
+      <button class="output-tab" data-out-tab="detail" id="outputTabDetail" onclick="switchOutputTab('detail')" title="详情" style="display:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <span>详情</span>
+      </button>
     </div>
     <!-- 全部文件 tab：文件树 + 内嵌文件预览 -->
     <div class="output-tab-panel active" id="outputPanelFiles">
@@ -555,12 +568,62 @@
         <input class="output-browser-url" id="outBrowserUrl" type="url" placeholder="https://... 或 本地地址" onkeydown="if(event.key==='Enter')browserNavigate()">
         <button class="panel-icon-btn" title="前往" onclick="browserNavigate()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
         <button class="panel-icon-btn" title="在新窗口打开" onclick="browserOpenExternal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+        <!-- ★ P0/P1: AI 自动化模式切换 -->
+        <span class="output-browser-modetag" id="browserAiModeTag" style="display:none">
+          <span class="live-dot"></span><span id="browserAiModeText">AI 自动化中</span>
+        </span>
+        <button class="panel-icon-btn" id="browserPanelToggleSteps" title="显示/隐藏步骤面板" onclick="toggleBrowserStepsPanel()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </button>
       </div>
-      <iframe id="outBrowserFrame" class="output-browser-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" src="about:blank"></iframe>
-      <div class="output-browser-empty" id="outBrowserEmpty">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.25"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        <p>输入网址访问</p>
-        <p style="font-size:11px;opacity:.6">例如：http://localhost:3000</p>
+      <!-- 上区：浏览器 iframe + AI 截图镜像覆盖层 -->
+      <div class="output-browser-main" id="outBrowserMain">
+        <iframe id="outBrowserFrame" class="output-browser-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" src="about:blank"></iframe>
+        <!-- AI 操作时用截图 img 覆盖 iframe -->
+        <div class="ai-browser-overlay" id="aiBrowserOverlay" style="display:none">
+          <img class="ai-browser-shot" id="aiBrowserShot" alt="AI 操作截图" />
+          <div class="ai-browser-highlight" id="aiBrowserHighlight" style="display:none"></div>
+          <div class="ai-browser-badge">
+            <span class="live-dot"></span>
+            <span id="aiBrowserCurrentAction">AI 正在操作浏览器</span>
+          </div>
+        </div>
+        <div class="output-browser-empty" id="outBrowserEmpty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.25"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <p>输入网址访问，或由 AI 自动操作</p>
+          <p style="font-size:11px;opacity:.6">例如：http://localhost:3000</p>
+        </div>
+      </div>
+      <!-- 下区：AI 步骤流 + "下一步"按钮 -->
+      <div class="ai-browser-steps" id="aiBrowserSteps">
+        <div class="ai-browser-steps-header">
+          <span class="ai-browser-steps-title">AI 操作步骤</span>
+          <span class="ai-browser-steps-count" id="aiBrowserStepsCount">0</span>
+          <button class="ai-browser-steps-clear" onclick="clearBrowserSteps()" title="清空">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/></svg>
+          </button>
+        </div>
+        <div class="ai-browser-steps-body" id="aiBrowserStepsBody">
+          <div class="ai-browser-steps-empty">
+            暂无操作步骤。当 AI 使用浏览器工具时，将在此展示实时步骤。
+          </div>
+        </div>
+        <!-- ★ P3: "下一步"暂停卡片（内嵌在步骤面板底部） -->
+        <div class="ai-browser-continue-card" id="aiBrowserContinueCard" style="display:none">
+          <div class="ai-browser-continue-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            <span>需要你的协助</span>
+            <span class="ai-browser-continue-countdown" id="aiBrowserContinueCountdown"></span>
+          </div>
+          <div class="ai-browser-continue-reason" id="aiBrowserContinueReason"></div>
+          <div class="ai-browser-continue-hint">
+            请在上方浏览器中完成操作（登录 / 验证码 / 手动选择），完成后点击「下一步」。
+          </div>
+          <div class="ai-browser-continue-btns">
+            <button class="ai-browser-continue-next" onclick="respondBrowserContinue('continue')">下一步 ▶</button>
+            <button class="ai-browser-continue-cancel" onclick="respondBrowserContinue('cancel')">取消任务</button>
+          </div>
+        </div>
       </div>
     </div>
     <!-- 日志 tab（从中栏迁移） -->
@@ -597,6 +660,26 @@
           <div class="agents-empty-title">暂无运行中的异步子 agent</div>
           <div class="agents-empty-hint">当员工 agent 调用 spawn_agent 派生后台子 agent 时，这里会显示其状态、Steer、取消按钮。</div>
         </div>
+      </div>
+    </div>
+    <!-- 详情 tab：展示技能/其他实体详情（2026-04-27 新增，替代中栏 rpSkillView） -->
+    <div class="output-tab-panel" id="outputPanelDetail" style="display:none">
+      <div class="rp-header">
+        <div class="rp-employee-info">
+          <svg id="outDetailIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <div class="rp-employee-meta">
+            <span class="rp-employee-name" id="outDetailTitle">详情</span>
+            <span class="rp-employee-role" id="outDetailSubtitle"></span>
+          </div>
+        </div>
+        <div class="rp-header-actions" id="outDetailActions">
+          <!-- 动作按钮由 JS 动态注入（例如技能详情会插入"分配给员工"） -->
+          <button class="panel-icon-btn close-preview" title="关闭详情" onclick="closeDetailPanel()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+      </div>
+      <div class="rp-skill-content" id="outDetailContent">
+        <div class="rp-skill-meta" id="outDetailMeta"></div>
+        <div class="rp-skill-body" id="outDetailBody"></div>
       </div>
     </div>
   </aside>
@@ -892,29 +975,31 @@
 <div class="toast" id="toast"></div>
 <script src="/static/i18n.js?v=20260417b"></script>
 <script src="/static/icons.js?v=20260414"></script>
-<script src="/static/ui.js?v=20260424h"></script>
+<script src="/static/ui.js?v=20260427c"></script>
 <script src="/static/workspace.js?v=20260417f"></script>
 <script src="/static/sessions.js?v=20260418d"></script>
 <script src="/static/commands.js?v=20260414"></script>
-<script src="/static/messages.js?v=20260427d"></script>
+<script src="/static/messages.js?v=20260427g"></script>
+<script src="/static/delegation-handler.js?v=20260427a"></script>
+<script src="/static/browser-panel.js?v=20260427a"></script>
 <script src="/static/panels.js?v=20260424w"></script>
-<script src="/static/employee.js?v=20260427n"></script>
+<script src="/static/employee.js?v=20260427aa"></script>
 <script src="/static/canvas-connections.js?v=20260417u"></script>
 <script src="/static/agent-presets.js?v=20260420b"></script>
-<script src="/static/workspace-tabs.js?v=20260427n"></script>
-<script src="/static/logs-panel.js?v=20260424g"></script>
+<script src="/static/workspace-tabs.js?v=20260427r"></script>
+<script src="/static/logs-panel.js?v=20260427i"></script>
 
 
 
-<script src="/static/right-panel.js?v=20260427m"></script>
+<script src="/static/right-panel.js?v=20260427s"></script>
 <!-- CodeMirror 6 editor module (async, non-blocking) -->
 <script type="module" src="/static/cm-editor.js?v=20260416d"></script>
 <script src="/static/onboarding.js?v=20260414"></script>
 <script src="/static/delegation-vm.js?v=20260421c"></script>
-<script src="/static/group-chat.js?v=20260427g"></script>
+<script src="/static/group-chat.js?v=20260427s"></script>
 <script src="/static/peer-delegate.js?v=20260427a"></script>
-<script src="/static/dock-manager.js?v=20260427a"></script>
-<script src="/static/layout.js?v=20260427d"></script>
+<script src="/static/dock-manager.js?v=20260427o"></script>
+<script src="/static/layout.js?v=20260427q"></script>
 <script src="/static/agents-panel.js?v=20260427b"></script>
 <script src="/static/workflow-picker.js?v=20260427a"></script>
 <script src="/static/boot.js?v=20260427a"></script>

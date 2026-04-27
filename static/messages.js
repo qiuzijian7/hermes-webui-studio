@@ -150,8 +150,11 @@ async function send(){
   // 员工级配置：从当前选中员工获取独立 system prompt 和 model
   let _empSysPrompt='';
   let _empModel='';
+  // ★ 2026-04-27 Bug 修复：_emp 之前是块作用域 const，到 line 245 已失效导致
+  //   "_emp is not defined"。提升到 send() 函数作用域，整个函数都能安全引用。
+  let _emp=null;
   if(typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof getEmployee==='function'&&typeof buildEmployeeSystemPrompt==='function'){
-    const _emp=getEmployee(EMPLOYEE_STORE.selectedId);
+    _emp=getEmployee(EMPLOYEE_STORE.selectedId);
     if(_emp){
       _empSysPrompt=buildEmployeeSystemPrompt(_emp);
       _empModel=_emp.model||'';
@@ -696,6 +699,49 @@ async function send(){
       sendBrowserNotification('Question',d.question||'Agent is asking a question');
     });
 
+    // ★ P0/P1/P2: 浏览器操作步骤流 + 截图镜像
+    source.addEventListener('browser_step',e=>{
+      try {
+        const d = JSON.parse(e.data);
+        if (typeof handleBrowserStep === 'function') handleBrowserStep(d);
+      } catch(err) { console.warn('browser_step parse err:', err); }
+    });
+
+    // ★ P3: "下一步"暂停机制
+    source.addEventListener('user_continue_required',e=>{
+      try {
+        const d = JSON.parse(e.data);
+        if (typeof showContinueCard === 'function') showContinueCard(d);
+      } catch(err) { console.warn('user_continue_required parse err:', err); }
+    });
+
+    // ★ 2026-04-27: delegate_task 路径的 child agent 事件
+    //   让员工聊天框能实时看到"制作人派的任务 + child 的思考过程 + 工具调用 + 最终 summary"
+    source.addEventListener('delegation_started',e=>{
+      try { if (typeof handleDelegationStarted==='function') handleDelegationStarted(JSON.parse(e.data)); }
+      catch(err){ console.warn('delegation_started err:', err); }
+    });
+    source.addEventListener('delegation_token',e=>{
+      try { if (typeof handleDelegationToken==='function') handleDelegationToken(JSON.parse(e.data)); }
+      catch(err){ console.warn('delegation_token err:', err); }
+    });
+    source.addEventListener('delegation_reasoning',e=>{
+      try { if (typeof handleDelegationReasoning==='function') handleDelegationReasoning(JSON.parse(e.data)); }
+      catch(err){ console.warn('delegation_reasoning err:', err); }
+    });
+    source.addEventListener('delegation_tool',e=>{
+      try { if (typeof handleDelegationTool==='function') handleDelegationTool(JSON.parse(e.data)); }
+      catch(err){ console.warn('delegation_tool err:', err); }
+    });
+    source.addEventListener('delegation_tool_done',e=>{
+      try { if (typeof handleDelegationToolDone==='function') handleDelegationToolDone(JSON.parse(e.data)); }
+      catch(err){ console.warn('delegation_tool_done err:', err); }
+    });
+    source.addEventListener('delegation_completed',e=>{
+      try { if (typeof handleDelegationCompleted==='function') handleDelegationCompleted(JSON.parse(e.data)); }
+      catch(err){ console.warn('delegation_completed err:', err); }
+    });
+
     source.addEventListener('done',e=>{
       source.close(); if(source._watchdog){ clearInterval(source._watchdog); source._watchdog=null; }
       // ★ reasoning 与 token 已分离，无需再向 assistantText 追加 </think>
@@ -874,14 +920,49 @@ async function send(){
     source.addEventListener('employee_session_bound',e=>{
       // delegate_task completed — bind child_session_id to the
       // corresponding employee card so clicking it opens the right session.
+      //
+      // ★ 2026-04-27 修复：原实现在 batch 委派 4 个任务时，4 次事件会连续把
+      //   emp.sessionId 覆盖 4 遍，最后只保留最后一个 child_session_id，
+      //   之前员工"主 session"（openEmployeeChat 时创建）被彻底丢失。
+      //   现在改为：
+      //     1) 仅在员工完全没有 sessionId 时，才把 child_session_id 设为主 sessionId
+      //        （向后兼容老行为——首次打开员工就看到最近一个委派的 session）
+      //     2) 所有 child_session_id 都通过 DelegationVM 登记为 Task，
+      //        这样 _loadAllDelegatedTaskMessages 能加载每个任务的完整历史消息
       try{
         const d=JSON.parse(e.data);
         if(!d.name||!d.child_session_id) return;
         if(typeof EMPLOYEE_STORE==='undefined') return;
         const emp=EMPLOYEE_STORE.employees.find(x=>x.name===d.name);
         if(emp){
-          emp.sessionId=d.child_session_id;
-          if(typeof _saveEmployees==='function') _saveEmployees();
+          // 仅在员工还没 sessionId 时绑定主 session（向后兼容）
+          if(!emp.sessionId){
+            emp.sessionId=d.child_session_id;
+            if(typeof _saveEmployees==='function') _saveEmployees();
+          }
+          // ★ 关键：把 child_session_id 登记到 DelegationVM（若尚未登记）
+          //   这样无论是打开员工聊天时的历史加载，还是刷新后恢复，都能拿到
+          if(typeof DelegationVM!=='undefined'){
+            const taskId=d.child_session_id;
+            let t=DelegationVM.getTask(taskId);
+            if(!t && DelegationVM.createTask){
+              t=DelegationVM.createTask({
+                taskId,
+                emp,
+                taskContent:'（制作人委派任务）',
+                workspace:(S.session && S.session.workspace) || '',
+                requesterName:'制作人',
+              });
+            }
+            if(t){
+              t.sessionId=d.child_session_id;
+              // 若 delegation_completed 已把状态设为 done/error，保持之；否则 done
+              if(!t.status || t.status==='pending' || t.status==='running'){
+                t.status='done';
+              }
+              if(DelegationVM._persistTask) DelegationVM._persistTask(t);
+            }
+          }
         }
       }catch(err){
         console.warn('[employee_session_bound] Failed:',err);

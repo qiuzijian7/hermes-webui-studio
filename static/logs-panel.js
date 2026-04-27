@@ -20,7 +20,22 @@ const _SEEN_LOG_IDS_MAX = 3000;
 // Token merging: instead of one row per token, we group consecutive tokens
 // from the same session into a single "token group" entry.
 let _activeTokenGroup = null;  // { session_id, employee_name, text, ts, _log_id }
-const _TOKEN_GROUP_MAX_LEN = 500;  // max chars before forcing a new group
+//
+// ★ 2026-04-27 Bug 修复：原值 500 会把"一次完整的模型回复"从第 500 个字起
+//   被强制切成第二条日志；用户在日志面板看到一个 response 被拆成 2~N 段，
+//   视觉上完全不连贯（见用户反馈的截图：同一次 SOP 分派被切成 15:55 + 15:56
+//   两条日志）。
+//
+//   正确的切分边界在别处：done / tool / approval / clarify / cancel /
+//   employee_created / team_created / apperror / compressed —— 这些事件
+//   都已经在其 SSE handler 里主动调用 _flushTokenGroup()，把"一次模型
+//   token 流"自然终结。也就是说：只要没有任何"终结事件"进来，所有 token
+//   都应该合并到同一个 group。
+//
+//   把上限从 500 提到 100k：保留极端兜底（防止极个别 runaway 的 token
+//   流把 DOM 里一条日志撑到百万字级导致滚动卡顿），但不再影响任何正常
+//   回复。100k 相当于一次性吐出 ~30 万字中文文本才会触发切分。
+const _TOKEN_GROUP_MAX_LEN = 100000;  // safety cap only; real boundary is done/tool/etc events
 
 // Track recently flushed token groups to prevent duplicate group rendering
 const _flushedTokenGroups = new Map();  // key -> ts
@@ -30,6 +45,33 @@ const _FLUSHED_GROUP_TTL_MS = 5000;  // 5s dedup window for identical content
 // Track sessions that have finished (done/cancel/error) so we ignore late stray tokens/tools
 const _completedSessions = new Set();
 const _COMPLETED_SESSIONS_MAX = 500;
+
+// ── Panel visibility detection ──────────────────────────────────────────────
+// ★ 2026-04-27 Bug 修复：日志面板已从中栏迁移到右栏输出区（outputPanelLogs）。
+//   原代码仍在检查旧占位 `#logsContent`，但它在 index.html 里被标为 display:none
+//   的兼容占位，永远不会被加上 .active class。结果：
+//     - isActive 永远 false
+//     - 所有 SSE 事件（token/tool/done/...）只 push 到 _logEntries，DOM 不更新
+//     - 用户点"全部"按钮 → _reRenderLogs 不检查 isActive，直接重建 DOM → 才看到历史
+//   修复：把激活判定统一放到 _isLogsPanelActive()，同时兼容两套 DOM：
+//     - 新版：右栏输出区 #outputPanelLogs.active
+//     - 旧版：中栏 #logsContent.active（某些老布局可能仍在用）
+//   只要其中一个处于激活态且 #logsList 容器存在，就视为可渲染。
+function _isLogsPanelActive() {
+  const container = document.getElementById('logsList');
+  if (!container) return false;
+  // 新版容器（右栏输出区）
+  const outputPanel = document.getElementById('outputPanelLogs');
+  if (outputPanel && outputPanel.classList.contains('active')) return true;
+  // 旧版容器（中栏占位）
+  const legacy = document.getElementById('logsContent');
+  if (legacy && legacy.classList.contains('active')) return true;
+  // ★ 最终兜底：直接看 #logsList 本身是否实际可见（offsetParent != null）
+  //   这覆盖了任何未来可能再次迁移的布局：只要容器在 DOM 树里且没被
+  //   祖先 display:none 隐藏，就认为可渲染。
+  //   offsetParent 为 null 意味着元素或某个祖先 display:none。
+  return container.offsetParent !== null;
+}
 
 // ── SSE Connection ─────────────────────────────────────────────────────────
 
@@ -140,6 +182,13 @@ function _handleTokenEvent(data) {
     _domEl: null,
     _log_ids: data._log_id ? [data._log_id] : [],
   };
+
+  // ★ 2026-04-27 Bug 修复：新建 token group 后立即触发一次 DOM 创建。
+  //   原代码只在"追加到既存 group"的路径调 _updateActiveTokenGroupDOM，
+  //   新开一段 token 流时的第一个 token 不会进入 DOM，必须等第 2+ 个 token
+  //   才出现——用户感受就是"前几 token 看不见 / 延迟显示"。
+  //   现在新建 group 后也主动调一次，第 1 个 token 就会立刻可见。
+  _updateActiveTokenGroupDOM();
 }
 
 function _flushTokenGroup() {
@@ -215,9 +264,7 @@ function _flushTokenGroup() {
   }
 
   // Only render if the log panel is active/visible
-  const logsContent = document.getElementById('logsContent');
-  const isActive = logsContent && logsContent.classList.contains('active');
-  if (!isActive) {
+  if (!_isLogsPanelActive()) {
     // 若已经挂了 DOM 但面板不可见，保留 DOM 引用以便后续渲染
     return;
   }
@@ -259,9 +306,7 @@ function _updateActiveTokenGroupDOM() {
 
   if (!_activeTokenGroup._domEl) {
     // Need to create DOM element
-    const logsContent = document.getElementById('logsContent');
-    const isActive = logsContent && logsContent.classList.contains('active');
-    if (!isActive) return;
+    if (!_isLogsPanelActive()) return;
 
     const container = document.getElementById('logsList');
     if (!container) return;
@@ -324,9 +369,7 @@ function _appendSessionSeparator(data) {
 
   _logEntries.push(entry);
 
-  const logsContent = document.getElementById('logsContent');
-  const isActive = logsContent && logsContent.classList.contains('active');
-  if (!isActive) return;
+  if (!_isLogsPanelActive()) return;
 
   const container = document.getElementById('logsList');
   if (!container) return;
@@ -452,9 +495,7 @@ function _appendLogEntry(data, eventType) {
   }
 
   // Only render if the log panel is active/visible
-  const logsContent = document.getElementById('logsContent');
-  const isActive = logsContent && logsContent.classList.contains('active');
-  if (!isActive) return;
+  if (!_isLogsPanelActive()) return;
 
   const container = document.getElementById('logsList');
   if (!container) return;
