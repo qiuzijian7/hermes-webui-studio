@@ -110,6 +110,9 @@ from api.workspace import (
 )
 from api.upload import handle_upload
 from api.streaming import _sse, _run_agent_streaming, cancel_stream
+from api.config import LOG_SUBSCRIBERS, LOG_SUBSCRIBERS_LOCK, LOG_MAX_SUBSCRIBERS, _LOG_HISTORY, _LOG_HISTORY_LOCK
+
+import hashlib
 from api.onboarding import (
     apply_onboarding_setup,
     get_onboarding_status,
@@ -139,6 +142,36 @@ except ImportError:
     _pending = {}
     _lock = threading.Lock()
     _permanent_approved = set()
+
+
+# ── Global log broadcast helper ──────────────────────────────────────────────
+# Used for non-streaming events (user input, delegation, etc.) that need to
+# appear in the unified log panel alongside token/tool/done events.
+def _broadcast_log_event(event: str, data: dict, session_id: str = "", employee_name: str = ""):
+    """Broadcast a log event to all connected log panel subscribers and store in history."""
+    try:
+        log_entry = dict(data)
+        log_entry['event'] = event
+        log_entry['session_id'] = session_id
+        log_entry['employee_name'] = employee_name or ''
+        log_entry['ts'] = time.time()
+        # Generate unique ID for frontend deduplication
+        _id_content = f"{event}:{session_id}:{log_entry.get('text','')}:{log_entry.get('message','')}:{log_entry.get('name','')}"
+        log_entry['_log_id'] = hashlib.md5(_id_content.encode()).hexdigest()[:16]
+        with _LOG_HISTORY_LOCK:
+            # Deduplication: if the last entry has the same _log_id, replace it instead of appending
+            if _LOG_HISTORY and _LOG_HISTORY[-1].get('_log_id') == log_entry['_log_id']:
+                _LOG_HISTORY[-1] = log_entry
+            else:
+                _LOG_HISTORY.append(log_entry)
+        with LOG_SUBSCRIBERS_LOCK:
+            for sub_q in list(LOG_SUBSCRIBERS):
+                try:
+                    sub_q.put_nowait(log_entry)
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 
 # ── Login page locale strings ─────────────────────────────────────────────────
@@ -274,6 +307,63 @@ def handle_get(handler, parsed) -> bool:
         settings.pop("password_hash", None)
         return j(handler, settings)
 
+    # ── Local CLI backends (OpenClaw-style): wrap local AI CLIs as providers ──
+    if parsed.path == "/api/cli/backends":
+        from api.config import get_config
+        cfg = get_config()
+        backends = cfg.get("cli_backends") or {}
+        if not isinstance(backends, dict):
+            backends = {}
+        # Return as ordered list for stable UI rendering
+        items = []
+        for name, data in backends.items():
+            if not isinstance(data, dict):
+                continue
+            items.append({"name": str(name), **data})
+        return j(handler, {"backends": items})
+
+
+    if parsed.path == "/api/providers":
+        from api.config import get_config, reload_config
+        reload_config()
+        cfg = get_config()
+        providers = []
+        # Read from both legacy custom_providers and newer providers dict
+        cp = cfg.get("custom_providers")
+        if isinstance(cp, list):
+            for entry in cp:
+                if isinstance(entry, dict):
+                    providers.append({
+                        "name": entry.get("name", ""),
+                        "base_url": entry.get("base_url", ""),
+                        "api_key": entry.get("api_key", ""),
+                        "api_mode": entry.get("api_mode", ""),
+                        "model": entry.get("model", ""),
+                    })
+        prov = cfg.get("providers")
+        if isinstance(prov, dict):
+            for key, entry in prov.items():
+                if isinstance(entry, dict):
+                    providers.append({
+                        "name": entry.get("name", key),
+                        "base_url": entry.get("base_url", ""),
+                        "api_key": entry.get("api_key", ""),
+                        "api_mode": entry.get("api_mode", ""),
+                        "model": entry.get("model", ""),
+                    })
+        # Deduplicate by name
+        seen = set()
+        deduped = []
+        for p in providers:
+            name = p.get("name", "")
+            if name and name not in seen:
+                seen.add(name)
+                deduped.append(p)
+        # Built-in providers supported by Hermes
+        from api.config import _PROVIDER_DISPLAY
+        built_in = [{"id": k, "name": v} for k, v in _PROVIDER_DISPLAY.items()]
+        return j(handler, {"providers": deduped, "built_in_providers": built_in})
+
     if parsed.path == "/api/onboarding/status":
         return j(handler, get_onboarding_status())
 
@@ -350,6 +440,20 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/group-chat":
         return _handle_group_chat_get(handler, parsed)
 
+    # ── Workflow templates (多 agent 协同) ──
+    if parsed.path == "/api/workflows":
+        from api.workflow import handle_list as _wf_list
+        return _wf_list(handler, parsed)
+
+    if parsed.path == "/api/workflow":
+        from api.workflow import handle_detail as _wf_detail
+        return _wf_detail(handler, parsed)
+
+    # ── Async subagent status (由 spawn_agent 产生的子 agent 控制面板) ──
+    if parsed.path == "/api/agents":
+        from api.agents import handle_list as _ag_list
+        return _ag_list(handler, parsed)
+
     # ── Delegation: child sessions for a given parent ──
     if parsed.path == "/api/delegation/children":
         return _handle_delegation_children(handler, parsed)
@@ -408,6 +512,37 @@ def handle_get(handler, parsed) -> bool:
         info = git_info_for_workspace(Path(s.workspace))
         return j(handler, {"git": info})
 
+    if parsed.path == "/api/git-changes":
+        qs = parse_qs(parsed.query)
+        sid = qs.get("session_id", [""])[0]
+        if not sid:
+            return bad(handler, "session_id required")
+        try:
+            s = get_session(sid)
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        from api.workspace import git_changes_for_workspace
+
+        data = git_changes_for_workspace(Path(s.workspace))
+        return j(handler, data or {"is_git": False})
+
+    if parsed.path == "/api/git-diff":
+        qs = parse_qs(parsed.query)
+        sid = qs.get("session_id", [""])[0]
+        path = qs.get("path", [""])[0]
+        if not sid:
+            return bad(handler, "session_id required")
+        if not path:
+            return bad(handler, "path required")
+        try:
+            s = get_session(sid)
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        from api.workspace import git_diff_for_path
+
+        diff = git_diff_for_path(Path(s.workspace), path)
+        return j(handler, {"diff": diff, "path": path})
+
     if parsed.path == "/api/updates/check":
         settings = load_settings()
         if not settings.get("check_for_updates", True):
@@ -445,7 +580,15 @@ def handle_get(handler, parsed) -> bool:
 
     if parsed.path == "/api/chat/stream/status":
         stream_id = parse_qs(parsed.query).get("stream_id", [""])[0]
-        return j(handler, {"active": stream_id in STREAMS, "stream_id": stream_id})
+        from api.config import STREAM_HISTORY
+        # active=True 意味着：流仍在跑 (STREAMS 里) 或刚结束且历史仍可回放 (STREAM_HISTORY 里)
+        is_running = stream_id in STREAMS
+        has_history = stream_id in STREAM_HISTORY
+        return j(handler, {
+            "active": is_running,
+            "replayable": has_history and not is_running,
+            "stream_id": stream_id,
+        })
 
     if parsed.path == "/api/chat/cancel":
         stream_id = parse_qs(parsed.query).get("stream_id", [""])[0]
@@ -456,6 +599,9 @@ def handle_get(handler, parsed) -> bool:
 
     if parsed.path == "/api/chat/stream":
         return _handle_sse_stream(handler, parsed)
+
+    if parsed.path == "/api/logs/stream":
+        return _handle_logs_sse_stream(handler)
 
     if parsed.path == '/api/sessions/gateway/stream':
         return _handle_gateway_sse_stream(handler)
@@ -731,8 +877,20 @@ def handle_post(handler, parsed) -> bool:
     if parsed.path == "/api/group-chat/send":
         return _handle_group_chat_send(handler, body)
 
+    if parsed.path == "/api/group-chat/message":
+        return _handle_group_chat_message(handler, body)
+
     if parsed.path == "/api/group-chat/result":
         return _handle_group_chat_result(handler, body)
+
+    # ── Async subagent control (POST) ──
+    if parsed.path == "/api/agents/steer":
+        from api.agents import handle_steer as _ag_steer
+        return _ag_steer(handler, body)
+
+    if parsed.path == "/api/agents/cancel":
+        from api.agents import handle_cancel as _ag_cancel
+        return _ag_cancel(handler, body)
 
     # ── Cron API (POST) ──
     if parsed.path == "/api/crons/create":
@@ -870,6 +1028,370 @@ def handle_post(handler, parsed) -> bool:
         saved = save_settings(body)
         saved.pop("password_hash", None)  # never expose hash to client
         return j(handler, saved)
+
+    # ── Local CLI backends (POST save/delete) ──
+    if parsed.path == "/api/cli/backends":
+        from api.config import get_config, reload_config, _get_config_path
+        action = str(body.get("action", "save")).strip().lower()
+        name = str(body.get("name", "")).strip()
+        if not name:
+            return bad(handler, "backend name is required")
+        # Only allow simple identifier-like names
+        import re as _re
+        if not _re.match(r"^[A-Za-z0-9_\-]{1,48}$", name):
+            return bad(handler, "invalid backend name (allowed: a-z A-Z 0-9 _ -, max 48 chars)")
+        reload_config()
+        cfg = get_config()
+        backends = cfg.get("cli_backends") or {}
+        if not isinstance(backends, dict):
+            backends = {}
+        if action == "delete":
+            backends.pop(name, None)
+        else:
+            # Normalize incoming backend definition
+            def _coerce_list(v):
+                if v is None:
+                    return []
+                if isinstance(v, list):
+                    return [str(x) for x in v if x is not None]
+                if isinstance(v, str):
+                    s = v.strip()
+                    if not s:
+                        return []
+                    # Split whitespace-separated tokens unless quoted (basic heuristic)
+                    try:
+                        import shlex as _shlex
+                        return _shlex.split(s)
+                    except Exception:
+                        return s.split()
+                return []
+
+            def _coerce_map(v):
+                """支持三种输入：
+                - dict: 直接使用
+                - str: 每行解析 "alias = real" / "alias: real" / "alias" (简写)
+                - 其他: 返回空 dict
+                """
+                if isinstance(v, dict):
+                    return {str(k): str(val) if val is not None else str(k)
+                            for k, val in v.items() if k is not None and str(k).strip()}
+                if isinstance(v, str):
+                    out = {}
+                    import re as _re
+                    for line in v.splitlines():
+                        t = line.strip()
+                        if not t or t.startswith('#'):
+                            continue
+                        eq_idx = t.find('=')
+                        if eq_idx > 0:
+                            k = t[:eq_idx].strip()
+                            val = t[eq_idx+1:].strip()
+                            if k:
+                                out[k] = val or k
+                            continue
+                        # 冒号分隔（排除 URL 等：要求冒号后紧跟空格或值不含斜杠前缀）
+                        m = _re.match(r'^([^\s:]+)\s*:\s+(.+)$', t)
+                        if m:
+                            out[m.group(1).strip()] = m.group(2).strip()
+                            continue
+                        # 简写：整行视为 alias，映射到自身
+                        tok = t.split()[0]
+                        if tok:
+                            out[tok] = tok
+                    return out
+                return {}
+
+
+            entry = {
+                "command": str(body.get("command", "")).strip(),
+                "args": _coerce_list(body.get("args")),
+                "input": str(body.get("input", "stdin")).strip() or "stdin",
+                "output": str(body.get("output", "text")).strip() or "text",
+                "modelArg": str(body.get("modelArg", "")).strip(),
+                "modelAliases": _coerce_map(body.get("modelAliases")),
+                "listModelsArg": str(body.get("listModelsArg", "")).strip(),
+                "systemPromptArg": str(body.get("systemPromptArg", "")).strip(),
+                "systemPromptFileArg": str(body.get("systemPromptFileArg", "")).strip(),
+                "systemPromptMode": str(body.get("systemPromptMode", "")).strip().lower(),
+                "userPromptArg": str(body.get("userPromptArg", "")).strip(),
+                "sessionMode": str(body.get("sessionMode", "none")).strip() or "none",
+                "sessionArg": str(body.get("sessionArg", "")).strip(),
+                "resumeArgs": _coerce_list(body.get("resumeArgs")),
+                "resumeOutput": str(body.get("resumeOutput", "")).strip(),
+                "imageArg": str(body.get("imageArg", "")).strip(),
+                "systemPromptWhen": str(body.get("systemPromptWhen", "")).strip(),
+                "workdir": str(body.get("workdir", "")).strip(),
+                "env": _coerce_map(body.get("env")),
+                "enabled": bool(body.get("enabled", True)),
+                "useShellWrapper": bool(body.get("useShellWrapper", False)),
+                "description": str(body.get("description", "")).strip(),
+            }
+            if not entry["command"]:
+                return bad(handler, "command is required")
+            if entry["sessionMode"] not in ("none", "always", "existing"):
+                entry["sessionMode"] = "none"
+            if entry["systemPromptMode"] not in ("", "arg", "file", "prepend", "skip"):
+                entry["systemPromptMode"] = ""
+            backends[name] = entry
+        cfg["cli_backends"] = backends
+        try:
+            import yaml as _yaml
+            config_path = _get_config_path()
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(config_path, "w", encoding="utf-8") as f:
+                _yaml.safe_dump(cfg, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+        except Exception as exc:
+            return bad(handler, f"Failed to save CLI backend config: {exc}", 500)
+        reload_config()
+        # Return updated list
+        items = []
+        for n, data in backends.items():
+            if isinstance(data, dict):
+                items.append({"name": str(n), **data})
+        return j(handler, {"ok": True, "action": action, "backends": items})
+
+
+    # ── CLI test: verify executable is callable ──
+    if parsed.path == "/api/cli/test":
+        cmd = str(body.get("command", "")).strip()
+        if not cmd:
+            return bad(handler, "command is required")
+        workdir = str(body.get("workdir", "")).strip() or None
+        # Parse args from body (list or string)
+        raw_args = body.get("args")
+        if isinstance(raw_args, list):
+            args_list = [str(x) for x in raw_args if x is not None]
+        elif isinstance(raw_args, str) and raw_args.strip():
+            try:
+                import shlex as _shlex
+                args_list = _shlex.split(raw_args)
+            except Exception:
+                args_list = raw_args.split()
+        else:
+            args_list = ["--version"]  # default probe
+        import shutil as _shutil
+        import subprocess as _subprocess
+        # Resolve command existence (allow absolute path too)
+        resolved = _shutil.which(cmd) or (cmd if os.path.isabs(cmd) and os.path.exists(cmd) else None)
+        if not resolved:
+            return j(handler, {"ok": False, "error": f"command not found in PATH: {cmd}"}, status=200)
+        try:
+            proc = _subprocess.run(
+                [resolved] + args_list,
+                cwd=workdir or None,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                timeout=8,
+            )
+            stdout = (proc.stdout or "").strip()
+            stderr = (proc.stderr or "").strip()
+            return j(handler, {
+                "ok": proc.returncode == 0,
+                "resolved": resolved,
+                "return_code": proc.returncode,
+                "stdout": stdout[:1500],
+                "stderr": stderr[:1500],
+            })
+        except _subprocess.TimeoutExpired:
+            return j(handler, {"ok": False, "error": "CLI test timed out after 8s", "resolved": resolved})
+        except Exception as exc:
+            return j(handler, {"ok": False, "error": str(exc), "resolved": resolved})
+
+    # ── CLI probe-models: run command + listModelsArg and parse output ──
+    if parsed.path == "/api/cli/probe-models":
+        cmd = str(body.get("command", "")).strip()
+        list_arg = str(body.get("listModelsArg", "")).strip()
+        if not cmd:
+            return bad(handler, "command is required")
+        if not list_arg:
+            return bad(handler, "listModelsArg is required")
+        workdir = str(body.get("workdir", "")).strip() or None
+        import shutil as _shutil
+        import subprocess as _subprocess
+        import shlex as _shlex
+        import re as _re
+        resolved = _shutil.which(cmd) or (cmd if os.path.isabs(cmd) and os.path.exists(cmd) else None)
+        if not resolved:
+            return j(handler, {"ok": False, "error": f"command not found: {cmd}"})
+        # Parse listModelsArg (may be multiple tokens like "models list")
+        try:
+            list_tokens = _shlex.split(list_arg)
+        except Exception:
+            list_tokens = list_arg.split()
+        # Optional base args from backend (some CLIs need them even for list-models)
+        base_raw = body.get("args")
+        if isinstance(base_raw, list):
+            base_args = [str(x) for x in base_raw if x is not None]
+        elif isinstance(base_raw, str) and base_raw.strip():
+            try:
+                base_args = _shlex.split(base_raw)
+            except Exception:
+                base_args = base_raw.split()
+        else:
+            base_args = []
+        # Merge env
+        env = dict(os.environ)
+        user_env = body.get("env") or {}
+        if isinstance(user_env, dict):
+            for k, v in user_env.items():
+                env[str(k)] = str(v)
+        # Windows GBK 默认会解码失败 → 强制 UTF-8
+        env.setdefault('PYTHONIOENCODING', 'utf-8')
+        env.setdefault('PYTHONUTF8', '1')
+        argv = [resolved] + base_args + list_tokens
+        try:
+            proc = _subprocess.run(
+                argv,
+                cwd=workdir or None,
+                env=env,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                timeout=15,
+            )
+            stdout = proc.stdout or ""
+            stderr = proc.stderr or ""
+            combined = stdout + ("\n" + stderr if stderr and not stdout.strip() else "")
+            # Parse strategies (in order):
+            # 1) JSON array / object with `models` field
+            # 2) JSON Lines (one object per line)
+            # 3) Plain lines: skip blanks/headers, take first token as model id
+            models = []
+
+            def _from_json(obj):
+                out = []
+                if isinstance(obj, list):
+                    for item in obj:
+                        if isinstance(item, dict):
+                            mid = item.get("id") or item.get("name") or item.get("model") or item.get("path")
+                            if mid:
+                                out.append({"id": str(mid), "alias": str(item.get("name") or item.get("label") or mid)})
+                        elif isinstance(item, str):
+                            out.append({"id": item, "alias": item})
+                elif isinstance(obj, dict):
+                    arr = obj.get("models") or obj.get("data") or obj.get("items")
+                    if isinstance(arr, list):
+                        out.extend(_from_json(arr))
+                return out
+
+            # Try JSON first
+            try:
+                import json as _j
+                data = _j.loads(stdout.strip())
+                models = _from_json(data)
+            except Exception:
+                pass
+            # Try JSONL
+            if not models:
+                for ln in stdout.splitlines():
+                    t = ln.strip()
+                    if not t or not (t.startswith("{") or t.startswith("[")):
+                        continue
+                    try:
+                        import json as _j
+                        data = _j.loads(t)
+                        models.extend(_from_json(data))
+                    except Exception:
+                        continue
+            # Fallback: plain text heuristic
+            if not models:
+                skip_patterns = (_re.compile(r"^\s*$"), _re.compile(r"^(usage|NAME|ID|MODEL|─|━|-+)", _re.I))
+                for ln in combined.splitlines():
+                    t = ln.strip()
+                    if not t:
+                        continue
+                    if any(p.search(t) for p in skip_patterns):
+                        continue
+                    # Take first whitespace-delimited token as id
+                    tok = t.split()[0]
+                    # Skip if looks like help text (contains common help words)
+                    if tok.startswith("-") or tok.lower() in {"usage:", "help", "error:", "error"}:
+                        continue
+                    # Avoid duplicates
+                    if not any(m.get("id") == tok for m in models):
+                        models.append({"id": tok, "alias": tok})
+                # Cap to avoid huge dumps
+                if len(models) > 200:
+                    models = models[:200]
+            return j(handler, {
+                "ok": bool(models) or proc.returncode == 0,
+                "return_code": proc.returncode,
+                "resolved": resolved,
+                "models": models,
+                "stdout_preview": stdout[:500],
+                "stderr_preview": stderr[:500],
+            })
+        except _subprocess.TimeoutExpired:
+            return j(handler, {"ok": False, "error": "probe timed out after 15s", "resolved": resolved})
+        except Exception as exc:
+            return j(handler, {"ok": False, "error": str(exc), "resolved": resolved})
+
+    # ── Providers (POST) ──
+    if parsed.path == "/api/providers/save":
+        providers = body.get("providers")
+        if not isinstance(providers, list):
+            return bad(handler, "providers must be a list")
+        from api.config import get_config, reload_config, _get_config_path
+        reload_config()
+        cfg = get_config()
+        # Normalize entries
+        normalized = []
+        for entry in providers:
+            if not isinstance(entry, dict):
+                continue
+            name = str(entry.get("name", "")).strip()
+            base_url = str(entry.get("base_url", "")).strip()
+            if not name or not base_url:
+                continue
+            item = {"name": name, "base_url": base_url}
+            api_key = str(entry.get("api_key", "")).strip()
+            if api_key:
+                item["api_key"] = api_key
+            api_mode = str(entry.get("api_mode", "")).strip()
+            if api_mode:
+                item["api_mode"] = api_mode
+            model = str(entry.get("model", "")).strip()
+            if model:
+                item["model"] = model
+            normalized.append(item)
+        # Write back to config.yaml under custom_providers (legacy list format)
+        cfg["custom_providers"] = normalized
+        config_path = _get_config_path()
+        try:
+            import yaml as _yaml
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            # Use safe_dump so the output is guaranteed parseable by safe_load
+            with open(config_path, "w", encoding="utf-8") as f:
+                _yaml.safe_dump(cfg, f, default_flow_style=False, sort_keys=False)
+        except Exception as exc:
+            return bad(handler, f"Failed to save config: {exc}", 500)
+        # Verify write by reading back immediately
+        try:
+            import yaml as _yaml
+            if config_path.exists():
+                raw = config_path.read_text(encoding="utf-8")
+                verify_cfg = _yaml.safe_load(raw) or {}
+                saved_cp = verify_cfg.get("custom_providers")
+                if not isinstance(saved_cp, list):
+                    return bad(handler, "Config was not written correctly (custom_providers missing).", 500)
+            else:
+                return bad(handler, "Config file was not created.", 500)
+        except Exception as exc:
+            return bad(handler, f"Failed to verify config write: {exc}", 500)
+        # Sync to CLI config path only if it points to a different file
+        try:
+            from hermes_cli.config import save_config, get_config_path as _cli_get_config_path
+            cli_path = _cli_get_config_path()
+            if cli_path.resolve() != config_path.resolve():
+                save_config(cfg)
+        except Exception:
+            pass
+        # Also update runtime cache
+        reload_config()
+        return j(handler, {"ok": True, "providers": normalized})
 
     if parsed.path == "/api/onboarding/setup":
         # Writing API keys to disk - restrict to local/private networks unless auth is active.
@@ -1310,28 +1832,77 @@ def _handle_pick_folder(handler, parsed):
 
 def _handle_sse_stream(handler, parsed):
     stream_id = parse_qs(parsed.query).get("stream_id", [""])[0]
+    # ★ 多消费者支持：如果流已经存在主 queue 且被别的连接占着，
+    #   新连接不能抢主 queue 的事件。这里给每个连接分配独立的订阅队列，
+    #   _handle_sse_stream 从订阅队列消费；后端 put() 会同时广播给所有订阅者。
+    #   场景：总群→员工跳转时，员工右侧面板和后台重连都可能创建 SSE 连接同时观察同一流。
+    from api.config import STREAM_SUBS, STREAM_HISTORY, STREAMS_LOCK as _slock
     q = STREAMS.get(stream_id)
-    if q is None:
+    history = STREAM_HISTORY.get(stream_id)
+    if q is None and not history:
+        # 流完全不存在 (既未开始也未保留历史)
         return j(handler, {"error": "stream not found"}, status=404)
+    # 创建订阅者专属 queue 并挂到 STREAM_SUBS
+    sub_q: queue.Queue = queue.Queue()
+    if q is not None:
+        with _slock:
+            STREAM_SUBS.setdefault(stream_id, []).append(sub_q)
+    else:
+        # 流已结束但历史还在：只读历史，不订阅
+        pass
+
     handler.send_response(200)
     handler.send_header("Content-Type", "text/event-stream; charset=utf-8")
     handler.send_header("Cache-Control", "no-cache")
     handler.send_header("X-Accel-Buffering", "no")
     handler.send_header("Connection", "keep-alive")
     handler.end_headers()
+
     try:
+        # 1) 先回放历史事件（若有），让新订阅者拿到在它接入前已发生的全部事件
+        if history:
+            for event, data in list(history):
+                try:
+                    _sse(handler, event, data)
+                except Exception:
+                    break
+            # 如果历史里已经有 done/error/cancel，直接结束（流已终结）
+            last_events = [e for e, _ in history]
+            if any(ev in last_events for ev in ("done", "error", "cancel")):
+                # 清理订阅
+                try:
+                    with _slock:
+                        if sub_q in STREAM_SUBS.get(stream_id, []):
+                            STREAM_SUBS[stream_id].remove(sub_q)
+                except Exception:
+                    pass
+                return True
+
+        # 2) 从订阅 queue 拿新事件 (主 queue 由原来的第一个连接继续消费，我们不抢它)
         while True:
             try:
-                event, data = q.get(timeout=30)
+                item = sub_q.get(timeout=30)
             except queue.Empty:
                 handler.wfile.write(b": heartbeat\n\n")
                 handler.wfile.flush()
                 continue
+            if item is None:
+                # EOF 哨兵 (流结束后发出)
+                break
+            event, data = item
             _sse(handler, event, data)
             if event in ("done", "error", "cancel"):
                 break
     except (BrokenPipeError, ConnectionResetError):
         pass
+    finally:
+        # 清理订阅
+        try:
+            with _slock:
+                if sub_q in STREAM_SUBS.get(stream_id, []):
+                    STREAM_SUBS[stream_id].remove(sub_q)
+        except Exception:
+            pass
     return True
 
 
@@ -1378,6 +1949,93 @@ def _handle_gateway_sse_stream(handler):
         pass
     finally:
         watcher.unsubscribe(q)
+    return True
+
+
+def _handle_logs_sse_stream(handler):
+    """SSE endpoint for the global log panel.
+    Subscribes to LOG_SUBSCRIBERS and streams all agent events (token, tool, etc.)
+    with session/employee metadata so the frontend can display a unified log view.
+    """
+    q = queue.Queue(maxsize=500)
+
+    handler.send_response(200)
+    handler.send_header("Content-Type", "text/event-stream; charset=utf-8")
+    handler.send_header("Cache-Control", "no-cache")
+    handler.send_header("X-Accel-Buffering", "no")
+    handler.send_header("Connection", "keep-alive")
+    handler.end_headers()
+
+    # Replay recent history so the client sees past events after a page refresh.
+    # Do this BEFORE adding q to LOG_SUBSCRIBERS so that any new events produced
+    # during replay don't get duplicated (they would be in both history and q).
+    try:
+        with _LOG_HISTORY_LOCK:
+            history_snapshot = list(_LOG_HISTORY)
+        # ★ 回放时过滤重复 _log_id，防止历史中存在非连续重复条目
+        _seen_ids = set()
+        for entry in history_snapshot:
+            log_id = entry.get('_log_id')
+            if log_id and log_id in _seen_ids:
+                continue  # skip duplicate
+            if log_id:
+                _seen_ids.add(log_id)
+            try:
+                event_name = entry.get('event', 'log')
+                data_for_sse = {k: v for k, v in entry.items() if k != 'event'}
+                _sse(handler, event_name, data_for_sse)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                raise
+            except Exception:
+                pass  # skip stale entries, keep streaming
+        handler.wfile.flush()
+    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+        return True
+
+    # Now subscribe to real-time events
+    with LOG_SUBSCRIBERS_LOCK:
+        if len(LOG_SUBSCRIBERS) >= LOG_MAX_SUBSCRIBERS:
+            LOG_SUBSCRIBERS.pop(0)
+        LOG_SUBSCRIBERS.append(q)
+    print(f'[logs-sse] New subscriber connected, total={len(LOG_SUBSCRIBERS)}', flush=True)
+
+    # Track _log_ids seen on this connection to filter duplicates from the live stream
+    _live_seen_ids = set()
+
+    try:
+        while True:
+            try:
+                entry = q.get(timeout=30)
+            except queue.Empty:
+                handler.wfile.write(b": heartbeat\n\n")
+                handler.wfile.flush()
+                continue
+            try:
+                event_name = entry.get('event', 'log')
+                # ★ Deduplication: skip if this connection has already sent the same _log_id
+                log_id = entry.get('_log_id')
+                if log_id and log_id in _live_seen_ids:
+                    print(f'[logs-sse] Dropping duplicate event={event_name} _log_id={log_id}', flush=True)
+                    continue
+                if log_id:
+                    _live_seen_ids.add(log_id)
+                # Make a copy without 'event' key for SSE data payload
+                data_for_sse = {k: v for k, v in entry.items() if k != 'event'}
+                print(f'[logs-sse] Sending event={event_name} sid={data_for_sse.get("session_id","")[:8]}', flush=True)
+                _sse(handler, event_name, data_for_sse)
+            except (TypeError, ValueError) as e:
+                # Serialization error — skip this entry but keep the stream alive
+                print(f'[logs-sse] Skipping entry due to serialization error: {e}', flush=True)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                raise  # let outer except handle disconnect
+    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+        pass
+    finally:
+        with LOG_SUBSCRIBERS_LOCK:
+            try:
+                LOG_SUBSCRIBERS.remove(q)
+            except ValueError:
+                pass
     return True
 
 
@@ -1609,6 +2267,12 @@ def _handle_chat_start(handler, body):
         s.system_prompt = system_prompt
     s.save()
     set_last_workspace(workspace)
+    # ★ Log user input to the unified log panel
+    _broadcast_log_event('user_input', {
+        'text': msg[:500] + ('...' if len(msg) > 500 else ''),
+        'message': f"用户输入: {msg[:120]}{'...' if len(msg) > 120 else ''}",
+        'attachments_count': len(attachments),
+    }, session_id=s.session_id, employee_name=employee_name)
     stream_id = uuid.uuid4().hex
     q = queue.Queue()
     with STREAMS_LOCK:
@@ -2395,8 +3059,9 @@ def _handle_group_chat_send(handler, body):
     workspace = body.get("workspace", "").strip()
     message = body.get("message", "").strip()
     sender_name = body.get("sender_name", "你").strip()
+    orchestrate = bool(body.get("orchestrate", False))
 
-    print(f"[group_chat_send] workspace={workspace}, message={message[:50]}...", file=sys.stderr, flush=True)
+    print(f"[group_chat_send] workspace={workspace}, orchestrate={orchestrate}, message={message[:50]}...", file=sys.stderr, flush=True)
 
     if not workspace:
         return bad(handler, "workspace is required")
@@ -2412,6 +3077,9 @@ def _handle_group_chat_send(handler, body):
             task_id = f"task-{uuid.uuid4().hex[:8]}"
             mentions_with_tasks.append({"name": name, "task_id": task_id})
 
+        # Collect all task_ids for anchor-based jumping
+        all_task_ids = [m["task_id"] for m in mentions_with_tasks]
+
         # Add the message to the group chat
         msg = add_group_message(
             workspace=workspace,
@@ -2419,16 +3087,31 @@ def _handle_group_chat_send(handler, body):
             content=message,
             sender_name=sender_name,
             mentions=mentioned_names if mentioned_names else None,
+            task_ids=all_task_ids if all_task_ids else None,
         )
 
         # If there are mentions, add a system message indicating task dispatch
         if mentions_with_tasks:
-            dispatch_text = "、".join(f"@{m['name']}" for m in mentions_with_tasks)
+            # 每个 mention 生成一行"已将任务 [task-id] 委派给 @Name"
+            # task-id 用 {{TASK_LINK:xxx}} 占位符包裹，前端渲染时替换为可点击链接
+            lines = [
+                f"已将任务 {{{{TASK_LINK:{m['task_id']}}}}} 委派给 @{m['name']}"
+                for m in mentions_with_tasks
+            ]
             add_group_message(
                 workspace=workspace,
                 role="system",
-                content=f"已将任务委派给 {dispatch_text}",
+                content="\n".join(lines),
+                task_ids=all_task_ids,
             )
+            # ★ Log delegation events to the unified log panel
+            for m in mentions_with_tasks:
+                _broadcast_log_event('delegation', {
+                    'message': f"委派任务给 @{m['name']}: {message[:120]}{'...' if len(message) > 120 else ''}",
+                    'task_id': m['task_id'],
+                    'target_employee': m['name'],
+                    'source': sender_name,
+                }, session_id='', employee_name=sender_name)
 
         print(f"[group_chat_send] returning ok, mentions_with_tasks={mentions_with_tasks}", file=sys.stderr, flush=True)
         return j(handler, {
@@ -2442,6 +3125,46 @@ def _handle_group_chat_send(handler, body):
         return bad(handler, _sanitize_error(e), 500)
 
 
+def _handle_group_chat_message(handler, body):
+    """POST /api/group-chat/message
+
+    Directly add a message to the group chat (no @mention parsing,
+    no system messages, no task_id generation).
+    Used by the send_group_message tool to post employee messages
+    without triggering delegation — the frontend SSE handler
+    will parse @mentions and dispatch tasks via _dispatchTaskToEmployee.
+
+    Body: {
+        workspace: str,
+        message: str,
+        sender_name: str (optional)
+    }
+
+    Returns: { ok: True, message: dict }
+    """
+    from api.group_chat import add_group_message
+
+    workspace = body.get("workspace", "").strip()
+    message = body.get("message", "").strip()
+    sender_name = body.get("sender_name", "").strip()
+
+    if not workspace:
+        return bad(handler, "workspace is required")
+    if not message:
+        return bad(handler, "message is required")
+
+    try:
+        msg = add_group_message(
+            workspace=workspace,
+            role="assistant",
+            content=message,
+            sender_name=sender_name or None,
+        )
+        return j(handler, {"ok": True, "message": msg})
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)
+
+
 def _handle_group_chat_result(handler, body):
     """POST /api/group-chat/result
 
@@ -2452,7 +3175,11 @@ def _handle_group_chat_result(handler, body):
         employee_name: str,
         task_id: str,
         result: str,
-        requester_name: str (optional)
+        requester_name: str (optional),
+        session_id: str (optional)  - if provided, the backend will
+            extract the "complete" assistant reply for the task from
+            the session instead of trusting the client-supplied result,
+            which may contain only the first text segment before tools.
     }
     """
     from api.group_chat import post_task_result
@@ -2462,9 +3189,27 @@ def _handle_group_chat_result(handler, body):
     task_id = body.get("task_id", "").strip()
     result = body.get("result", "").strip()
     requester_name = body.get("requester_name", "").strip()
+    session_id = body.get("session_id", "").strip()
 
-    if not workspace or not employee_name or not result:
-        return bad(handler, "workspace, employee_name, and result are required")
+    if not workspace or not employee_name:
+        return bad(handler, "workspace and employee_name are required")
+
+    # ── If session_id is provided, aggregate the full assistant response from
+    #    the employee session (covers multi-segment replies split by tool calls)
+    if session_id:
+        try:
+            s = get_session(session_id)
+            if s and s.messages:
+                aggregated = _aggregate_task_assistant_reply(s.messages, task_id)
+                if aggregated:
+                    result = aggregated
+        except Exception as e:
+            import sys
+            print(f"[group_chat_result] session aggregation failed: {e}",
+                  file=sys.stderr, flush=True)
+
+    if not result:
+        return bad(handler, "result is required (and could not be derived from session)")
 
     try:
         msg = post_task_result(
@@ -2477,3 +3222,82 @@ def _handle_group_chat_result(handler, body):
         return j(handler, {"ok": True, "message": msg})
     except Exception as e:
         return bad(handler, _sanitize_error(e), 500)
+
+
+def _aggregate_task_assistant_reply(messages: list, task_id: str = "") -> str:
+    """Extract the final meaningful assistant reply for a delegated task.
+
+    Strategy (v2 -- final-reply only):
+      1) Find the last user message whose content starts with
+         "[总群委派任务 #<task_id>]" (or just "[总群委派任务" as fallback).
+      2) Scan all subsequent assistant messages in order, collecting only the
+         ones that contain actual text content (skip empty / tool-only turns).
+      3) Return ONLY the LAST non-empty text segment -- this is the final answer.
+         Intermediate "thinking aloud" text from earlier iterations is dropped.
+
+    Rationale: Multi-step tool-use agents produce many assistant messages per
+    task. The group chat only needs the final answer.
+
+    Returns empty string if no anchor found or no text accumulated.
+    """
+    import re
+
+    if not messages:
+        return ""
+
+    # Find the anchor user message (most recent matching)
+    anchor_idx = -1
+    if task_id:
+        marker = f"[总群委派任务 #{task_id}]"
+        for i in range(len(messages) - 1, -1, -1):
+            m = messages[i]
+            if not isinstance(m, dict) or m.get("role") != "user":
+                continue
+            c = m.get("content", "")
+            if isinstance(c, str) and c.startswith(marker):
+                anchor_idx = i
+                break
+    # Fallback: most recent user message with the generic prefix
+    if anchor_idx < 0:
+        for i in range(len(messages) - 1, -1, -1):
+            m = messages[i]
+            if not isinstance(m, dict) or m.get("role") != "user":
+                continue
+            c = m.get("content", "")
+            if isinstance(c, str) and c.startswith("[总群委派任务"):
+                anchor_idx = i
+                break
+    if anchor_idx < 0:
+        return ""
+
+    # Collect the LAST non-empty assistant text segment after the anchor.
+    # This gives us the final answer, discarding intermediate chatter.
+    last_text = ""
+    for j in range(anchor_idx + 1, len(messages)):
+        m = messages[j]
+        if not isinstance(m, dict) or m.get("role") != "assistant":
+            continue
+        content_val = m.get("content")
+        text = ""
+        if isinstance(content_val, str):
+            text = content_val
+        elif isinstance(content_val, list):
+            text = "\n".join(
+                (p.get("text") or "") for p in content_val
+                if isinstance(p, dict) and p.get("type") == "text"
+            )
+        text = (text or "").strip()
+        if text:
+            last_text = text  # keep overwriting -- last one wins
+
+    if not last_text:
+        return ""
+
+    # Strip think blocks (complete and unterminated)
+    last_text = re.sub(r"<think[\s\S]*?</think\s*>", "", last_text)
+    last_text = re.sub(r"<think[\s\S]*$", "", last_text)
+    # Strip Gemma channel thoughts
+    last_text = re.sub(r"<\|channel\|thought\n[\s\S]*?<channel\|>\s*", "", last_text)
+    last_text = re.sub(r"<\|channel\|thought\n[\s\S]*$", "", last_text)
+
+    return last_text.strip()

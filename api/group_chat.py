@@ -117,7 +117,7 @@ def _group_chat_data(s: Session, ws: str) -> dict:
 
 def add_group_message(workspace: str, role: str, content: str,
                       sender_name: str = None, mentions: list = None,
-                      task_id: str = None) -> dict:
+                      task_id: str = None, task_ids: list = None) -> dict:
     """Add a message to the group chat.
 
     Args:
@@ -126,7 +126,10 @@ def add_group_message(workspace: str, role: str, content: str,
         content: Message text
         sender_name: Name of the sender (for display)
         mentions: List of employee names mentioned (@name)
-        task_id: Optional task ID for tracking delegated tasks
+        task_id: Optional single task ID (for assistant result messages)
+        task_ids: Optional list of task IDs associated with this message
+                  (used on user messages that triggered multiple delegated tasks;
+                  enables anchor-based jumping from employee chat back to group chat)
 
     Returns:
         The message dict that was added.
@@ -149,6 +152,8 @@ def add_group_message(workspace: str, role: str, content: str,
         msg["_mentions"] = mentions
     if task_id:
         msg["_task_id"] = task_id
+    if task_ids:
+        msg["_task_ids"] = list(task_ids)
 
     s.messages.append(msg)
     s.updated_at = time.time()
@@ -157,14 +162,89 @@ def add_group_message(workspace: str, role: str, content: str,
     return msg
 
 
+def append_group_system_message(workspace: str, message: str, sender_name: str = "system") -> dict:
+    """快捷 wrapper：以 system role 往总群追加一条消息。
+
+    供 event_bus hook（如 ``hooks/group_chat_echo.py``）使用：子 agent 完成后
+    把摘要以系统消息形式回显到总群，所有打开总群面板的前端会通过 SSE 刷新看到。
+
+    失败时不抛出（调用方多为事件回调，不应影响发射方）。
+    """
+    try:
+        return add_group_message(
+            workspace=workspace,
+            role="system",
+            content=message,
+            sender_name=sender_name,
+        )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("append_group_system_message failed")
+        return {}
+
+
 def post_task_result(workspace: str, employee_name: str, task_id: str,
                      result: str, requester_name: str = None) -> dict:
     """Post a task result back to the group chat.
 
     The result message mentions the original requester.
+
+    Idempotency strategy (two layers):
+      1) If task_id is provided: skip if a result for the same
+         (task_id, employee_name) pair already exists.
+      2) Fallback (when task_id is empty or unmatched): skip if the
+         same employee posted the exact same result content within the
+         last 120 seconds. This catches cases where multiple frontend
+         SSE paths race to post the same result without a task_id.
     """
+    import sys
+    DEDUPE_WINDOW_SECONDS = 120
+
+    try:
+        data = get_or_create_group_chat(workspace)
+        existing = get_session(data["session_id"])
+        messages = existing.messages or []
+
+        # Layer 1: strict task_id match
+        if task_id:
+            for m in reversed(messages):
+                if (
+                    m.get("_task_id") == task_id
+                    and m.get("_sender") == employee_name
+                    and m.get("role") == "assistant"
+                ):
+                    print(f"[group_chat] post_task_result: duplicate task_id={task_id} employee={employee_name}, skipping",
+                          file=sys.stderr, flush=True)
+                    return m
+
+        # Layer 2: content-based dedupe within a short time window
+        # Applies whether or not task_id was provided — different SSE paths
+        # may pass different task_id values (or none) yet carry the same result.
+        now = time.time()
+        target_content_suffix = result.strip()
+        for m in reversed(messages):
+            mts = m.get("_ts") or 0
+            if mts and (now - mts) > DEDUPE_WINDOW_SECONDS:
+                break  # older than window, no need to look further
+            if (
+                m.get("_sender") == employee_name
+                and m.get("role") == "assistant"
+                and isinstance(m.get("content"), str)
+                and m.get("content", "").rstrip().endswith(target_content_suffix)
+            ):
+                print(f"[group_chat] post_task_result: content-based duplicate within {DEDUPE_WINDOW_SECONDS}s "
+                      f"(employee={employee_name}, task_id={task_id!r}), skipping",
+                      file=sys.stderr, flush=True)
+                return m
+    except Exception as e:
+        print(f"[group_chat] post_task_result: dedupe lookup failed: {e}",
+              file=sys.stderr, flush=True)
+        # fall through and insert normally
+
     mention_str = f"@{requester_name}" if requester_name else ""
-    content = f"**{employee_name}** 完成了任务：\n\n{result}"
+    # 任务 id 片段：前端把 {{TASK_LINK:xxx}} 渲染为可跳转链接
+    task_id_seg = f"{{{{TASK_LINK:{task_id}}}}} " if task_id else ""
+    content = f"{task_id_seg}**{employee_name}** 完成了任务：\n\n{result}"
     if mention_str:
         content = f"{mention_str} {content}"
 

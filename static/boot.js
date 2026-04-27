@@ -1,6 +1,21 @@
 async function cancelStream(){
   const streamId = S.activeStreamId;
   if(!streamId) return;
+  // 使用通用 UI 对话框替代浏览器原生 confirm，避免触发 Chrome 系统提示框
+  let ok = true;
+  if (typeof showConfirmDialog === 'function') {
+    try {
+      ok = await showConfirmDialog({
+        title: '终止执行',
+        message: '确定要终止当前正在生成的回复吗？\n已生成的内容会保留，但 agent 的推理会被中断。',
+        confirmLabel: '终止执行',
+        cancelLabel: '继续执行',
+        danger: true,
+        focusCancel: true,
+      });
+    } catch (_) { ok = true; }
+  }
+  if (!ok) return;
   try{
     await fetch(new URL(`/api/chat/cancel?stream_id=${encodeURIComponent(streamId)}`,location.origin).href,{credentials:'include'});
   }catch(e){/* cancel request failed — cleanup below still runs */}
@@ -170,8 +185,22 @@ function mobileSwitchPanel(name){
   });
 }
 
-$('btnSend').onclick=()=>{if(window._micActive)_stopMic();send();};
-$('btnAttach').onclick=()=>$('fileInput').click();
+// 安全绑定发送按钮：延迟到 DOMContentLoaded，并检查 send 函数是否存在
+function _bindComposerEvents(){
+  const btnSend=$('btnSend');
+  if(btnSend){
+    btnSend.onclick=()=>{if(window._micActive)_stopMic();if(typeof send==='function')send();else console.error('[boot] send() not defined');};
+  }
+  const btnAttach=$('btnAttach');
+  if(btnAttach){
+    btnAttach.onclick=()=>{const fi=$('fileInput');if(fi)fi.click();};
+  }
+}
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',_bindComposerEvents);
+} else {
+  _bindComposerEvents();
+}
 
 // ── Voice input (Web Speech API) ─────────────────────────────────────────
 (function(){
@@ -329,43 +358,51 @@ $('modelSelect').onchange=async()=>{
     if(warn&&typeof showToast==='function') showToast(warn,4000);
   }
 };
-$('msg').addEventListener('input',()=>{
-  autoResize();
-  updateSendBtn();
-  const text=$('msg').value;
-  if(text.startsWith('/')&&text.indexOf('\n')===-1){
-    const prefix=text.slice(1);
-    const matches=getMatchingCommands(prefix);
-    if(matches.length)showCmdDropdown(matches); else hideCmdDropdown();
-  } else {
-    hideCmdDropdown();
-  }
-});
-$('msg').addEventListener('keydown',e=>{
-  // Autocomplete navigation when dropdown is open
-  const dd=$('cmdDropdown');
-  const dropdownOpen=dd&&dd.classList.contains('open');
-  if(dropdownOpen){
-    if(e.key==='ArrowUp'){e.preventDefault();navigateCmdDropdown(-1);return;}
-    if(e.key==='ArrowDown'){e.preventDefault();navigateCmdDropdown(1);return;}
-    if(e.key==='Tab'){e.preventDefault();selectCmdDropdownItem();return;}
-    if(e.key==='Escape'){e.preventDefault();hideCmdDropdown();return;}
-    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();selectCmdDropdownItem();return;}
-  }
-  // Send key: respect user preference.
-  // On touch-primary devices (software keyboard), default to Enter = newline
-  // since there's no physical Shift key. Users send via the Send button.
-  // The 'ctrl+enter' setting also uses this behavior (Enter = newline).
-  // Users can override in Settings by explicitly choosing 'enter' mode.
-  if(e.key==='Enter'){
-    const _mobileDefault=matchMedia('(pointer:coarse)').matches&&window._sendKey==='enter';
-    if(window._sendKey==='ctrl+enter'||_mobileDefault){
-      if(e.ctrlKey||e.metaKey){e.preventDefault();send();}
+// 安全绑定输入框事件：延迟到 DOMContentLoaded，并检查相关函数是否存在
+function _bindMsgInputEvents(){
+  const msg=$('msg');
+  if(!msg) return;
+  msg.addEventListener('input',()=>{
+    if(typeof autoResize==='function') autoResize(); else if(msg) { msg.style.height='auto'; msg.style.height=Math.min(msg.scrollHeight,200)+'px'; }
+    if(typeof updateSendBtn==='function') updateSendBtn();
+    const text=msg.value;
+    if(text.startsWith('/')&&text.indexOf('\n')===-1){
+      const prefix=text.slice(1);
+      if(typeof getMatchingCommands==='function'){
+        const matches=getMatchingCommands(prefix);
+        if(matches.length&&typeof showCmdDropdown==='function')showCmdDropdown(matches); else if(typeof hideCmdDropdown==='function')hideCmdDropdown();
+      }
     } else {
-      if(!e.shiftKey){e.preventDefault();send();}
+      if(typeof hideCmdDropdown==='function')hideCmdDropdown();
     }
-  }
-});
+  });
+  msg.addEventListener('keydown',e=>{
+    // Autocomplete navigation when dropdown is open
+    const dd=$('cmdDropdown');
+    const dropdownOpen=dd&&dd.classList.contains('open');
+    if(dropdownOpen){
+      if(e.key==='ArrowUp'){e.preventDefault();if(typeof navigateCmdDropdown==='function')navigateCmdDropdown(-1);return;}
+      if(e.key==='ArrowDown'){e.preventDefault();if(typeof navigateCmdDropdown==='function')navigateCmdDropdown(1);return;}
+      if(e.key==='Tab'){e.preventDefault();if(typeof selectCmdDropdownItem==='function')selectCmdDropdownItem();return;}
+      if(e.key==='Escape'){e.preventDefault();if(typeof hideCmdDropdown==='function')hideCmdDropdown();return;}
+      if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(typeof selectCmdDropdownItem==='function')selectCmdDropdownItem();return;}
+    }
+    // Send key: respect user preference.
+    if(e.key==='Enter'){
+      const _mobileDefault=matchMedia('(pointer:coarse)').matches&&window._sendKey==='enter';
+      if(window._sendKey==='ctrl+enter'||_mobileDefault){
+        if(e.ctrlKey||e.metaKey){e.preventDefault();if(typeof send==='function')send();else console.error('[boot] send() not defined on keydown');}
+      } else {
+        if(!e.shiftKey){e.preventDefault();if(typeof send==='function')send();else console.error('[boot] send() not defined on keydown');}
+      }
+    }
+  });
+}
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',_bindMsgInputEvents);
+} else {
+  _bindMsgInputEvents();
+}
 // B14: Cmd/Ctrl+K creates a new chat from anywhere
 document.addEventListener('keydown',async e=>{
   // Enter on approval card = Allow once (when a button inside the card is focused or
@@ -523,11 +560,13 @@ function applyBotName(){
   if (typeof _renderRpMessages === 'function') {
     const _origRenderMessages = window.renderMessages;
     window.renderMessages = function() {
-      // 如果有选中的员工，渲染到右侧面板
-      if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId && _rpView === 'chat') {
+      // 如果有选中的员工且右面板处于chat视图，渲染到右侧面板
+      if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId && (typeof _rpView !== 'undefined' && _rpView === 'chat')) {
         _renderRpMessages();
+      } else if (typeof _origRenderMessages === 'function') {
+        // 兜底：调用原始 renderMessages（渲染到隐藏的 msgInner，确保不抛错）
+        try { _origRenderMessages(); } catch(_) {}
       }
-      // 不再渲染到中间区域（已无 msgInner 元素）
     };
   }
   await loadOnboardingWizard();
@@ -560,6 +599,8 @@ function applyBotName(){
   // syncWorkspacePanelState();
   syncWorkspacePanelUI();
   await renderSessionList();
+  // 初始化发送按钮状态（确保按钮在页面加载后正确启用/禁用）
+  if(typeof updateSendBtn==='function') updateSendBtn();
   // Start real-time gateway session sync if setting is enabled
   if(typeof startGatewaySSE==='function') startGatewaySSE();
 })();

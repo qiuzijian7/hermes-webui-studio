@@ -13,7 +13,7 @@ from api.auth import check_auth
 from api.config import HOST, PORT, STATE_DIR, SESSION_DIR, DEFAULT_WORKSPACE
 from api.helpers import j
 from api.routes import handle_get, handle_post
-from api.startup import auto_install_agent_deps, fix_credential_permissions
+from api.startup import auto_install_agent_deps, fix_credential_permissions, init_event_bus_hooks
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -34,6 +34,28 @@ class Handler(BaseHTTPRequestHandler):
         })
         print(f'[webui] {record}', flush=True)
 
+    def handle_one_request(self) -> None:
+        """重写 handle_one_request 以静默客户端断连异常。
+
+        浏览器刷新、关闭页面、取消 SSE 流时，底层 socket 会抛出：
+          - ConnectionAbortedError (WinError 10053) — Windows 本地软件中止
+          - ConnectionResetError (WinError 10054 / errno 104) — 对端重置
+          - BrokenPipeError — 写时对端已断
+          - TimeoutError — 空闲 > self.timeout
+        这些都是良性事件（客户端正常断开），不应当作错误打栈回溯。
+        """
+        try:
+            super().handle_one_request()
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError, TimeoutError):
+            # 客户端正常断开 — 关闭连接，不记录
+            self.close_connection = True
+        except OSError as e:
+            # 其他 OSError：errno 10053/10054/10060/10061 等 Windows socket 错误
+            if getattr(e, 'winerror', None) in (10053, 10054, 10060, 10061) or e.errno in (104, 110, 32):
+                self.close_connection = True
+            else:
+                raise
+
     def do_GET(self) -> None:
         self._req_t0 = time.time()
         try:
@@ -42,9 +64,15 @@ class Handler(BaseHTTPRequestHandler):
             result = handle_get(self, parsed)
             if result is False:
                 return j(self, {'error': 'not found'}, status=404)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            # 写响应时客户端已断开（常见于 SSE 或大响应中途断开）— 静默
+            return
         except Exception as e:
             print(f'[webui] ERROR {self.command} {self.path}\n' + traceback.format_exc(), flush=True)
-            return j(self, {'error': 'Internal server error'}, status=500)
+            try:
+                return j(self, {'error': 'Internal server error'}, status=500)
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                return
 
     def do_POST(self) -> None:
         self._req_t0 = time.time()
@@ -54,9 +82,14 @@ class Handler(BaseHTTPRequestHandler):
             result = handle_post(self, parsed)
             if result is False:
                 return j(self, {'error': 'not found'}, status=404)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            return
         except Exception as e:
             print(f'[webui] ERROR {self.command} {self.path}\n' + traceback.format_exc(), flush=True)
-            return j(self, {'error': 'Internal server error'}, status=500)
+            try:
+                return j(self, {'error': 'Internal server error'}, status=500)
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                return
 
 
 def main() -> None:
@@ -66,6 +99,9 @@ def main() -> None:
 
     # Fix sensitive file permissions before doing anything else
     fix_credential_permissions()
+
+    # Load event_bus hooks (multi-agent coordination extensions)
+    init_event_bus_hooks()
 
     within_container = False
     # Check for the "/.within_container" file to determine if we're running inside a container; this file is created in the Dockerfile
@@ -120,6 +156,26 @@ def main() -> None:
         print(f'[!!] WARNING: Gateway watcher failed to start: {e}', flush=True)
 
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
+
+    # 静默良性的客户端断连异常（ThreadingHTTPServer.handle_error 默认会打 traceback）
+    def _silent_handle_error(request, client_address):
+        import sys as _sys
+        exc_type, exc_value, _tb = _sys.exc_info()
+        # 客户端断开：ConnectionAbortedError/ResetError/BrokenPipeError/TimeoutError 均静默
+        if exc_type and issubclass(exc_type, (ConnectionAbortedError, ConnectionResetError, BrokenPipeError, TimeoutError)):
+            return
+        # Windows socket 错误码
+        if exc_type and issubclass(exc_type, OSError):
+            winerr = getattr(exc_value, 'winerror', None)
+            if winerr in (10053, 10054, 10060, 10061):
+                return
+        # 其他真正异常保留默认行为（打到 stderr）
+        try:
+            import socketserver as _ss
+            _ss.BaseServer.handle_error(httpd, request, client_address)
+        except Exception:
+            pass
+    httpd.handle_error = _silent_handle_error
 
     # ── TLS/HTTPS setup (optional) ─────────────────────────────────────────
     from api.config import TLS_ENABLED, TLS_CERT, TLS_KEY

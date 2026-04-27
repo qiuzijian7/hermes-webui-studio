@@ -1,0 +1,62 @@
+name: research-fanout
+title: 并行调研（Research Fanout）
+description: 1 位 Leader + 3 位 Researcher 并行调研不同维度，Leader 汇总产出报告。适合信息检索、竞品分析、技术选型调研。
+version: 1
+
+members:
+  - key: leader
+    name: 调研总监
+    preset: tech-planner
+    role: 调研总监
+    avatar: "🎯"
+    skills:
+      - 问题拆解
+      - 综合分析
+      - 报告撰写
+
+  - key: researcher_a
+    name: 研究员A
+    preset: researcher
+    role: 研究员
+    avatar: "🔬"
+    skills:
+      - 信息检索
+      - 事实核查
+
+  - key: researcher_b
+    name: 研究员B
+    preset: researcher
+    role: 研究员
+    avatar: "🔬"
+    skills:
+      - 信息检索
+      - 事实核查
+
+  - key: researcher_c
+    name: 研究员C
+    preset: researcher
+    role: 研究员
+    avatar: "🔬"
+    skills:
+      - 信息检索
+      - 事实核查
+
+topology:
+  manager: leader
+  subagents:
+    leader: [researcher_a, researcher_b, researcher_c]
+
+entry:
+  to: leader
+  message: |
+    用户调研需求：{{user_input}}
+
+    请执行以下步骤：
+    1. 将需求拆解为 3 个互不重叠的调研子问题（例如：技术方案、市场现状、竞品对比）
+    2. 用 delegate_task 的批量模式（3 个 tasks 数组）把 3 个子问题分别派给「研究员A/B/C」，并行执行
+       - 每个子任务包含：明确的调研范围、输出格式要求（如 300 字摘要 + 3 条事实要点）
+    3. 收到 3 份摘要后，综合成一份结构化报告：
+       - 执行摘要（3 句话结论）
+       - 三个维度的关键发现（每个维度列 3-5 条）
+       - 建议与后续动作
+    4. 在总群用 send_group_message 汇报完成状态

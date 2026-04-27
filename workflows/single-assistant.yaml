@@ -1,0 +1,21 @@
+name: single-assistant
+title: 单员工助手
+description: 最简模式 — 一位通用助手处理所有任务。适合日常问答、轻量编码。
+version: 1
+
+members:
+  - key: assistant
+    name: 通用助手
+    preset: senior-engineer
+    role: 全栈工程师
+    avatar: "🤖"
+
+topology:
+  manager: assistant
+  subagents: {}
+
+entry:
+  to: assistant
+  message: |
+    你是用户的全栈助手。请回答用户的问题或完成用户的任务。
+    如果任务很复杂，你可以主动提出分解建议。

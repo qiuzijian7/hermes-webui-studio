@@ -187,10 +187,71 @@ function _initCanvasZoom() {
   const canvas = $('employeeCanvas');
   if (!canvas) return;
 
+  // 画布交互提示浮窗（首次访问显示，用户关闭后永久隐藏）
+  try {
+    const hint = document.getElementById('canvasHint');
+    const closeBtn = document.getElementById('canvasHintClose');
+    if (hint && !localStorage.getItem('hermes-canvas-hint-dismissed')) {
+      hint.style.display = 'block';
+    }
+    if (closeBtn && !closeBtn._bound) {
+      closeBtn._bound = true;
+      closeBtn.onclick = () => {
+        if (hint) hint.style.display = 'none';
+        try { localStorage.setItem('hermes-canvas-hint-dismissed', '1'); } catch(_) {}
+      };
+    }
+  } catch(_) {}
+
   // ── 滚轮缩放 — 以鼠标位置为中心 ──
-  canvas.addEventListener('wheel', (e) => {
-    if (e.target.closest('.main-file-tree')) return;
+  // 支持两种触发方式（满足不同用户习惯）：
+  //  1. Ctrl / Cmd + 滚轮 —— 业界标准（Figma/Miro/VSCode），推荐
+  //  2. 直接滚轮 —— 兼容旧行为（仅当指针在画布内且目标不是卡片输入框等）
+  //
+  // 监听挂在 document 上 + capture 阶段，这样即使画布被 DockManager 重新 parent
+  // 或套在 tab/split 容器中，都能捕获到 wheel 事件；命中判断用 closest('#employeeCanvas')
+  // 以保证只在画布区域生效。
+  const _onCanvasWheel = (e) => {
+    // 必须命中画布
+    const canvasEl = e.target.closest('#employeeCanvas');
+    if (!canvasEl) return;
+    // 例外：文件树/代码编辑器等内部元素需要自己滚动
+    if (e.target.closest('.main-file-tree')
+     || e.target.closest('.cm-editor')
+     || e.target.closest('textarea')
+     || e.target.closest('input')
+     || e.target.closest('[contenteditable="true"]')) {
+      return;
+    }
+
+    // 判断是否触发缩放：Ctrl/Cmd + 滚轮 → 缩放
+    //   普通滚轮 → 平移（垂直）；Shift+滚轮 → 平移（横向）
+    //   这样即使用户不知道 Ctrl+滚轮，也能用普通滚轮浏览画布
+    const isZoomGesture = e.ctrlKey || e.metaKey;
+    const rect = canvasEl.getBoundingClientRect();
+
+    if (!isZoomGesture) {
+      // 普通滚轮 → 平移画布（触控板二指 / 鼠标滚轮）
+      e.preventDefault();
+      e.stopPropagation();
+      const step = 60; // 每次滚动的像素量（画布坐标系）
+      if (e.shiftKey) {
+        // Shift+滚轮 → 横向平移
+        _canvasPanX -= (e.deltaY > 0 ? step : -step);
+      } else {
+        // 竖向平移 — 同时支持 deltaX（触控板横向）
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+          _canvasPanX -= (e.deltaX > 0 ? step : -step);
+        } else {
+          _canvasPanY -= (e.deltaY > 0 ? step : -step);
+        }
+      }
+      _applyCanvasTransform();
+      return;
+    }
+
     e.preventDefault();
+    e.stopPropagation();
 
     const delta = e.deltaY > 0 ? -1 : 1;
     const oldZoom = _canvasZoomLevel;
@@ -198,18 +259,45 @@ function _initCanvasZoom() {
     const newZoom = _canvasZoomLevel;
 
     if (oldZoom !== newZoom) {
-      const rect = canvas.getBoundingClientRect();
       const pivotX = e.clientX - rect.left;
       const pivotY = e.clientY - rect.top;
       _zoomAroundPoint(pivotX, pivotY, oldZoom, newZoom);
       _applyCanvasTransform();
     }
-  }, { passive: false });
+  };
+  // 同时挂 document 级 + canvas 级，双保险。passive:false 以便 preventDefault 阻止页面缩放。
+  document.addEventListener('wheel', _onCanvasWheel, { passive: false, capture: true });
 
-  // ── 右键拖动平移画布 ──
+  // ── 右键/中键/空格+左键 拖动平移画布 ──
+  //   主流画布应用（Figma/Miro/Excalidraw）都默认支持 空格+左键 拖动，
+  //   这是用户最习惯的方式，比右键更符合直觉。
   let _panning = false;
   let _panStartX = 0, _panStartY = 0;
   let _panOriginX = 0, _panOriginY = 0;
+  let _spaceHeld = false; // 空格键是否按住
+
+  // 空格键按住 → 画布进入"平移模式"，鼠标变为 grab
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && !_spaceHeld) {
+      // 避免在 input/textarea/contenteditable 里触发
+      const t = e.target;
+      const tag = t && t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (t && t.isContentEditable)) return;
+      _spaceHeld = true;
+      if (canvas) canvas.classList.add('canvas-space-pan');
+      e.preventDefault();
+    }
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') {
+      _spaceHeld = false;
+      if (canvas) canvas.classList.remove('canvas-space-pan');
+      if (_panning && !canvas.style.cursor.includes('grabbing')) {
+        // 放开空格键 → 若不在拖动中，恢复默认光标
+        canvas.style.cursor = '';
+      }
+    }
+  });
 
   canvas.addEventListener('contextmenu', (e) => {
     if (!e.target.closest('.emp-card')) {
@@ -218,7 +306,11 @@ function _initCanvasZoom() {
   });
 
   canvas.addEventListener('mousedown', (e) => {
-    if (e.button === 2 && !e.target.closest('.emp-card')) {
+    // 右键（button 2）或 空格+左键（button 0 + _spaceHeld）或 中键（button 1） → 平移
+    const isRightPan = (e.button === 2);
+    const isSpacePan = (e.button === 0 && _spaceHeld);
+    const isMiddlePan = (e.button === 1);
+    if ((isRightPan || isSpacePan || isMiddlePan) && !e.target.closest('.emp-card')) {
       _panning = true;
       _panStartX = e.clientX;
       _panStartY = e.clientY;
@@ -226,6 +318,7 @@ function _initCanvasZoom() {
       _panOriginY = _canvasPanY;
       canvas.style.cursor = 'grabbing';
       e.preventDefault();
+      e.stopPropagation(); // 防止 _initBoxSelection 的左键 mousedown 同时启动框选
     }
   });
 
@@ -239,29 +332,10 @@ function _initCanvasZoom() {
   });
 
   document.addEventListener('mouseup', (e) => {
-    if (e.button === 2 && _panning) {
+    // 任一被支持的按钮释放都停止平移（1=中键,2=右键,0=左键/空格模式）
+    if (_panning && (e.button === 0 || e.button === 1 || e.button === 2)) {
       _panning = false;
-      canvas.style.cursor = '';
-    }
-  });
-
-  // ── 中键拖动平移画布 ──
-  canvas.addEventListener('mousedown', (e) => {
-    if (e.button === 1) {
-      _panning = true;
-      _panStartX = e.clientX;
-      _panStartY = e.clientY;
-      _panOriginX = _canvasPanX;
-      _panOriginY = _canvasPanY;
-      canvas.style.cursor = 'grabbing';
-      e.preventDefault();
-    }
-  });
-
-  document.addEventListener('mouseup', (e) => {
-    if (e.button === 1 && _panning) {
-      _panning = false;
-      canvas.style.cursor = '';
+      canvas.style.cursor = _spaceHeld ? 'grab' : '';
     }
   });
 }
@@ -284,6 +358,33 @@ function toggleWsSelector() {
   }
 }
 
+/**
+ * 顶部左侧"工作区信息"按钮的下拉切换：复用同一份工作区列表渲染，
+ * 但渲染到 wsInfoDropdown 节点上。点击选项/外部会关闭下拉。
+ */
+function toggleWsInfoSelector() {
+  const dd = $('wsInfoDropdown');
+  if (!dd) return;
+  // 若另一个 ws 下拉开着，先关掉
+  const otherDd = $('wsSelectorDropdown');
+  if (otherDd) otherDd.classList.remove('open');
+  const open = dd.classList.contains('open');
+  if (open) {
+    dd.classList.remove('open');
+  } else {
+    loadWorkspaceList().then(data => {
+      _wsSelectorList = data.workspaces || [];
+      _renderWsSelectorDropdown(dd);
+      dd.classList.add('open');
+    });
+  }
+}
+
+function closeWsInfoSelector() {
+  const dd = $('wsInfoDropdown');
+  if (dd) dd.classList.remove('open');
+}
+
 function closeWsSelector() {
   const dd = $('wsSelectorDropdown');
   if (dd) dd.classList.remove('open');
@@ -294,6 +395,20 @@ function _renderWsSelectorDropdown(dd) {
   const currentWs = (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '') || S.session?.workspace || '';
   dd.innerHTML = '';
 
+  // ★ 顶部显示"当前工作区"信息卡片（让下拉自身也能承载工作区信息）
+  if (currentWs && currentWs !== '__default__') {
+    const curName = typeof getWorkspaceFriendlyName === 'function' ? getWorkspaceFriendlyName(currentWs) : (currentWs.split(/[\/\\]/).filter(Boolean).pop() || currentWs);
+    const header = document.createElement('div');
+    header.className = 'ws-current-header';
+    header.innerHTML = `
+      <div class="ws-current-label">当前工作区</div>
+      <div class="ws-current-name">${esc(curName)}</div>
+      <div class="ws-current-path" title="${esc(currentWs)}">${esc(currentWs)}</div>
+    `;
+    dd.appendChild(header);
+    dd.appendChild(Object.assign(document.createElement('div'), { className: 'ws-divider' }));
+  }
+
   for (const w of _wsSelectorList) {
 
     const opt = document.createElement('div');
@@ -301,6 +416,7 @@ function _renderWsSelectorDropdown(dd) {
     opt.innerHTML = `<span class="ws-opt-name">${esc(w.name)}</span><span class="ws-opt-path" title="${esc(w.path)}">${esc(w.path)}</span>`;
     opt.onclick = () => {
       closeWsSelector();
+      if (typeof closeWsInfoSelector === 'function') closeWsInfoSelector();
       if (w.path !== currentWs && typeof switchToWorkspace === 'function') {
         switchToWorkspace(w.path, w.name);
       }
@@ -315,6 +431,7 @@ function _renderWsSelectorDropdown(dd) {
   addAction.innerHTML = `<span class="ws-opt-name">+ 添加工作区路径</span>`;
   addAction.onclick = () => {
     closeWsSelector();
+    if (typeof closeWsInfoSelector === 'function') closeWsInfoSelector();
     setTimeout(() => {
       if (typeof promptWorkspacePath === 'function') promptWorkspacePath();
     }, 50);
@@ -339,6 +456,7 @@ function syncWsSelectorLabel() {
 // 点击外部关闭下拉
 document.addEventListener('click', e => {
   if (!e.target.closest('#wsSelectorWrap')) closeWsSelector();
+  if (!e.target.closest('#wsInfoWrap')) closeWsInfoSelector();
 });
 
 function switchWorkspaceTab(tab) {
@@ -351,19 +469,35 @@ function switchWorkspaceTab(tab) {
   // 切换内容面板
   const canvasContent = $('canvasContent');
   const filesContent = $('filesContent');
+  const logsContent = $('logsContent');
   const empToolbarInline = $('empToolbarInline');
 
   if (tab === 'canvas') {
     if (canvasContent) canvasContent.classList.add('active');
     if (filesContent) filesContent.classList.remove('active');
+    if (logsContent) logsContent.classList.remove('active');
     if (empToolbarInline) empToolbarInline.style.display = '';
     const zoomControls = $('canvasZoomControls');
     if (zoomControls) zoomControls.style.display = '';
     const fileTabRefresh = $('fileTabRefreshBtn');
     if (fileTabRefresh) fileTabRefresh.classList.remove('visible');
+  } else if (tab === 'logs') {
+    if (canvasContent) canvasContent.classList.remove('active');
+    if (filesContent) filesContent.classList.remove('active');
+    if (logsContent) logsContent.classList.add('active');
+    if (empToolbarInline) empToolbarInline.style.display = 'none';
+    const zoomControls = $('canvasZoomControls');
+    if (zoomControls) zoomControls.style.display = 'none';
+    const fileTabRefresh = $('fileTabRefreshBtn');
+    if (fileTabRefresh) fileTabRefresh.classList.remove('visible');
+    // Auto-connect SSE if not already
+    if (typeof connectLogsSSE === 'function') connectLogsSSE();
+    // Re-render logs that may have accumulated while tab was hidden
+    if (typeof _reRenderLogs === 'function') _reRenderLogs();
   } else {
     if (canvasContent) canvasContent.classList.remove('active');
     if (filesContent) filesContent.classList.add('active');
+    if (logsContent) logsContent.classList.remove('active');
     if (empToolbarInline) empToolbarInline.style.display = 'none';
     const zoomControls = $('canvasZoomControls');
     if (zoomControls) zoomControls.style.display = 'none';
@@ -958,6 +1092,8 @@ function initWorkspaceTabs() {
   const saved = localStorage.getItem('hermes-workspace-tab');
   if (saved === 'files') {
     switchWorkspaceTab('files');
+  } else if (saved === 'logs') {
+    switchWorkspaceTab('logs');
   }
   // 初始化画布缩放
   _initCanvasZoom();

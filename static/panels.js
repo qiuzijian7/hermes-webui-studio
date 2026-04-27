@@ -1200,10 +1200,10 @@ let _settingsThemeOnOpen = null; // track theme at open time for discard revert
 let _settingsSection = 'conversation';
 
 function switchSettingsSection(name){
-  const section=(name==='preferences'||name==='system')?name:'conversation';
+  const section=(name==='preferences'||name==='system'||name==='providers'||name==='cli')?name:'conversation';
   _settingsSection=section;
-  const map={conversation:'Conversation',preferences:'Preferences',system:'System'};
-  ['conversation','preferences','system'].forEach(key=>{
+  const map={conversation:'Conversation',preferences:'Preferences',providers:'Providers',cli:'Cli',system:'System'};
+  ['conversation','preferences','providers','cli','system'].forEach(key=>{
     const tab=$('settingsTab'+map[key]);
     const pane=$('settingsPane'+map[key]);
     const active=key===section;
@@ -1213,6 +1213,8 @@ function switchSettingsSection(name){
     }
     if(pane) pane.classList.toggle('active',active);
   });
+  if(section==='providers') loadProvidersPanel();
+  if(section==='cli') loadCliBackendsPanel();
 }
 
 function _syncHermesPanelSessionActions(){
@@ -1479,6 +1481,695 @@ async function disableAuth(){
   }
 }
 
+// ── Providers panel ──────────────────────────────────────────────────────────
+let _providersData = [];
+let _builtInProviders = [];
+
+async function loadProvidersPanel(){
+  const list = $('providersList');
+  if(!list) return;
+  try{
+    const data = await api('/api/providers');
+    _providersData = data.providers || [];
+    _builtInProviders = data.built_in_providers || [];
+    renderProvidersList();
+    renderBuiltInProviders();
+    renderConfiguredProviders();
+  }catch(e){
+    if(list) list.innerHTML = '<div style="padding:8px;color:var(--accent);font-size:12px">Failed to load providers.</div>';
+  }
+}
+
+function renderBuiltInProviders(){
+  const container = $('builtInProvidersList');
+  if(!container) return;
+  if(!_builtInProviders.length){
+    container.innerHTML = '<div style="font-size:12px;color:var(--muted)">No built-in providers available.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  _builtInProviders.forEach(p=>{
+    const chip = document.createElement('span');
+    chip.style.cssText = 'display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border2);white-space:nowrap';
+    chip.textContent = p.name || p.id;
+    chip.title = p.id;
+    container.appendChild(chip);
+  });
+}
+
+function renderConfiguredProviders(){
+  const container = $('configuredProvidersList');
+  if(!container) return;
+  if(!_providersData.length){
+    container.innerHTML = '<div style="font-size:12px;color:var(--muted)">No custom providers configured yet.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  _providersData.forEach(p=>{
+    const chip = document.createElement('span');
+    chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:12px;background:rgba(80,200,120,.12);color:#50c878;border:1px solid rgba(80,200,120,.25);white-space:nowrap';
+    chip.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ${_esc(p.name || 'Unnamed')}`;
+    chip.title = p.base_url || '';
+    container.appendChild(chip);
+  });
+}
+
+function renderProvidersList(){
+  const list = $('providersList');
+  if(!list) return;
+  if(!_providersData.length){
+    list.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px">No custom providers configured yet.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  _providersData.forEach((p, idx)=>{
+    const row = document.createElement('div');
+    row.style.cssText = 'border:1px solid var(--border2);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(255,255,255,.03)';
+    row.innerHTML = `
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <input type="text" data-idx="${idx}" data-field="name" placeholder="Name (e.g. ollama)" value="${_esc(p.name||'')}" style="flex:1;padding:6px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px">
+        <button onclick="removeProviderRow(${idx})" title="Remove" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(233,69,96,.3);background:rgba(233,69,96,.1);color:var(--accent);cursor:pointer;font-size:12px">×</button>
+      </div>
+      <input type="text" data-idx="${idx}" data-field="base_url" placeholder="Base URL (e.g. http://localhost:11434/v1)" value="${_esc(p.base_url||'')}" style="width:100%;padding:6px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px;margin-bottom:6px">
+      <div style="display:flex;gap:6px">
+        <input type="text" data-idx="${idx}" data-field="model" placeholder="Default model (optional)" value="${_esc(p.model||'')}" style="flex:1;padding:6px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px">
+        <input type="text" data-idx="${idx}" data-field="api_mode" placeholder="API mode (optional)" value="${_esc(p.api_mode||'')}" style="flex:1;padding:6px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px">
+      </div>
+      <input type="password" data-idx="${idx}" data-field="api_key" placeholder="API key (optional)" value="${_esc(p.api_key||'')}" style="width:100%;padding:6px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px;margin-top:6px">
+    `;
+    list.appendChild(row);
+  });
+  // Attach change listeners to mark dirty
+  list.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', ()=>{ _markSettingsDirty(); });
+  });
+}
+
+function _esc(s){ return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function addProviderRow(){
+  _providersData.push({name:'',base_url:'',model:'',api_mode:'',api_key:''});
+  renderProvidersList();
+  _markSettingsDirty();
+}
+
+function removeProviderRow(idx){
+  _providersData.splice(idx,1);
+  renderProvidersList();
+  _markSettingsDirty();
+}
+
+function _collectProvidersFromDOM(){
+  const list = $('providersList');
+  if(!list) return _providersData;
+  const rows = list.querySelectorAll('[data-idx]');
+  const map = new Map();
+  rows.forEach(el=>{
+    const idx = parseInt(el.dataset.idx,10);
+    const field = el.dataset.field;
+    if(!map.has(idx)) map.set(idx,{});
+    map.get(idx)[field] = el.value.trim();
+  });
+  const collected = [];
+  map.forEach((obj)=>{
+    if(obj.name && obj.base_url) collected.push(obj);
+  });
+  return collected;
+}
+
+async function saveProviders(){
+  const providers = _collectProvidersFromDOM();
+  const errEl = $('providersSaveError');
+  if(errEl) errEl.style.display='none';
+  try{
+    const result = await api('/api/providers/save',{method:'POST',body:JSON.stringify({providers})});
+    if(result.ok){
+      _providersData = result.providers || providers;
+      // Close provider input forms after successful save
+      const list = $('providersList');
+      if(list) list.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px">Providers saved. Click <b>+ Add Provider</b> to add more.</div>';
+      renderConfiguredProviders();
+      _settingsDirty = false;
+      showToast('Providers saved');
+      // Refresh model dropdown so new providers appear immediately
+      if(typeof populateModelDropdown==='function') await populateModelDropdown();
+    }else{
+      throw new Error(result.error||'Save failed');
+    }
+  }catch(e){
+    if(errEl){ errEl.textContent='Save failed: '+e.message; errEl.style.display=''; }
+    showToast('Save failed: '+e.message);
+  }
+}
+
+// ── Local CLI Backends (OpenClaw-style) ─────────────────────────────────────
+// 每个后端是一个可编辑卡片；保存后会持久化到 config.yaml 的 cli_backends.
+let _cliBackendsData = [];  // [{name, command, args, input, output, modelArg, modelAliases, sessionMode, sessionArg, resumeArgs, resumeOutput, imageArg, systemPromptArg, systemPromptWhen, workdir, env, enabled, description}]
+
+function _cliBlankBackend(){
+  return {
+    name: '', command: '', args: [], input: 'stdin', output: 'text',
+    modelArg: '', modelAliases: {}, systemPromptArg: '', systemPromptFileArg: '', systemPromptMode: '', userPromptArg: '', sessionMode: 'none', sessionArg: '',
+    resumeArgs: [], resumeOutput: '', imageArg: '', systemPromptWhen: '',
+    workdir: '', env: {}, enabled: true, description: '',
+    _isNew: true,
+  };
+}
+
+async function loadCliBackendsPanel(){
+  const list = $('cliBackendsList');
+  if(!list) return;
+  list.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px">加载中...</div>';
+  try{
+    const data = await api('/api/cli/backends');
+    _cliBackendsData = Array.isArray(data.backends) ? data.backends : [];
+    renderCliBackendsList();
+  }catch(e){
+    list.innerHTML = '<div style="padding:8px;color:var(--accent);font-size:12px">加载 CLI 后端配置失败: '+esc(e.message)+'</div>';
+  }
+}
+
+function addCliBackendRow(preset){
+  const base = _cliBlankBackend();
+  if(preset === 'knot-cli'){
+    Object.assign(base, {
+      name: 'knot-cli',
+      command: 'knot-cli',
+      args: ['chat'],
+      input: 'stdin',
+      output: 'text',
+      modelArg: '-m',
+      modelAliases: { 'glm-5.1': 'glm-5.1' },
+      systemPromptArg: '',                       // knot-cli 没有 append-system-prompt 参数
+      systemPromptFileArg: '--user-rules',       // system 写入临时文件，走 --user-rules
+      systemPromptMode: 'file',                  // 文件模式 (配合 useShellWrapper 稳定工作)
+      userPromptArg: '-p',                       // 用户消息通过 -p 传入
+      sessionMode: 'always',
+      sessionArg: '--sessionId',
+      useShellWrapper: true,                     // Windows 必须用 cmd.exe /c 包装
+      description: 'Knot CLI (chat + -m + -p + --sessionId + --user-rules, cmd.exe wrapped)',
+    });
+  } else if(preset === 'claude-code'){
+    Object.assign(base, {
+      name: 'claude-code',
+      command: 'claude',
+      args: ['-p'],                       // Claude Code 的 -p 是 "print mode (non-interactive)"
+      input: 'stdin',
+      output: 'text',
+      modelArg: '--model',
+      modelAliases: { 'sonnet': 'sonnet', 'opus': 'opus', 'haiku': 'haiku' },
+      systemPromptArg: '--append-system-prompt',
+      systemPromptMode: 'arg',
+      userPromptArg: '',                  // 用户消息从 stdin 进
+      sessionMode: 'none',
+      sessionArg: '',
+      description: 'Claude Code CLI',
+    });
+  }
+  _cliBackendsData.push(base);
+  renderCliBackendsList();
+}
+
+function _cliArgsArrToString(arr){
+  if(!Array.isArray(arr)) return '';
+  // 用空格分隔，带空格的参数加引号
+  return arr.map(x => {
+    const s = String(x);
+    return /\s/.test(s) ? JSON.stringify(s) : s;
+  }).join(' ');
+}
+
+function _cliMapToText(m){
+  if(!m || typeof m !== 'object') return '';
+  return Object.entries(m).map(([k,v]) => k+'='+v).join('\n');
+}
+
+function _cliTextToMap(text){
+  // 文本格式：
+  //   alias = real_id   (完整映射)
+  //   alias: real_id    (兼容冒号)
+  //   alias             (简写：等号两侧相同)
+  //   # 注释 / 空行被忽略
+  const out = {};
+  if(!text) return out;
+  for(const line of text.split(/\r?\n/)){
+    const t = line.trim();
+    if(!t || t.startsWith('#')) continue;
+    // 优先用 =，其次冒号（空格包围的才算分隔符，避免 http:// 被误拆）
+    let sep = -1;
+    let sepLen = 1;
+    const eqIdx = t.indexOf('=');
+    if(eqIdx > 0){
+      sep = eqIdx;
+    } else {
+      // 冒号分隔：仅当整个 token 里只有一个 `:` 且两侧都有内容（排除 `http://...` 这种）
+      const colonMatch = t.match(/^([^\s:]+)\s*:\s+(.+)$/);
+      if(colonMatch){
+        out[colonMatch[1].trim()] = colonMatch[2].trim();
+        continue;
+      }
+    }
+    if(sep > 0){
+      const alias = t.slice(0, sep).trim();
+      const real = t.slice(sep + sepLen).trim();
+      if(!alias) continue;
+      out[alias] = real || alias;   // 若右侧为空，等价于 alias 本身
+    } else {
+      // 无分隔符 → 简写：alias 即 real_id
+      // 允许空格分隔的第一个 token（更宽松）
+      const tok = t.split(/\s+/)[0];
+      if(tok) out[tok] = tok;
+    }
+  }
+  return out;
+}
+
+function renderCliBackendsList(){
+  const list = $('cliBackendsList');
+  if(!list) return;
+  list.innerHTML = '';
+  if(!_cliBackendsData.length){
+    list.innerHTML = '<div style="padding:10px;background:rgba(255,255,255,.02);border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:12px;text-align:center">尚未配置任何本地 CLI 后端。点击下方 <b>+ 新增</b> 开始。</div>';
+    return;
+  }
+  for(let i = 0; i < _cliBackendsData.length; i++){
+    const b = _cliBackendsData[i];
+    const card = document.createElement('div');
+    card.className = 'cli-backend-card';
+    card.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:12px;background:rgba(255,255,255,.02)';
+    card.dataset.idx = String(i);
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <input type="text" data-k="name" value="${esc(b.name||'')}" placeholder="backend name (如 local-llama)" style="flex:1;padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px;font-family:ui-monospace,monospace" ${b._isNew?'':'readonly title="名称保存后不可改（请删除后重建）"'}>
+        <label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">
+          <input type="checkbox" data-k="enabled" ${b.enabled!==false?'checked':''}> 启用
+        </label>
+      </div>
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:6px 10px;font-size:12px">
+        <label style="color:var(--muted);align-self:center">命令 *</label>
+        <input type="text" data-k="command" value="${esc(b.command||'')}" placeholder="claude / /usr/local/bin/llama-cli" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px">
+
+        <label style="color:var(--muted);align-self:center">启动参数</label>
+        <input type="text" data-k="args" value="${esc(_cliArgsArrToString(b.args))}" placeholder='-p --output-format json' style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px">
+
+        <label style="color:var(--muted);align-self:center">工作目录</label>
+        <input type="text" data-k="workdir" value="${esc(b.workdir||'')}" placeholder="留空使用当前目录" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px">
+
+        <label style="color:var(--muted);align-self:center">输入模式</label>
+        <select data-k="input" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px">
+          <option value="stdin" ${(b.input||'stdin')==='stdin'?'selected':''}>stdin (提示词从标准输入)</option>
+          <option value="args" ${b.input==='args'?'selected':''}>args (提示词作为参数)</option>
+        </select>
+
+        <label style="color:var(--muted);align-self:center">输出格式</label>
+        <select data-k="output" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px">
+          <option value="text" ${(b.output||'text')==='text'?'selected':''}>text (纯文本)</option>
+          <option value="json" ${b.output==='json'?'selected':''}>json</option>
+          <option value="jsonl" ${b.output==='jsonl'?'selected':''}>jsonl (流式 JSON)</option>
+        </select>
+
+        <label style="color:var(--muted);align-self:center">modelArg</label>
+        <input type="text" data-k="modelArg" value="${esc(b.modelArg||'')}" placeholder="--model / -m" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px">
+
+        <label style="color:var(--muted);align-self:center">systemPromptArg</label>
+        <input type="text" data-k="systemPromptArg" value="${esc(b.systemPromptArg||'')}" placeholder="--append-system-prompt (留空则按 systemPromptMode 处理)" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px">
+
+        <label style="color:var(--muted);align-self:center" title="若 CLI 只接受文件路径作为 system prompt (如 knot-cli 的 --user-rules)">systemPromptFileArg</label>
+        <input type="text" data-k="systemPromptFileArg" value="${esc(b.systemPromptFileArg||'')}" placeholder="--user-rules / --system-file (配合 systemPromptMode=file)" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px">
+
+        <label style="color:var(--muted);align-self:center" title="当 CLI 不支持系统提示参数时，系统提示如何处理">systemPromptMode</label>
+        <select data-k="systemPromptMode" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px">
+          <option value="" ${!b.systemPromptMode?'selected':''}>自动 (有 systemPromptArg 则作参数，否则拼到用户消息前)</option>
+          <option value="arg" ${b.systemPromptMode==='arg'?'selected':''}>arg (强制作为参数, 需要 systemPromptArg)</option>
+          <option value="file" ${b.systemPromptMode==='file'?'selected':''}>file (写入临时文件, 需要 systemPromptFileArg)</option>
+          <option value="prepend" ${b.systemPromptMode==='prepend'?'selected':''}>prepend (拼到用户消息前)</option>
+          <option value="skip" ${b.systemPromptMode==='skip'?'selected':''}>skip (丢弃系统提示)</option>
+        </select>
+
+        <label style="color:var(--muted);align-self:center" title="用户消息作为参数传入时使用的参数名，如 knot-cli 的 -p">userPromptArg</label>
+        <input type="text" data-k="userPromptArg" value="${esc(b.userPromptArg||'')}" placeholder="-p / --prompt (留空则按 输入模式 处理)" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px">
+
+        <label style="color:var(--muted);align-self:center" title="Windows 下用 cmd.exe /c 包装启动，用于绕过某些 CLI (如 knot-cli) 对父进程的检测">useShellWrapper</label>
+        <select data-k="useShellWrapper" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px">
+          <option value="false" ${!b.useShellWrapper?'selected':''}>否 (直接启动)</option>
+          <option value="true" ${b.useShellWrapper?'selected':''}>是 (cmd.exe /c 包装, Windows 推荐给 knot-cli)</option>
+        </select>
+
+        <label style="color:var(--muted);align-self:center">sessionMode</label>
+        <select data-k="sessionMode" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px">
+          <option value="none" ${(b.sessionMode||'none')==='none'?'selected':''}>none (无会话)</option>
+          <option value="always" ${b.sessionMode==='always'?'selected':''}>always (总是带 session)</option>
+          <option value="existing" ${b.sessionMode==='existing'?'selected':''}>existing (仅恢复已有)</option>
+        </select>
+
+        <label style="color:var(--muted);align-self:center">sessionArg</label>
+        <input type="text" data-k="sessionArg" value="${esc(b.sessionArg||'')}" placeholder="--session-id" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px">
+
+        <label style="color:var(--muted);align-self:center">resumeArgs</label>
+        <input type="text" data-k="resumeArgs" value="${esc(_cliArgsArrToString(b.resumeArgs))}" placeholder='--resume {sessionId}' style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px">
+
+        <label style="color:var(--muted);align-self:center">imageArg</label>
+        <input type="text" data-k="imageArg" value="${esc(b.imageArg||'')}" placeholder="--image (留空表示不支持)" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px">
+
+        <label style="color:var(--muted);align-self:center">listModelsArg</label>
+        <input type="text" data-k="listModelsArg" value="${esc(b.listModelsArg||'')}" placeholder="--list-models / models list (留空则跳过自动探测)" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px">
+
+        <label style="color:var(--muted);align-self:start;padding-top:6px">可用模型</label>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div id="cliModelList${i}" class="cli-model-list" style="display:flex;flex-direction:column;gap:4px"></div>
+          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+            <button class="sm-btn" type="button" onclick="addCliModelRow(${i})" style="padding:3px 10px;font-size:11px">+ 添加模型</button>
+            <button class="sm-btn" type="button" onclick="probeCliBackendModels(${i})" style="padding:3px 10px;font-size:11px" title="运行 command + listModelsArg 自动拉取模型列表">🔍 自动探测</button>
+            <button class="sm-btn" type="button" onclick="toggleCliModelBulk(${i})" id="cliModelBulkToggleBtn${i}" style="padding:3px 10px;font-size:11px" title="切换批量文本模式">📝 批量编辑</button>
+            <span id="cliModelStatus${i}" style="font-size:10px;color:var(--muted);align-self:center"></span>
+          </div>
+          <!-- 批量编辑文本域（默认隐藏，点击 📝 切换显示） -->
+          <div id="cliModelBulkWrap${i}" style="display:none;margin-top:6px">
+            <textarea id="cliModelBulk${i}" rows="6" placeholder="每行一条，三种写法均可：&#10;  gpt-4o = openai/gpt-4o-2024-11-20      （完整映射）&#10;  llama3-8b: models/llama-3-8b.Q4_K_M.gguf（冒号亦可）&#10;  claude-sonnet                           （简写：等号两侧相同）&#10;  # 以 # 开头是注释" style="width:100%;padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px;resize:vertical;min-height:80px"></textarea>
+            <div style="display:flex;gap:6px;margin-top:4px">
+              <button class="sm-btn" type="button" onclick="applyCliModelBulk(${i})" style="padding:3px 10px;font-size:11px">✓ 应用到列表</button>
+              <button class="sm-btn" type="button" onclick="toggleCliModelBulk(${i})" style="padding:3px 10px;font-size:11px">取消</button>
+              <span style="font-size:10px;color:var(--muted);align-self:center">解析后会覆盖上面的列表</span>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);line-height:1.4;margin-top:2px">
+            每一行代表一个可在聊天框选择的模型。左：显示名（alias），右：实际传给 CLI 的 ID/路径。
+            若定义了 modelArg（如 <code>--model</code>），选择模型时会把实际 ID 作为该参数值传入。
+          </div>
+        </div>
+
+        <label style="color:var(--muted);align-self:start;padding-top:6px">环境变量</label>
+        <textarea data-k="env" placeholder="每行一个，格式: KEY=VALUE" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11.5px;resize:vertical;min-height:40px">${esc(_cliMapToText(b.env))}</textarea>
+
+        <label style="color:var(--muted);align-self:center">备注</label>
+        <input type="text" data-k="description" value="${esc(b.description||'')}" placeholder="Claude Code CLI - fallback" style="padding:6px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px">
+      </div>
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        <button class="sm-btn" onclick="testCliBackend(${i})" style="padding:5px 10px;font-size:11px" title="运行 command --version 验证可用">🔬 测试</button>
+        <button class="sm-btn" onclick="saveCliBackend(${i})" style="padding:5px 10px;font-size:11px">💾 保存</button>
+        <button class="sm-btn danger" onclick="deleteCliBackend(${i})" style="padding:5px 10px;font-size:11px">🗑 删除</button>
+        <span id="cliBackendStatus${i}" style="font-size:11px;color:var(--muted);margin-left:auto;align-self:center"></span>
+      </div>
+      <div id="cliBackendTestOutput${i}" style="display:none;margin-top:8px;padding:8px 10px;background:rgba(0,0,0,.28);border:1px solid var(--border);border-radius:6px;font-family:ui-monospace,monospace;font-size:11px;white-space:pre-wrap;max-height:200px;overflow:auto"></div>
+    `;
+    list.appendChild(card);
+    // 渲染可用模型行
+    _renderCliModelListRows(i, b.modelAliases || {});
+  }
+}
+
+// ── 可用模型行（动态 +/- 编辑器）──
+function _renderCliModelListRows(idx, aliases){
+  const container = document.getElementById('cliModelList' + idx);
+  if(!container) return;
+  container.innerHTML = '';
+  const entries = Object.entries(aliases || {});
+  if(entries.length === 0){
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding:6px 8px;color:var(--muted);font-size:11px;font-style:italic;border:1px dashed var(--border);border-radius:6px';
+    empty.textContent = '尚无模型 — 点击 + 添加，或点击 🔍 自动探测';
+    empty.id = 'cliModelEmpty' + idx;
+    container.appendChild(empty);
+    return;
+  }
+  for(const [alias, realId] of entries){
+    _appendCliModelRow(idx, alias, realId);
+  }
+}
+
+function _appendCliModelRow(idx, alias, realId){
+  const container = document.getElementById('cliModelList' + idx);
+  if(!container) return;
+  // 移除 empty 占位
+  const empty = document.getElementById('cliModelEmpty' + idx);
+  if(empty) empty.remove();
+  const row = document.createElement('div');
+  row.className = 'cli-model-row';
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center';
+  row.innerHTML = `
+    <input type="text" class="cli-model-alias" value="${esc(alias||'')}" placeholder="显示名 / alias（如 gpt-4o）" style="padding:5px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11px">
+    <input type="text" class="cli-model-real" value="${esc(realId||'')}" placeholder="实际 ID / 路径（传给 CLI 的值）" style="padding:5px 8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:ui-monospace,monospace;font-size:11px">
+    <button class="sm-btn" type="button" style="padding:3px 8px;font-size:11px;color:var(--accent)" title="删除此模型">✕</button>
+  `;
+  row.querySelector('button').onclick = () => {
+    row.remove();
+    // 若删完了，显示 empty
+    if(container.children.length === 0){
+      _renderCliModelListRows(idx, {});
+    }
+  };
+  container.appendChild(row);
+}
+
+function addCliModelRow(idx){
+  _appendCliModelRow(idx, '', '');
+}
+
+// 切换批量编辑文本域的显隐；打开时把当前列表序列化回文本（简写优先）
+function toggleCliModelBulk(idx){
+  const wrap = document.getElementById('cliModelBulkWrap' + idx);
+  const ta = document.getElementById('cliModelBulk' + idx);
+  const btn = document.getElementById('cliModelBulkToggleBtn' + idx);
+  if(!wrap || !ta) return;
+  const isHidden = wrap.style.display === 'none';
+  if(isHidden){
+    // 打开：把当前行编辑器的内容序列化为多行文本
+    const current = _collectCliModelAliases(idx);
+    const lines = [];
+    for(const [alias, real] of Object.entries(current)){
+      if(alias === real){
+        lines.push(alias);           // 简写形式
+      }else{
+        lines.push(alias + ' = ' + real);
+      }
+    }
+    ta.value = lines.join('\n');
+    wrap.style.display = '';
+    if(btn){ btn.textContent = '📝 关闭批量'; btn.style.color = 'var(--accent)'; }
+    ta.focus();
+  }else{
+    wrap.style.display = 'none';
+    if(btn){ btn.textContent = '📝 批量编辑'; btn.style.color = ''; }
+  }
+}
+
+// 把批量文本解析后覆盖到行编辑器
+function applyCliModelBulk(idx){
+  const ta = document.getElementById('cliModelBulk' + idx);
+  if(!ta) return;
+  const parsed = _cliTextToMap(ta.value);
+  _renderCliModelListRows(idx, parsed);
+  // 关闭批量区
+  const wrap = document.getElementById('cliModelBulkWrap' + idx);
+  const btn = document.getElementById('cliModelBulkToggleBtn' + idx);
+  if(wrap) wrap.style.display = 'none';
+  if(btn){ btn.textContent = '📝 批量编辑'; btn.style.color = ''; }
+  const count = Object.keys(parsed).length;
+  _setCliModelStatus(idx, '✓ 应用 '+count+' 条', '#22c55e');
+}
+
+function _collectCliModelAliases(idx){
+  const rows = document.querySelectorAll('#cliModelList'+idx+' .cli-model-row');
+  const out = {};
+  rows.forEach(row => {
+    const alias = (row.querySelector('.cli-model-alias') || {}).value || '';
+    const real = (row.querySelector('.cli-model-real') || {}).value || '';
+    const a = String(alias).trim();
+    if(!a) return;
+    out[a] = String(real).trim() || a;  // 留空则 alias 即真实 ID
+  });
+  return out;
+}
+
+async function probeCliBackendModels(idx){
+  const entry = _collectCliBackendFromCard(idx);
+  if(!entry){ return; }
+  if(!entry.command){
+    _setCliModelStatus(idx, '请先填 command', 'var(--accent)');
+    return;
+  }
+  if(!entry.listModelsArg){
+    _setCliModelStatus(idx, '请先填 listModelsArg（如 --list-models）', 'var(--accent)');
+    return;
+  }
+  _setCliModelStatus(idx, '探测中...', 'var(--muted)');
+  try{
+    const res = await api('/api/cli/probe-models',{method:'POST',body:JSON.stringify({
+      command: entry.command,
+      listModelsArg: entry.listModelsArg,
+      args: entry.args || '',
+      workdir: entry.workdir || '',
+      env: entry.env || {},
+    })});
+    if(res && res.ok && Array.isArray(res.models) && res.models.length){
+      // 合并到现有列表（保留用户已编辑的）
+      const existing = _collectCliModelAliases(idx);
+      for(const m of res.models){
+        const alias = String(m.alias || m.id || '').trim();
+        if(!alias) continue;
+        if(!(alias in existing)){
+          existing[alias] = String(m.id || alias);
+        }
+      }
+      _renderCliModelListRows(idx, existing);
+      _setCliModelStatus(idx, '✓ 探测到 '+res.models.length+' 个模型', '#22c55e');
+    }else{
+      _setCliModelStatus(idx, res && res.error ? ('探测失败: '+res.error) : '未解析到模型', 'var(--accent)');
+    }
+  }catch(e){
+    _setCliModelStatus(idx, '探测失败: '+e.message, 'var(--accent)');
+  }
+}
+
+function _setCliModelStatus(idx, text, color){
+  const s = document.getElementById('cliModelStatus' + idx);
+  if(!s) return;
+  s.textContent = text || '';
+  s.style.color = color || 'var(--muted)';
+}
+
+function _collectCliBackendFromCard(idx){
+  const card = document.querySelectorAll('#cliBackendsList .cli-backend-card')[idx];
+  if(!card) return null;
+  const get = k => {
+    const el = card.querySelector(`[data-k="${k}"]`);
+    return el ? (el.type === 'checkbox' ? el.checked : el.value) : '';
+  };
+  const argsStr = String(get('args') || '').trim();
+  const resumeArgsStr = String(get('resumeArgs') || '').trim();
+  return {
+    name: String(get('name') || '').trim(),
+    command: String(get('command') || '').trim(),
+    args: argsStr,   // backend will parse
+    input: get('input') || 'stdin',
+    output: get('output') || 'text',
+    modelArg: String(get('modelArg') || '').trim(),
+    modelAliases: _collectCliModelAliases(idx),
+    listModelsArg: String(get('listModelsArg') || '').trim(),
+    systemPromptArg: String(get('systemPromptArg') || '').trim(),
+    systemPromptFileArg: String(get('systemPromptFileArg') || '').trim(),
+    systemPromptMode: String(get('systemPromptMode') || '').trim().toLowerCase(),
+    userPromptArg: String(get('userPromptArg') || '').trim(),
+    sessionMode: get('sessionMode') || 'none',
+    sessionArg: String(get('sessionArg') || '').trim(),
+    resumeArgs: resumeArgsStr,
+    resumeOutput: '',
+    imageArg: String(get('imageArg') || '').trim(),
+    systemPromptWhen: '',
+    workdir: String(get('workdir') || '').trim(),
+    env: _cliTextToMap(String(get('env') || '')),
+    enabled: !!get('enabled'),
+    useShellWrapper: String(get('useShellWrapper') || 'false') === 'true',
+    description: String(get('description') || '').trim(),
+  };
+}
+
+function _setCliBackendStatus(idx, text, color){
+  const s = $('cliBackendStatus' + idx);
+  if(!s) return;
+  s.textContent = text || '';
+  s.style.color = color || 'var(--muted)';
+}
+
+async function saveCliBackend(idx){
+  const entry = _collectCliBackendFromCard(idx);
+  if(!entry) return;
+  if(!entry.name){ _setCliBackendStatus(idx, '名称不能为空', 'var(--accent)'); return; }
+  if(!entry.command){ _setCliBackendStatus(idx, 'command 不能为空', 'var(--accent)'); return; }
+  // ★ 常见配置错误自动清洗：若 args 第一个 token 与 command 的 basename 同名
+  //   (如 command="knot-cli.exe", args="knot-cli chat ..."), 剥离并温和提示。
+  try{
+    const cmdBase = String(entry.command).trim().split(/[\/\\]/).pop().replace(/\.(exe|cmd|bat|sh)$/i,'').toLowerCase();
+    const argsStr = String(entry.args||'').trim();
+    if(cmdBase && argsStr){
+      const firstTok = argsStr.split(/\s+/)[0].replace(/\.(exe|cmd|bat|sh)$/i,'').toLowerCase();
+      if(firstTok === cmdBase){
+        // 剥离首个 token
+        entry.args = argsStr.replace(/^\S+\s*/,'');
+        // 同步回输入框
+        const card = document.querySelectorAll('#cliBackendsList .cli-backend-card')[idx];
+        const argsInput = card && card.querySelector('[data-k="args"]');
+        if(argsInput) argsInput.value = entry.args;
+        showToast('已自动去除 args 中重复的命令名: '+firstTok);
+      }
+    }
+  }catch(_){}
+  _setCliBackendStatus(idx, '保存中...', 'var(--muted)');
+  try{
+    const res = await api('/api/cli/backends',{method:'POST',body:JSON.stringify({action:'save', ...entry})});
+    if(res && res.ok){
+      _cliBackendsData = Array.isArray(res.backends) ? res.backends : _cliBackendsData;
+      renderCliBackendsList();
+      showToast('CLI 后端「'+entry.name+'」已保存');
+      // ★ 立即刷新模型下拉框，让新 CLI 出现在聊天框模型选择中
+      if(typeof populateModelDropdown === 'function'){
+        try{ await populateModelDropdown(); }catch(_){}
+      }
+    }else{
+      throw new Error((res && res.error) || '保存失败');
+    }
+  }catch(e){
+    _setCliBackendStatus(idx, '保存失败: '+e.message, 'var(--accent)');
+  }
+}
+
+async function deleteCliBackend(idx){
+  const b = _cliBackendsData[idx];
+  if(!b) return;
+  if(b._isNew){
+    _cliBackendsData.splice(idx, 1);
+    renderCliBackendsList();
+    return;
+  }
+  if(!confirm('删除 CLI 后端「'+(b.name||'(未命名)')+'」？')) return;
+  try{
+    const res = await api('/api/cli/backends',{method:'POST',body:JSON.stringify({action:'delete', name: b.name})});
+    if(res && res.ok){
+      _cliBackendsData = Array.isArray(res.backends) ? res.backends : [];
+      renderCliBackendsList();
+      showToast('已删除');
+      if(typeof populateModelDropdown === 'function'){
+        try{ await populateModelDropdown(); }catch(_){}
+      }
+    }
+  }catch(e){
+    showToast('删除失败: '+e.message);
+  }
+}
+
+async function testCliBackend(idx){
+  const entry = _collectCliBackendFromCard(idx);
+  if(!entry || !entry.command){
+    _setCliBackendStatus(idx, '请先填 command', 'var(--accent)');
+    return;
+  }
+  _setCliBackendStatus(idx, '测试中...', 'var(--muted)');
+  const outEl = $('cliBackendTestOutput' + idx);
+  if(outEl){ outEl.style.display = ''; outEl.textContent = '运行 '+entry.command+' --version …'; }
+  try{
+    const res = await api('/api/cli/test',{method:'POST',body:JSON.stringify({
+      command: entry.command,
+      // 测试用 --version，不用用户的 args（可能包含对话专用参数）
+      args: ['--version'],
+      workdir: entry.workdir || '',
+    })});
+    const ok = res && res.ok;
+    _setCliBackendStatus(idx, ok ? '✓ 可用' : '✗ 不可用', ok ? '#22c55e' : 'var(--accent)');
+    if(outEl){
+      const parts = [];
+      if(res.resolved) parts.push('解析路径: ' + res.resolved);
+      if(typeof res.return_code === 'number') parts.push('return_code: ' + res.return_code);
+      if(res.stdout) parts.push('--- stdout ---\n' + res.stdout);
+      if(res.stderr) parts.push('--- stderr ---\n' + res.stderr);
+      if(res.error) parts.push('错误: ' + res.error);
+      outEl.textContent = parts.join('\n\n') || '无输出';
+    }
+  }catch(e){
+    _setCliBackendStatus(idx, '测试失败', 'var(--accent)');
+    if(outEl){ outEl.textContent = e.message; }
+  }
+}
+
 // Close settings on overlay click (not panel click) -- with unsaved-changes check
 document.addEventListener('click',e=>{
   const overlay=$('settingsOverlay');
@@ -1580,4 +2271,3 @@ function dismissErrorBanner(){
   if(banner) banner.style.display='none';
 }
 
-// Event wiring

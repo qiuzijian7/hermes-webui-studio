@@ -72,3 +72,26 @@ def auto_install_agent_deps() -> bool:
     except Exception as e:
         print(f'[!!] Auto-install error: {e}', flush=True)
         return False
+
+
+def init_event_bus_hooks() -> int:
+    """加载 hooks/ 目录下所有 *.py 到事件总线。
+
+    由 Web 服务主入口在 serve 之前调用一次即可；若 event_bus 或 hooks 目录缺失则
+    静默 no-op，不影响启动流程。
+
+    Returns:
+        成功加载的 hook 模块数量。
+    """
+    try:
+        from api.event_bus import load_hooks_dir
+    except ImportError:
+        return 0
+    try:
+        count = load_hooks_dir()
+        if count > 0:
+            print(f'[ok] event_bus: loaded {count} hook module(s) from hooks/', flush=True)
+        return count
+    except Exception as e:
+        print(f'[!!] event_bus hook loading failed: {e}', flush=True)
+        return 0

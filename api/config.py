@@ -12,6 +12,7 @@ Discovery order for all paths:
 import collections
 import json
 import os
+import queue
 import sys
 import threading
 import time
@@ -206,11 +207,13 @@ def reload_config() -> None:
             import yaml as _yaml
 
             if config_path.exists():
-                loaded = _yaml.safe_load(config_path.read_text())
+                raw = config_path.read_text(encoding="utf-8")
+                loaded = _yaml.safe_load(raw)
                 if isinstance(loaded, dict):
                     _cfg_cache.update(loaded)
-        except Exception:
-            pass
+        except Exception as exc:
+            import traceback as _tb
+            print(f"[webui] reload_config failed for {config_path}: {exc}\n{_tb.format_exc()}", flush=True)
 
 
 # Initial load
@@ -919,22 +922,36 @@ def get_available_models() -> dict:
     except Exception:
         pass
 
-    # 3. Fetch models from custom endpoint if base_url is configured
-    auto_detected_models = []
+    # 3. Fetch models from custom endpoints (model.base_url + custom_providers)
+    auto_detected_by_provider: dict[str, list] = {}
+    _urls_to_fetch = []
     if cfg_base_url:
+        _urls_to_fetch.append((cfg_base_url, active_provider or "custom", ""))
+    _custom_providers_cfg = cfg.get("custom_providers", [])
+    if isinstance(_custom_providers_cfg, list):
+        for _cp in _custom_providers_cfg:
+            if not isinstance(_cp, dict):
+                continue
+            _cp_base = (_cp.get("base_url") or "").strip()
+            _cp_name = (_cp.get("name") or "").strip()
+            _cp_key = (_cp.get("api_key") or "").strip()
+            if _cp_base and _cp_base != cfg_base_url:
+                _urls_to_fetch.append((_cp_base, _cp_name or "custom", _cp_key))
+
+    for _base_url, _url_provider, _cp_api_key in _urls_to_fetch:
         try:
             import ipaddress
             import urllib.request
 
             # Normalize the base_url and build models endpoint
-            base_url = cfg_base_url.strip()
+            base_url = _base_url.strip()
             if base_url.endswith("/v1"):
                 endpoint_url = base_url + "/models"  # /v1/models
             else:
                 endpoint_url = base_url.rstrip("/") + "/v1/models"
 
             # Detect provider from base_url
-            provider = "custom"
+            provider = _url_provider
             parsed = urlparse(base_url if "://" in base_url else f"http://{base_url}")
             host = (parsed.netloc or parsed.path).lower()
 
@@ -959,7 +976,8 @@ def get_available_models() -> dict:
             # Priority:
             #   1. model.api_key in config.yaml
             #   2. provider-specific providers.<active>.api_key / providers.custom.api_key
-            #   3. env/.env fallbacks
+            #   3. the matching custom_providers entry's api_key
+            #   4. env/.env fallbacks
             headers = {}
             api_key = ""
             if isinstance(model_cfg, dict):
@@ -973,6 +991,8 @@ def get_available_models() -> dict:
                             api_key = (provider_cfg.get("api_key") or "").strip()
                             if api_key:
                                 break
+            if not api_key:
+                api_key = _cp_api_key
             if not api_key:
                 api_key_vars = (
                     "HERMES_API_KEY",
@@ -1047,7 +1067,9 @@ def get_available_models() -> dict:
                 )
                 model_name = model.get("name", "") or model.get("model", "") or model_id
                 if model_id and model_name:
-                    auto_detected_models.append({"id": model_id, "label": model_name})
+                    auto_detected_by_provider.setdefault(provider.lower(), []).append(
+                        {"id": model_id, "label": model_name}
+                    )
                     detected_providers.add(provider.lower())
         except Exception:
             pass  # custom endpoint unreachable or misconfigured -- fail silently
@@ -1057,16 +1079,32 @@ def get_available_models() -> dict:
     # /v1/models endpoint is unreachable or returns a subset.
     _custom_providers_cfg = cfg.get("custom_providers", [])
     if isinstance(_custom_providers_cfg, list):
-        _seen_custom_ids = {m["id"] for m in auto_detected_models}
+        _all_auto = []
+        for _p_models in auto_detected_by_provider.values():
+            _all_auto.extend(_p_models)
+        _seen_custom_ids = {m["id"] for m in _all_auto}
         for _cp in _custom_providers_cfg:
             if not isinstance(_cp, dict):
                 continue
-            _cp_model = _cp.get("model", "")
+            _cp_model = (_cp.get("model") or "").strip()
+            _cp_name = (_cp.get("name") or "").strip()
             if _cp_model and _cp_model not in _seen_custom_ids:
                 _cp_label = _cp_model.split("/")[-1] if "/" in _cp_model else _cp_model
-                auto_detected_models.append({"id": _cp_model, "label": _cp_label})
+                auto_detected_by_provider.setdefault("custom", []).append(
+                    {"id": _cp_model, "label": _cp_label}
+                )
                 _seen_custom_ids.add(_cp_model)
                 detected_providers.add("custom")
+            elif not _cp_model and _cp_name:
+                # No model configured: use provider name as a placeholder so the
+                # provider still appears in the model dropdown.
+                placeholder_id = f"custom:{_cp_name}"
+                if placeholder_id not in _seen_custom_ids:
+                    auto_detected_by_provider.setdefault("custom", []).append(
+                        {"id": placeholder_id, "label": _cp_name}
+                    )
+                    _seen_custom_ids.add(placeholder_id)
+                    detected_providers.add("custom")
 
     # If the user configured a real model.provider, the base_url belongs to
     # THAT provider, not to a separate "Custom" group. hermes_cli reports
@@ -1156,11 +1194,21 @@ def get_available_models() -> dict:
             else:
                 # Unknown provider -- use auto-detected models if available,
                 # otherwise fall back to default model placeholder
-                if auto_detected_models:
+                _provider_models = auto_detected_by_provider.get(pid, [])
+                if _provider_models:
+                    models = []
+                    for m in _provider_models:
+                        mid = m["id"]
+                        # Use @provider: hint for bare names so
+                        # resolve_model_provider() routes correctly.
+                        if mid.startswith("@") or "/" in mid:
+                            models.append({"id": mid, "label": m["label"]})
+                        else:
+                            models.append({"id": f"@{pid}:{mid}", "label": m["label"]})
                     groups.append(
                         {
                             "provider": provider_name,
-                            "models": auto_detected_models,
+                            "models": models,
                         }
                     )
                 else:
@@ -1225,6 +1273,65 @@ def get_available_models() -> dict:
                     }
                 )
 
+    # Append explicit custom providers so they always appear in the dropdown,
+    # even when the auth detection layer doesn't recognise them.
+    _custom_providers_cfg = cfg.get("custom_providers", [])
+    if isinstance(_custom_providers_cfg, list):
+        for _cp in _custom_providers_cfg:
+            if not isinstance(_cp, dict):
+                continue
+            _cp_name = (_cp.get("name") or "").strip()
+            _cp_model = (_cp.get("model") or "").strip()
+            if not _cp_name:
+                continue
+            # Skip if a group with the same name already exists
+            if any(g.get("provider", "").lower() == _cp_name.lower() for g in groups):
+                continue
+            _cp_label = _cp_model.split("/")[-1] if "/" in _cp_model else (_cp_model or _cp_name)
+            _cp_id = _cp_model or f"custom:{_cp_name}"
+            groups.append({
+                "provider": _cp_name,
+                "models": [{"id": _cp_id, "label": _cp_label}]
+            })
+
+    # ── Local CLI backends (OpenClaw-style): expose as "Local CLI" group ──
+    try:
+        _cli_backends = cfg.get("cli_backends") or {}
+        if isinstance(_cli_backends, dict) and _cli_backends:
+            _cli_models = []
+            for _name, _b in _cli_backends.items():
+                if not isinstance(_b, dict):
+                    continue
+                if _b.get("enabled") is False:
+                    continue
+                _cmd = str(_b.get("command", "")).strip()
+                if not _cmd:
+                    continue
+                # 1) modelAliases 里的每一项作为独立模型: id="cli:<backend>/<alias>"
+                _aliases = _b.get("modelAliases") or {}
+                if isinstance(_aliases, dict) and _aliases:
+                    for _alias in _aliases.keys():
+                        _alias = str(_alias).strip()
+                        if not _alias:
+                            continue
+                        _cli_models.append({
+                            "id": f"cli:{_name}/{_alias}",
+                            "label": f"{_name} · {_alias}",
+                        })
+                else:
+                    # 2) 无 alias 时，单独一项: id="cli:<backend>"
+                    _cli_models.append({
+                        "id": f"cli:{_name}",
+                        "label": f"{_name} ({_cmd})",
+                    })
+            if _cli_models:
+                groups.append({
+                    "provider": "Local CLI",
+                    "models": _cli_models,
+                })
+    except Exception:
+        pass  # 不影响正常 provider 列表
+
     return {
         "active_provider": active_provider,
         "default_model": default_model,
@@ -1243,7 +1350,29 @@ STREAMS: dict = {}
 STREAMS_LOCK = threading.Lock()
 CANCEL_FLAGS: dict = {}
 AGENT_INSTANCES: dict = {}  # stream_id -> AIAgent instance for interrupt propagation
+# stream_id -> list[queue.Queue] : 附加订阅者队列（允许多个 SSE 连接同时观察同一个流）
+# 这解决了"从总群跳到员工时，新建的 SSE 连接抢不到事件"的问题：
+# 原始 STREAMS[stream_id] 作为 "primary" 继续工作（保持向后兼容），
+# 额外订阅者通过 STREAM_SUBS[stream_id] 拿到同样的事件广播。
+STREAM_SUBS: dict = {}
+# stream_id -> list[(event, data)] : 流的所有历史事件，新订阅者接入时用于回放
+# 仅在流未结束时保存，超过上限则丢弃最早的 token 事件（保留 tool/done 等结构事件）
+STREAM_HISTORY: dict = {}
+STREAM_HISTORY_MAX = 2000  # 每个流最多保留多少条事件 (token 按字符拆小块会很多)
 SERVER_START_TIME = time.time()
+
+# ── Global log broadcast channel ─────────────────────────────────────────────
+# All agent events (token, tool, done, etc.) are also pushed here so the
+# /api/logs/stream SSE endpoint can broadcast them to the log panel UI.
+LOG_SUBSCRIBERS: list[queue.Queue] = []
+LOG_SUBSCRIBERS_LOCK = threading.Lock()
+LOG_MAX_SUBSCRIBERS = 20  # safety cap
+
+# Ring buffer of recent log entries so new subscribers (e.g. after page refresh)
+# can receive history before catching up to real-time events.
+from collections import deque
+_LOG_HISTORY: deque[dict] = deque(maxlen=2000)
+_LOG_HISTORY_LOCK = threading.Lock()
 
 # ── Thread-local env context ─────────────────────────────────────────────────
 _thread_ctx = threading.local()

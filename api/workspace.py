@@ -286,3 +286,140 @@ def git_info_for_workspace(workspace: Path) -> dict:
         'behind': int(behind) if behind and behind.isdigit() else 0,
         'is_git': True,
     }
+
+
+def _run_git_raw(args, cwd, timeout=5):
+    """Run a git command; return full stdout (no strip), or None on failure."""
+    try:
+        r = subprocess.run(
+            ['git'] + args, cwd=str(cwd), capture_output=True,
+            text=True, timeout=timeout, errors='replace',
+        )
+        return r.stdout if r.returncode == 0 else None
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return None
+
+
+def git_changes_for_workspace(workspace: Path) -> dict:
+    """Return per-file changes (status + additions/deletions) for a workspace.
+
+    Returns: { is_git, branch, modified, added, deleted, untracked,
+               files: [ {path, status, additions, deletions}, ... ] }
+    """
+    if not (workspace / '.git').exists():
+        return {'is_git': False}
+    branch = _run_git(['rev-parse', '--abbrev-ref', 'HEAD'], workspace)
+    if branch is None:
+        return {'is_git': False}
+
+    # Per-file status via porcelain
+    status_out = _run_git_raw(['status', '--porcelain'], workspace) or ''
+    file_entries = []  # list of (status_code, path)
+    for line in status_out.splitlines():
+        if len(line) < 3:
+            continue
+        code = line[:2]
+        rest = line[3:]
+        # Handle renames: "R  old -> new"
+        if ' -> ' in rest:
+            rest = rest.split(' -> ', 1)[1]
+        file_entries.append((code, rest.strip().strip('"')))
+
+    # additions/deletions via `git diff --numstat` (unstaged + staged)
+    numstat_map = {}
+    # working tree vs index
+    for args in (
+        ['diff', '--numstat'],
+        ['diff', '--cached', '--numstat'],
+    ):
+        out = _run_git_raw(args, workspace) or ''
+        for line in out.splitlines():
+            parts = line.split('\t')
+            if len(parts) < 3:
+                continue
+            add_s, del_s, path = parts[0], parts[1], parts[2]
+            try:
+                a = int(add_s) if add_s != '-' else 0
+                d = int(del_s) if del_s != '-' else 0
+            except ValueError:
+                a, d = 0, 0
+            cur = numstat_map.get(path, (0, 0))
+            numstat_map[path] = (cur[0] + a, cur[1] + d)
+
+    files = []
+    modified = added = deleted = untracked = 0
+    for code, path in file_entries:
+        s = code.strip() or '??'
+        add, dele = numstat_map.get(path, (0, 0))
+        # If untracked and no numstat, try counting lines
+        if code.startswith('??') and add == 0 and dele == 0:
+            try:
+                fp = workspace / path
+                if fp.is_file():
+                    with open(fp, 'rb') as f:
+                        head = f.read(1024 * 128)
+                    add = head.count(b'\n')
+            except Exception:
+                pass
+        files.append({
+            'path': path,
+            'status': s,
+            'additions': add,
+            'deletions': dele,
+        })
+        if s.startswith('?'):
+            untracked += 1
+        elif 'A' in s:
+            added += 1
+        elif 'D' in s:
+            deleted += 1
+        else:
+            modified += 1
+
+    return {
+        'is_git': True,
+        'branch': branch,
+        'modified': modified,
+        'added': added,
+        'deleted': deleted,
+        'untracked': untracked,
+        'files': files,
+    }
+
+
+def git_diff_for_path(workspace: Path, rel_path: str) -> str:
+    """Return unified diff for a single path (worktree + staged combined)."""
+    if not (workspace / '.git').exists():
+        return ''
+    # Unstaged diff
+    unstaged = _run_git_raw(['diff', '--', rel_path], workspace) or ''
+    # Staged diff
+    staged = _run_git_raw(['diff', '--cached', '--', rel_path], workspace) or ''
+    # Untracked file: show as full-add diff
+    if not unstaged and not staged:
+        # check if untracked
+        status = _run_git_raw(['status', '--porcelain', '--', rel_path], workspace) or ''
+        if status.startswith('??'):
+            try:
+                fp = workspace / rel_path
+                if fp.is_file():
+                    text = fp.read_text(encoding='utf-8', errors='replace')
+                    lines = text.splitlines()
+                    body = '\n'.join('+' + l for l in lines)
+                    header = (
+                        f"diff --git a/{rel_path} b/{rel_path}\n"
+                        f"new file\n"
+                        f"--- /dev/null\n"
+                        f"+++ b/{rel_path}\n"
+                        f"@@ -0,0 +1,{len(lines)} @@\n"
+                    )
+                    return header + body
+            except Exception:
+                return ''
+        return ''
+    parts = []
+    if staged.strip():
+        parts.append('# --- staged ---\n' + staged)
+    if unstaged.strip():
+        parts.append('# --- unstaged ---\n' + unstaged)
+    return '\n'.join(parts)

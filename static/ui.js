@@ -459,107 +459,247 @@ function getModelLabel(modelId){
   return modelId.split('/').pop()||'Unknown';
 }
 
-function renderMd(raw){
-  let s=raw||'';
-  // Pre-pass: decode HTML entities first so markdown processing works correctly.
-  // This prevents double-escaping when LLM outputs entities like &lt; &gt; &amp;
-  const decode=s=>s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-  s=decode(s);
-  // Pre-pass: convert safe inline HTML tags the model may emit into their
-  // markdown equivalents so the pipeline can render them correctly.
-  // Only runs OUTSIDE fenced code blocks and backtick spans (stash + restore).
-  // Unsafe tags (anything not in the allowlist) are left as-is and will be
-  // HTML-escaped by esc() when they reach an innerHTML assignment -- no XSS risk.
-  const fence_stash=[];
-  s=s.replace(/(```[\s\S]*?```|`[^`\n]+`)/g,m=>{fence_stash.push(m);return '\x00F'+(fence_stash.length-1)+'\x00';});
-  // Safe tag → markdown equivalent (these produce the same output as **text** etc.)
-  s=s.replace(/<strong>([\s\S]*?)<\/strong>/gi,(_,t)=>'**'+t+'**');
-  s=s.replace(/<b>([\s\S]*?)<\/b>/gi,(_,t)=>'**'+t+'**');
-  s=s.replace(/<em>([\s\S]*?)<\/em>/gi,(_,t)=>'*'+t+'*');
-  s=s.replace(/<i>([\s\S]*?)<\/i>/gi,(_,t)=>'*'+t+'*');
-  s=s.replace(/<code>([^<]*?)<\/code>/gi,(_,t)=>'`'+t+'`');
-  s=s.replace(/<br\s*\/?>/gi,'\n');
-  // Restore stashed code blocks
-  s=s.replace(/\x00F(\d+)\x00/g,(_,i)=>fence_stash[+i]);
-  // Mermaid blocks: render as diagram containers (processed after DOM insertion)
-  s=s.replace(/```mermaid\n?([\s\S]*?)```/g,(_,code)=>{
-    const id='mermaid-'+Math.random().toString(36).slice(2,10);
-    return `<div class="mermaid-block" data-mermaid-id="${id}">${esc(code.trim())}</div>`;
+// ── marked.js configuration (initialized once) ────────────────────────────────
+let _markedReady = false;
+
+function _initMarked() {
+  if (_markedReady || typeof marked === 'undefined') return;
+  _markedReady = true;
+
+  // Configure marked via marked.use() (v15 API — setOptions is removed)
+  marked.use({
+    gfm: true,
+    breaks: true,
+    renderer: {
+      // Code blocks: add language header + Prism-compatible class for syntax highlighting
+      code({ text, lang }) {
+        // Mermaid blocks: render as diagram containers
+        if (lang === 'mermaid') {
+          const id = 'mermaid-' + Math.random().toString(36).slice(2, 10);
+          return `<div class="mermaid-block" data-mermaid-id="${id}">${esc(text)}</div>`;
+        }
+        const header = lang ? `<div class="pre-header">${esc(lang)}</div>` : '';
+        const langClass = lang ? ` class="language-${esc(lang)}"` : '';
+        return `${header}<pre><code${langClass}>${esc(text.replace(/\n$/, ''))}</code></pre>`;
+      },
+      // Links: open in new tab with security attributes
+      link({ href, title, text, tokens }) {
+        // marked v15: text is pre-rendered string, tokens are raw tokens
+        // Fallback: use text directly if this.parser is unavailable
+        const linkText = (this.parser && tokens) ? this.parser.parseInline(tokens) : (text || esc(href));
+        return `<a href="${esc(href)}" target="_blank" rel="noopener"${title ? ` title="${esc(title)}"` : ''}>${linkText}</a>`;
+      },
+    },
   });
-  s=s.replace(/```([\w+-]*)\n?([\s\S]*?)```/g,(_,lang,code)=>{const h=lang?`<div class="pre-header">${esc(lang)}</div>`:'';return `${h}<pre><code>${esc(code.replace(/\n$/,''))}</code></pre>`;});
-  s=s.replace(/`([^`\n]+)`/g,(_,c)=>`<code>${esc(c)}</code>`);
-  // inlineMd: process bold/italic/code/links within a single line of text.
-  // Used inside list items and blockquotes where the text may already contain
-  // HTML from the pre-pass → bold pipeline, so we cannot call esc() directly.
-  function inlineMd(t){
-    t=t.replace(/\*\*\*(.+?)\*\*\*/g,(_,x)=>`<strong><em>${esc(x)}</em></strong>`);
-    t=t.replace(/\*\*(.+?)\*\*/g,(_,x)=>`<strong>${esc(x)}</strong>`);
-    t=t.replace(/\*([^*\n]+)\*/g,(_,x)=>`<em>${esc(x)}</em>`);
-    t=t.replace(/`([^`\n]+)`/g,(_,x)=>`<code>${esc(x)}</code>`);
-    t=t.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,(_,lb,u)=>`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(lb)}</a>`);
-    t=t.replace(/(https?:\/\/[^\s<>"')\]]+)/g,(url)=>{const trail=url.match(/[.,;:!?)]$/)?url.slice(-1):'';const clean=trail?url.slice(0,-1):url;return `<a href="${esc(clean)}" target="_blank" rel="noopener">${esc(clean)}</a>${trail}`;});
-    // Escape any plain text that isn't already wrapped in a tag we produced
-    // by escaping bare < > that aren't part of our own tags
-    const SAFE_INLINE=/^<\/?(strong|em|code|a)([\s>]|$)/i;
-    t=t.replace(/<\/?[a-z][^>]*>/gi,tag=>SAFE_INLINE.test(tag)?tag:esc(tag));
-    return t;
+}
+
+// ── Inline tool-XML transformation (OpenClaw-style safety net) ──────────────
+// When models output tool calls as pseudo-XML (<write_to_file path="..." content="...">
+// ...</write_to_file>) instead of via native function-calling, this pre-processor
+// converts them into collapsible cards so users see a friendly summary instead of
+// raw tag text. Matches only known tool names to avoid mangling legit markup.
+const _INLINE_TOOL_NAMES = [
+  'write_to_file','read_file','edit_file','patch','apply_patch','str_replace',
+  'search_files','grep','find_files','list_dir',
+  'terminal','shell','bash','execute_code','run_code','python','exec',
+  'web_search','web_extract','web_fetch','browser_navigate','vision_analyze',
+  'delegate_task','spawn_agent','steer_agent','list_agents','send_message',
+  'send_group_message','group_message',
+  'memory','skill_manage','todo','cronjob','subagent_progress',
+  'tool_call','function_call','invoke','tool',
+];
+const _INLINE_TOOL_NAME_SET = new Set(_INLINE_TOOL_NAMES.map(n => n.toLowerCase()));
+
+// Build a regex once for all known tool names; case-insensitive; greedy content match
+const _INLINE_TOOL_RE = new RegExp(
+  '<(' + _INLINE_TOOL_NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|') + ')\\b([^>]*)>([\\s\\S]*?)<\\/\\1\\s*>',
+  'gi'
+);
+// Also detect unclosed opening tags (streaming in progress): <write_to_file ...>
+const _INLINE_TOOL_OPEN_RE = new RegExp(
+  '<(' + _INLINE_TOOL_NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|') + ')\\b([^>]*)>(?![\\s\\S]*?<\\/\\1\\s*>)',
+  'gi'
+);
+
+function _parseXmlAttrs(attrStr) {
+  const attrs = {};
+  if (!attrStr) return attrs;
+  // Match key="val" / key='val' / key=val(no quotes, up to next whitespace or >)
+  const re = /([a-zA-Z_][\w-]*)\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
+  let m;
+  while ((m = re.exec(attrStr)) !== null) {
+    attrs[m[1]] = m[3] !== undefined ? m[3] : (m[4] !== undefined ? m[4] : (m[5] || ''));
   }
-  s=s.replace(/\*\*\*(.+?)\*\*\*/g,(_,t)=>`<strong><em>${esc(t)}</em></strong>`);
-  s=s.replace(/\*\*(.+?)\*\*/g,(_,t)=>`<strong>${esc(t)}</strong>`);
-  s=s.replace(/\*([^*\n]+)\*/g,(_,t)=>`<em>${esc(t)}</em>`);
-  s=s.replace(/^### (.+)$/gm,(_,t)=>`<h3>${inlineMd(t)}</h3>`).replace(/^## (.+)$/gm,(_,t)=>`<h2>${inlineMd(t)}</h2>`).replace(/^# (.+)$/gm,(_,t)=>`<h1>${inlineMd(t)}</h1>`);
-  s=s.replace(/^---+$/gm,'<hr>');
-  s=s.replace(/^> (.+)$/gm,(_,t)=>`<blockquote>${inlineMd(t)}</blockquote>`);
-  // B8: improved list handling supporting up to 2 levels of indentation
-  s=s.replace(/((?:^(?:  )?[-*+] .+\n?)+)/gm,block=>{
-    const lines=block.trimEnd().split('\n');
-    let html='<ul>';
-    for(const l of lines){
-      const indent=/^ {2,}/.test(l);
-      const text=l.replace(/^ {0,4}[-*+] /,'');
-      if(indent) html+=`<li style="margin-left:16px">${inlineMd(text)}</li>`;
-      else html+=`<li>${inlineMd(text)}</li>`;
-    }
-    return html+'</ul>';
+  return attrs;
+}
+
+function _buildInlineToolCardHtml(name, attrs, body, opts) {
+  const unclosed = !!(opts && opts.unclosed);
+  const icon = (typeof toolIcon === 'function') ? toolIcon(name) : '🔧';
+  // Title: prefer meaningful attrs like path/command/query
+  let summary = '';
+  if (attrs.path) summary = attrs.path;
+  else if (attrs.file_path) summary = attrs.file_path;
+  else if (attrs.command) summary = attrs.command;
+  else if (attrs.query) summary = attrs.query;
+  else if (attrs.url) summary = attrs.url;
+  else if (attrs.name) summary = attrs.name;
+  else if (attrs.employee_name) summary = attrs.employee_name;
+  const safeName = esc(name);
+  const safeSummary = summary ? esc(String(summary).slice(0, 120)) : '';
+  const statusBadge = unclosed
+    ? '<span class="inline-tool-status inline-tool-status-pending">生成中</span>'
+    : '<span class="inline-tool-status inline-tool-status-inline">内联调用</span>';
+
+  // Render key attributes as a small table
+  const attrRows = Object.entries(attrs)
+    .filter(([k]) => k !== 'content' && k !== 'text')
+    .slice(0, 10)
+    .map(([k, v]) => `<tr><td class="inline-tool-k">${esc(k)}</td><td class="inline-tool-v">${esc(String(v).slice(0, 500))}</td></tr>`)
+    .join('');
+  const attrBlock = attrRows
+    ? `<table class="inline-tool-attrs">${attrRows}</table>`
+    : '';
+
+  // Render content/body as preformatted text (trim to 4000 chars for safety)
+  const bodyText = (body || attrs.content || attrs.text || '').toString();
+  const bodyTrimmed = bodyText.length > 4000 ? bodyText.slice(0, 4000) + '\n...[truncated]' : bodyText;
+  const bodyBlock = bodyTrimmed.trim()
+    ? `<pre class="inline-tool-body">${esc(bodyTrimmed)}</pre>`
+    : '';
+
+  return (
+    '<details class="inline-tool-card" data-tool="' + safeName + '">'
+    + '<summary class="inline-tool-summary">'
+    +   '<span class="inline-tool-icon">' + icon + '</span>'
+    +   '<span class="inline-tool-name">' + safeName + '</span>'
+    +   (safeSummary ? '<span class="inline-tool-target">' + safeSummary + '</span>' : '')
+    +   statusBadge
+    + '</summary>'
+    + '<div class="inline-tool-detail">' + attrBlock + bodyBlock + '</div>'
+    + '</details>'
+  );
+}
+
+function _transformInlineToolXml(s) {
+  if (!s || typeof s !== 'string') return s;
+  // Quick check: any "<" + known-tool? If none, bail out cheap
+  if (s.indexOf('<') < 0) return s;
+
+  // Step 1: replace closed tool blocks
+  s = s.replace(_INLINE_TOOL_RE, (full, name, attrs, body) => {
+    if (!_INLINE_TOOL_NAME_SET.has(name.toLowerCase())) return full;
+    const parsedAttrs = _parseXmlAttrs(attrs);
+    return '\n\n' + _buildInlineToolCardHtml(name, parsedAttrs, body, { unclosed: false }) + '\n\n';
   });
-  s=s.replace(/((?:^(?:  )?\d+\. .+\n?)+)/gm,block=>{
-    const lines=block.trimEnd().split('\n');
-    let html='<ol>';
-    for(const l of lines){
-      const text=l.replace(/^ {0,4}\d+\. /,'');
-      html+=`<li>${inlineMd(text)}</li>`;
-    }
-    return html+'</ol>';
+
+  // Step 2: replace unclosed opening tags (in-progress streaming)
+  s = s.replace(_INLINE_TOOL_OPEN_RE, (full, name, attrs) => {
+    if (!_INLINE_TOOL_NAME_SET.has(name.toLowerCase())) return full;
+    const parsedAttrs = _parseXmlAttrs(attrs);
+    // Capture remaining text after this open tag and before next newline pair
+    // as best-effort "body in progress"
+    return '\n\n' + _buildInlineToolCardHtml(name, parsedAttrs, '', { unclosed: true }) + '\n\n';
   });
-  s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,(_,label,url)=>`<a href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>`);
-  // Tables: | col | col | header row followed by | --- | --- | separator then data rows
-  s=s.replace(/((?:^\|.+\|\n?)+)/gm,block=>{
-    const rows=block.trim().split('\n').filter(r=>r.trim());
-    if(rows.length<2)return block;
-    const isSep=r=>/^\|[\s|:-]+\|$/.test(r.trim());
-    if(!isSep(rows[1]))return block;
-    const parseRow=r=>r.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>`<td>${inlineMd(c.trim())}</td>`).join('');
-    const parseHeader=r=>r.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>`<th>${inlineMd(c.trim())}</th>`).join('');
-    const header=`<tr>${parseHeader(rows[0])}</tr>`;
-    const body=rows.slice(2).map(r=>`<tr>${parseRow(r)}</tr>`).join('');
-    return `<table><thead>${header}</thead><tbody>${body}</tbody></table>`;
-  });
-  // Escape any remaining HTML tags that are NOT from our own markdown output.
-  // Our pipeline only emits: <strong>,<em>,<code>,<pre>,<h1-6>,<ul>,<ol>,<li>,
-  // <table>,<thead>,<tbody>,<tr>,<th>,<td>,<hr>,<blockquote>,<p>,<br>,<a>,
-  // <div class="..."> (mermaid/pre-header). Everything else is untrusted input.
-  const SAFE_TAGS=/^<\/?(strong|em|code|pre|h[1-6]|ul|ol|li|table|thead|tbody|tr|th|td|hr|blockquote|p|br|a|div)([\s>]|$)/i;
-  s=s.replace(/<\/?[a-z][^>]*>/gi,tag=>SAFE_TAGS.test(tag)?tag:esc(tag));
-  // Autolink: convert plain URLs to clickable links (not inside existing <a> tags, not in code)
-  s=s.replace(/(https?:\/\/[^\s<>"')\]]+)/g,(url)=>{
-    // Strip trailing punctuation that was likely not part of the URL
-    const trail=url.match(/[.,;:!?)]$/)?url.slice(-1):'';
-    const clean=trail?url.slice(0,-1):url;
-    return `<a href="${esc(clean)}" target="_blank" rel="noopener">${esc(clean)}</a>${trail}`;
-  });
-  const parts=s.split(/\n{2,}/);
-  s=parts.map(p=>{p=p.trim();if(!p)return '';if(/^<(h[1-6]|ul|ol|pre|hr|blockquote)/.test(p))return p;return `<p>${p.replace(/\n/g,'<br>')}</p>`;}).join('\n');
+
   return s;
+}
+
+function renderMd(raw) {
+  let s = raw || '';
+  // Pre-pass: decode HTML entities so markdown processing works correctly.
+  // LLM outputs may contain &lt; &gt; &amp; which should be treated as their
+  // actual characters before markdown parsing.
+  const decode = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  s = decode(s);
+
+  // ★ OpenClaw 风格：拦截并转换伪工具调用 XML
+  //   模型有时会把工具调用以 <tool_name ...>...</tool_name> 的 XML 形式输出到可见文本，
+  //   而不是通过原生 function-calling 通道。这里把它们渲染成折叠卡片，避免 "原始标签
+  //   + 原始参数" 以纯文本形式泄漏给用户。
+  s = _transformInlineToolXml(s);
+
+  // ★ Thinking 标签处理（防泄漏）：
+  //   1) 成对 <think>...</think> 及 Gemma <|channel>thought...<channel|> → 完整移除
+  //      （这些内容应该通过 thinking-card 单独渲染，而不是混在 assistant 文本里）
+  //   2) 孤立 </think> / 孤立 <think> / 未闭合 <think>... → 静默移除
+  //   3) 任何残余的 <think> / </think> 字面量 → 剥掉（避免转义后作为可见文本出现）
+  // 成对块
+  s = s.replace(/<think>[\s\S]*?<\/think>\s*/gi, '');
+  s = s.replace(/<\|channel>thought\n[\s\S]*?<channel\|>\s*/gi, '');
+  // 未闭合 <think>... 到字符串末尾（流式输出截断场景）
+  s = s.replace(/<think>[\s\S]*$/gi, '');
+  s = s.replace(/<\|channel>thought\n[\s\S]*$/gi, '');
+  // 孤立的单独标签
+  s = s.replace(/<\/?think\s*>/gi, '');
+  s = s.replace(/<channel\|>/gi, '');
+
+  // Escape HTML comments: closed comments are fully escaped, lone <!-- are
+  // escaped to prevent them from swallowing subsequent content.
+  s = s.replace(/<!--[\s\S]*?-->/g, comment => esc(comment));
+  s = s.replace(/<!--/g, '&lt;!--');
+
+  // Ensure marked is initialized (wrap in try-catch to prevent breaking renderMd)
+  try { _initMarked(); } catch(e) { console.warn('[renderMd] _initMarked failed:', e); }
+
+  // Use marked.parse() for full GFM markdown rendering
+  let html;
+  try {
+    html = marked.parse(s);
+  } catch (e) {
+    // Fallback: if marked fails, escape and wrap in paragraphs
+    console.warn('[renderMd] marked.parse failed, falling back to escaped text:', e);
+    html = '<p>' + esc(s).replace(/\n/g, '<br>') + '</p>';
+  }
+
+  // Post-process: sanitize any remaining unsafe HTML tags that marked may
+  // have passed through (marked with sanitize:false allows HTML through).
+  // Only allow tags from our known safe set.
+  const SAFE_TAGS = /^<\/?(strong|em|code|pre|h[1-6]|ul|ol|li|table|thead|tbody|tr|th|td|hr|blockquote|p|br|a|div|span|sup|sub|details|summary|input|del|ins|mark|abbr|img)([\s>]|$)/i;
+  html = html.replace(/<\/?[a-z][^>]*>/gi, tag => SAFE_TAGS.test(tag) ? tag : esc(tag));
+
+  return html;
+}
+
+// ── Shared thinking-text extraction ──────────────────────────────────────────
+// Extracts thinking blocks (full + in-progress) and remaining display text
+// from raw LLM output that may contain <think>...</think> blocks or
+// Gemma-style <|channel>thought...<channel|> blocks.
+// Returns { thinking: string, text: string }.
+const THINK_PAIRS = [
+  { open: '\u003Cthink\u003E', close: '\u003C/think\u003E' },
+  { open: '<|channel>thought\n', close: '<channel|>' },
+];
+
+function extractThinkingAndText(raw) {
+  let thinkingParts = [];
+  let remaining = raw;
+  for (const { open, close } of THINK_PAIRS) {
+    let idx = remaining.indexOf(open);
+    while (idx !== -1) {
+      const afterOpen = idx + open.length;
+      const closeIdx = remaining.indexOf(close, afterOpen);
+      if (closeIdx === -1) break;
+      thinkingParts.push(remaining.slice(afterOpen, closeIdx).trim());
+      remaining = remaining.slice(0, idx) + remaining.slice(closeIdx + close.length);
+      idx = remaining.indexOf(open);
+    }
+  }
+  // Check for in-progress (unclosed) thinking block
+  for (const { open, close } of THINK_PAIRS) {
+    const trimmed = remaining.trimStart();
+    if (trimmed.startsWith(open)) {
+      const closeIdx = trimmed.indexOf(close, open.length);
+      if (closeIdx === -1) {
+        thinkingParts.push(trimmed.slice(open.length).trim());
+        return { thinking: thinkingParts.join('\n'), text: '' };
+      }
+    }
+    if (open.startsWith(trimmed)) return { thinking: '', text: '' };
+  }
+  // Strip orphaned tags
+  const cleanedText = remaining.replace(/^\s+/, '').replace(/<\/?think>/gi, '').trim();
+  return { thinking: thinkingParts.join('\n'), text: cleanedText };
 }
 
 function setStatus(t){
@@ -582,7 +722,8 @@ function setComposerStatus(t){
 function updateSendBtn(){
   const btn=$('btnSend');
   if(!btn) return;
-  const hasContent=$('msg').value.trim().length>0||S.pendingFiles.length>0;
+  const pendingFiles=S.pendingFiles||[];
+  const hasContent=$('msg').value.trim().length>0||pendingFiles.length>0;
   const canSend=hasContent&&!S.busy;
   // Hide while busy (cancel button takes its place); show otherwise
   btn.style.display=S.busy?'none':'';
@@ -601,6 +742,16 @@ function setBusy(v){
     // Always hide Cancel button when not busy
     const _cb=$('btnCancel');if(_cb)_cb.style.display='none';
     updateQueueBadge();
+    // 方案 B：释放 manual Job（推进员工队列）
+    if(S._activeManualJobId && typeof DelegationVM!=='undefined'){
+      try{
+        const job=DelegationVM.findJob?DelegationVM.findJob(S._activeManualJobId):null;
+        if(job){
+          DelegationVM.completeJob(job.empId, job.id, 'done');
+        }
+      }catch(err){console.warn('[setBusy] completeJob err', err);}
+      S._activeManualJobId=null;
+    }
     // Drain one queued message after UI settles
     if(MSG_QUEUE.length>0){
       const next=MSG_QUEUE.shift();
@@ -966,7 +1117,7 @@ function renderMessages(){
     // Keep assistant messages with tool_use content even if they have no text,
     // so tool cards can be anchored to their DOM rows on page reload (#140).
     if(m.role==='assistant'&&Array.isArray(m.content)&&m.content.some(p=>p&&p.type==='tool_use'))return true;
-    return msgContent(m)||m.attachments?.length;
+    return msgContent(m)||m.attachments?.length||m.reasoning;
   });
   $('emptyState').style.display=vis.length?'none':'';
   inner.innerHTML='';
@@ -980,7 +1131,7 @@ function renderMessages(){
     if(!m||!m.role||m.role==='tool'){rawIdx++;continue;}
     const hasTc=Array.isArray(m.tool_calls)&&m.tool_calls.length>0;
     const hasTu=Array.isArray(m.content)&&m.content.some(p=>p&&p.type==='tool_use');
-    if(msgContent(m)||m.attachments?.length||(m.role==='assistant'&&(hasTc||hasTu))) visWithIdx.push({m,rawIdx});
+    if(msgContent(m)||m.attachments?.length||m.reasoning||(m.role==='assistant'&&(hasTc||hasTu))) visWithIdx.push({m,rawIdx});
     rawIdx++;
   }
   for(let vi=0;vi<visWithIdx.length;vi++){
@@ -1000,16 +1151,22 @@ function renderMessages(){
     // and Gemma 4 channel tokens: <|channel>thought\n...<channel|>
     // Note: no ^ anchor — some models emit leading whitespace/newlines before <think>.
     if(!thinkingText && typeof content==='string'){
-      const thinkMatch=content.match(/<think>([\s\S]*?)<\/think>/);
-      if(thinkMatch){
-        thinkingText=thinkMatch[1].trim();
-        content=content.replace(/<think>[\s\S]*?<\/think>\s*/,'').trimStart();
+      // Extract ALL <think> blocks (global replace) so leftover tags don't leak into rendered text
+      const thinkRe=/<think>([\s\S]*?)<\/think>/g;
+      const thinkingParts=[];
+      let m;
+      while((m=thinkRe.exec(content))!==null){
+        thinkingParts.push(m[1].trim());
+      }
+      if(thinkingParts.length){
+        thinkingText=thinkingParts.join('\n');
+        content=content.replace(/<think>[\s\S]*?<\/think>\s*/g,'').trimStart().replace(/<\/?think>/gi,'').trim();
       }
       if(!thinkingText){
         const gemmaMatch=content.match(/<\|channel>thought\n([\s\S]*?)<channel\|>/);
         if(gemmaMatch){
           thinkingText=gemmaMatch[1].trim();
-          content=content.replace(/<\|channel>thought\n[\s\S]*?<channel\|>\s*/,'').trimStart();
+          content=content.replace(/<\|channel>thought\n[\s\S]*?<channel\|>\s*/g,'').trimStart();
         }
       }
     }
@@ -1018,7 +1175,7 @@ function renderMessages(){
     // Render thinking card before the assistant message (collapsed by default)
     if(thinkingText&&!isUser){
       const thinkRow=document.createElement('div');thinkRow.className='msg-row thinking-card-row';
-      thinkRow.innerHTML=`<div class="thinking-card"><div class="thinking-card-header" onclick="this.parentElement.classList.toggle('open')"><span class="thinking-card-icon">${li('lightbulb',14)}</span><span class="thinking-card-label">${t('thinking')}</span><span class="thinking-card-toggle">${li('chevron-right',12)}</span></div><div class="thinking-card-body"><pre>${esc(thinkingText)}</pre></div></div>`;
+      thinkRow.innerHTML=`<div class="thinking-card"><div class="thinking-card-header" onclick="this.parentElement.classList.toggle('open')"><span class="thinking-card-icon">${li('lightbulb',14)}</span><span class="thinking-card-label">${t('thinking')}</span><span class="thinking-card-toggle">${li('chevron-right',12)}</span></div><div class="thinking-card-body">${renderMd(thinkingText)}</div></div>`;
       inner.appendChild(thinkRow);
     }
     const row=document.createElement('div');row.className='msg-row';
@@ -1026,7 +1183,7 @@ function renderMessages(){
     let filesHtml='';
     if(m.attachments&&m.attachments.length)
       filesHtml=`<div class="msg-files">${m.attachments.map(f=>`<div class="msg-file-badge">${li('paperclip',12)} ${esc(f)}</div>`).join('')}</div>`;
-    const bodyHtml = isUser ? esc(String(content)).replace(/\n/g,'<br>') : renderMd(String(content));
+    const bodyHtml = renderMd(String(content));
     // Action buttons for this bubble
     const editBtn  = isUser  ? `<button class="msg-action-btn" title="${t('edit_message')}" onclick="editMessage(this)">${li('pencil',13)}</button>` : '';
     const retryBtn = isLastAssistant ? `<button class="msg-action-btn" title="${t('regenerate')}" onclick="regenerateResponse(this)">${li('rotate-ccw',13)}</button>` : '';
@@ -1434,6 +1591,43 @@ function appendThinking(){
   if(!inner) return;
   const emptyChat = $('rpEmptyChat');
   if(emptyChat) emptyChat.style.display='none';
+  // ★ 员工模式下直接用 turn-row 的 Thinking 占位（与 messages.js 的流式渲染一致，
+  //   避免 #thinkingRow → ensureAssistantRow 移除 → turn-row 的闪烁）
+  const _rpView = window._rpView || null;
+  if(emp && (!_rpView || _rpView === 'chat')){
+    let turnRow = $('msgLiveTurnRow');
+    if(!turnRow){
+      turnRow = document.createElement('div');
+      turnRow.className = 'rp-msg-row rp-turn';
+      turnRow.id = 'msgLiveTurnRow';
+      turnRow.dataset.role = 'assistant';
+      turnRow.innerHTML = `
+        <div class="rp-msg-role assistant">
+          <span class="rp-msg-icon">${avatar}</span>
+          <span class="rp-msg-name">${esc(name)}</span>
+        </div>
+        <div class="rp-turn-segments" id="msgLiveTurnSegments">
+          <div class="rp-msg-body rp-turn-text" id="msgLiveStreamBody">
+            <span style="color:var(--muted);font-size:13px">Thinking\u2026</span>
+          </div>
+        </div>
+      `;
+      inner.appendChild(turnRow);
+    } else {
+      // 已有 turn-row（上一轮流未正常结束）：清空 segments 并重建初始占位
+      let segs = $('msgLiveTurnSegments');
+      if(!segs){
+        segs = document.createElement('div');
+        segs.className = 'rp-turn-segments';
+        segs.id = 'msgLiveTurnSegments';
+        turnRow.appendChild(segs);
+      }
+      segs.innerHTML = '<div class="rp-msg-body rp-turn-text" id="msgLiveStreamBody"><span style="color:var(--muted);font-size:13px">Thinking\u2026</span></div>';
+    }
+    const msgArea = $('rpMessages');
+    if(msgArea) msgArea.scrollTop = msgArea.scrollHeight;
+    return;
+  }
   const row=document.createElement('div');row.className='rp-msg-row';row.id='thinkingRow';
   row.innerHTML=`<div class="rp-msg-role assistant"><span class="rp-msg-icon">${avatar}</span><span class="rp-msg-name">${esc(name)}</span></div><div class="thinking" style="padding-left:22px"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
   inner.appendChild(row);
@@ -1937,26 +2131,28 @@ async function promptNewFolder(){
 
 function renderTray(){
   const tray=$('attachTray');tray.innerHTML='';
-  if(!S.pendingFiles.length){tray.classList.remove('has-files');updateSendBtn();return;}
+  const pendingFiles=S.pendingFiles||[];
+  if(!pendingFiles.length){tray.classList.remove('has-files');updateSendBtn();return;}
   tray.classList.add('has-files');
   updateSendBtn();
-  S.pendingFiles.forEach((f,i)=>{
+  pendingFiles.forEach((f,i)=>{
     const chip=document.createElement('div');chip.className='attach-chip';
     chip.innerHTML=`${li('paperclip',12)} ${esc(f.name)} <button title="${t('remove_title')}">${li('x',12)}</button>`;
     chip.querySelector('button').onclick=()=>{S.pendingFiles.splice(i,1);renderTray();};
     tray.appendChild(chip);
   });
 }
-function addFiles(files){for(const f of files){if(!S.pendingFiles.find(p=>p.name===f.name))S.pendingFiles.push(f);}renderTray();}
+function addFiles(files){if(!S.pendingFiles)S.pendingFiles=[];for(const f of files){if(!S.pendingFiles.find(p=>p.name===f.name))S.pendingFiles.push(f);}renderTray();}
 
 async function uploadPendingFiles(){
-  if(!S.pendingFiles.length||!S.session)return[];
+  const pendingFiles=S.pendingFiles||[];
+  if(!pendingFiles.length||!S.session)return[];
   const names=[];let failures=0;
   const bar=$('uploadBar');const barWrap=$('uploadBarWrap');
   barWrap.classList.add('active');bar.style.width='0%';
-  const total=S.pendingFiles.length;
+  const total=pendingFiles.length;
   for(let i=0;i<total;i++){
-    const f=S.pendingFiles[i];const fd=new FormData();
+    const f=pendingFiles[i];const fd=new FormData();
     fd.append('session_id',S.session.session_id);fd.append('file',f,f.name);
     try{
       const res=await fetch(new URL('/api/upload',location.origin).href,{method:'POST',credentials:'include',body:fd});

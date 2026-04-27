@@ -1,9 +1,10 @@
 async function send(){
   const text=$('msg').value.trim();
-  if(!text&&!S.pendingFiles.length)return;
+  const pendingFiles=S.pendingFiles||[];
+  if(!text&&!pendingFiles.length)return;
   console.log('[send] called, S.busy=', S.busy, 'isOpen=', typeof GROUP_CHAT_STATE!=='undefined'?GROUP_CHAT_STATE.isOpen:'N/A');
   // Slash command intercept -- local commands handled without agent round-trip
-  if(text.startsWith('/')&&!S.pendingFiles.length&&executeCommand(text)){
+  if(text.startsWith('/')&&!pendingFiles.length&&executeCommand(text)){
     $('msg').value='';autoResize();hideCmdDropdown();return;
   }
   // Don't send while an inline message edit is active
@@ -17,6 +18,104 @@ async function send(){
     return;
   }
 
+  // ★ Peer 派发拦截：在员工 A 的聊天框中 @员工B → 把任务派发给 B，
+  //    B 的执行过程显示在 B 的聊天框；B 完成后结果回传到 A 的聊天框由 A 评估。
+  //    仅在"非总群 + 有选中员工 + 文本包含可解析的 @其他员工"时生效。
+  if(text
+     && typeof EMPLOYEE_STORE!=='undefined' && EMPLOYEE_STORE.selectedId
+     && typeof parsePeerMentions==='function' && typeof dispatchPeerTask==='function'
+     && typeof getEmployee==='function'){
+    const _fromEmp=getEmployee(EMPLOYEE_STORE.selectedId);
+    const _mentions=_fromEmp ? parsePeerMentions(text, _fromEmp.id) : [];
+    if(_fromEmp && _mentions.length){
+      console.log('[send] peer 派发拦截, from=', _fromEmp.name,
+                  '→', _mentions.map(m=>m.name).join(','));
+      $('msg').value='';autoResize();hideCmdDropdown();
+      // 在 A 的聊天框里本地 echo 用户原始指令（作为 user 消息显示）
+      try{
+        const userEcho={role:'user',content:text,_ts:Date.now()/1000,_peerDispatch:true};
+        S.messages.push(userEcho);
+        if(typeof _renderRpMessages==='function') _renderRpMessages();
+        else if(typeof renderMessages==='function') renderMessages();
+      }catch(_){}
+      // 去除 @mention 前缀，得到干净的任务内容
+      let _cleanedTask=text;
+      for(const m of _mentions){
+        const re=new RegExp('@'+m.name.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\$&')+'\\s*','g');
+        _cleanedTask=_cleanedTask.replace(re,'').trim();
+      }
+      if(!_cleanedTask) _cleanedTask='请根据上下文执行任务';
+      // 逐个派发（通常只有一个）
+      for(const m of _mentions){
+        const _toEmp=getEmployee(m.empId);
+        if(!_toEmp) continue;
+        // 若 A 尚未创建 session，先建一个（以便 B 完成后能回传到 A 的 session）
+        if(!_fromEmp.sessionId && typeof openEmployeeChat==='function'){
+          try{await openEmployeeChat(_fromEmp.id);}catch(_){}
+        }
+        try{
+          await dispatchPeerTask({
+            fromEmp:_fromEmp,
+            toEmp:_toEmp,
+            taskContent:_cleanedTask,
+            rawText:text,
+          });
+          if(typeof showToast==='function'){
+            showToast('已委派给 @'+_toEmp.name+'，完成后结果会回传到此处');
+          }
+        }catch(e){
+          console.warn('[send] peer 派发失败:', e);
+          if(typeof showToast==='function') showToast('派发失败: '+e.message);
+        }
+      }
+      return;
+    }
+  }
+
+  // 方案 B：员工级任务队列 —— 若当前员工正在跑任务（委派/手动），入队
+  if(typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId
+     &&typeof DelegationVM!=='undefined'&&typeof getEmployee==='function'){
+    const _curEmp=getEmployee(EMPLOYEE_STORE.selectedId);
+    if(_curEmp){
+      const runningJob=DelegationVM.getRunningJob(_curEmp.id);
+      if(runningJob){
+        // 员工有在跑的任务（委派或手动），入队
+        const pendingText=text;
+        const pendingFilesSnap=(S.pendingFiles||[]).slice();
+        $('msg').value='';autoResize();
+        S.pendingFiles=[];
+        if(typeof renderTray==='function') renderTray();
+        const manualJobId='m_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+        const manualJob={
+          id:manualJobId,
+          empId:_curEmp.id,
+          kind:'manual',
+          pendingText,
+          pendingFilesSnap,
+          startFn:async()=>{
+            // 恢复输入框 + pending files，再次调 send()（此时员工空闲了）
+            S.pendingFiles=(manualJob.pendingFilesSnap||[]).slice();
+            if(typeof renderTray==='function') renderTray();
+            $('msg').value=manualJob.pendingText||'';
+            autoResize();
+            // 标记"本次 send 是从队列中 drain 出来的 manual job"，避免重入队
+            S._manualJobDraining=manualJob;
+            await send();
+          },
+          cancelFn:async()=>{
+            // manual job 未启动即取消：无需后端动作
+            console.log('[队列] manual job 取消', manualJob.id);
+          },
+        };
+        const pos=DelegationVM.enqueueJob(manualJob);
+        if(typeof showToast==='function'){
+          showToast(`员工「${_curEmp.name}」正在处理任务，你的消息已加入队列（第 ${pos} 位）`,3500);
+        }
+        return;
+      }
+    }
+  }
+
   // If busy, queue the message instead of dropping it
   if(S.busy){
     if(text){
@@ -28,7 +127,23 @@ async function send(){
     return;
   }
 
-  if(!S.session){await newSession();await renderSessionList();}
+  if(!S.session){
+    // ★ 如果有选中的员工，通过 openEmployeeChat 为员工创建 session（而非通用的 newSession）
+    // 这样 session 会绑定到员工，消息发到正确的 session
+    if(typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof openEmployeeChat==='function'){
+      const _empId=EMPLOYEE_STORE.selectedId;
+      await openEmployeeChat(_empId);
+      // openEmployeeChat 会设置 S.session 和 emp.sessionId
+    } else {
+      await newSession();
+    }
+    await renderSessionList();
+    // 安全守卫：如果 session 仍为 null（API 失败等），中止发送
+    if(!S.session){
+      setComposerStatus('无法创建会话，请重试');
+      return;
+    }
+  }
 
   const activeSid=S.session.session_id;
 
@@ -51,10 +166,28 @@ async function send(){
           if(typeof _updateCardTokenUsage==='function') _updateCardTokenUsage(_emp);
         }
       }
+      // ★ 如果员工记忆的模型已在下拉里不可用（如 cli: backend 被删）
+      //   回退到下拉当前选中的模型，并同步写回员工。
+      if(_empModel){
+        const sel=$('modelSelect');
+        if(sel && sel.options){
+          const opts=Array.from(sel.options).map(o=>o.value);
+          if(!opts.includes(_empModel)){
+            const fallback=sel.value || (opts[0]||'');
+            if(fallback && fallback!==_empModel){
+              console.warn('[model] employee model "'+_empModel+'" not in dropdown, falling back to "'+fallback+'"');
+              if(typeof showToast==='function') showToast('员工记忆的模型 '+_empModel+' 已不可用，已切换到 '+fallback);
+              _empModel=fallback;
+              _emp.model=fallback;
+              if(typeof _saveEmployees==='function') _saveEmployees();
+            }
+          }
+        }
+      }
     }
   }
 
-  setComposerStatus(S.pendingFiles&&S.pendingFiles.length?'Uploading…':'');
+  setComposerStatus(pendingFiles.length?'Uploading…':'');
   let uploaded=[];
   try{uploaded=await uploadPendingFiles();}
   catch(e){if(!text){setComposerStatus(`Upload error: ${e.message}`);return;}}
@@ -69,7 +202,12 @@ async function send(){
   const userMsg={role:'user',content:displayText,attachments:uploaded.length?uploaded:undefined,_ts:Date.now()/1000};
   S.toolCalls=[];  // clear tool calls from previous turn
   clearLiveToolCards();  // clear any leftover live cards from last turn
-  S.messages.push(userMsg);renderMessages();appendThinking();setBusy(true);
+  S.messages.push(userMsg);
+  try{renderMessages();}catch(_){}
+  // 用户发送消息：强制滚到底（看到自己发的消息），并重置粘底标记
+  try{ if(typeof _scrollMsgAreaToBottom==='function') _scrollMsgAreaToBottom(); }catch(_){}
+  try{appendThinking();}catch(_){}
+  setBusy(true);
   // 记录发送消息时的员工ID（完成后用此ID重置状态，而非selectedId）
   const _sendEmpId = (typeof EMPLOYEE_STORE!=='undefined') ? EMPLOYEE_STORE.selectedId : null;
   // 更新员工状态为思考中
@@ -112,6 +250,31 @@ async function send(){
     // Show Cancel button
     const cancelBtn=$('btnCancel');
     if(cancelBtn) cancelBtn.style.display='inline-flex';
+    // 方案 B：登记 manual job 到 DelegationVM（若不是由 drain 启动）
+    if(_sendEmpId && typeof DelegationVM!=='undefined'){
+      if(S._manualJobDraining && S._manualJobDraining.empId===_sendEmpId){
+        // 由队列 drain 触发的 manual job —— 把已登记的 Job 的 streamId/sessionId 补齐
+        const draining=S._manualJobDraining;
+        draining.streamId=streamId;
+        draining.sessionId=activeSid;
+        S._activeManualJobId=draining.id;
+        S._manualJobDraining=null;
+      } else {
+        // 空闲时直接发起的手动消息：生成临时 Job 登记为 running（旁路，不调 startFn）
+        const jobId='m_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+        const job={
+          id:jobId, empId:_sendEmpId, kind:'manual',
+          streamId, sessionId:activeSid,
+          startFn:async()=>{},  // 已启动，占位
+          cancelFn:async()=>{
+            // 通过后端 cancel_stream 中断
+            try{await api(`/api/chat/cancel?stream_id=${encodeURIComponent(streamId)}`,{method:'POST'});}catch(_){}
+          },
+        };
+        try{DelegationVM.registerRunning(job);}catch(_){}
+        S._activeManualJobId=jobId;
+      }
+    }
   }catch(e){
     delete INFLIGHT[activeSid];
     stopApprovalPolling();
@@ -130,12 +293,23 @@ async function send(){
   let assistantText='';
   let assistantRow=null;
   let assistantBody=null;
+  // ★ 分离 reasoning 缓冲区，避免 token 被污染进 <think> 块
+  let _reasoningBuffer='';
   // Thinking tag patterns for streaming display
   const _thinkPairs=[
     {open:'<think>',close:'</think>'},
     {open:'<|channel>thought\n',close:'<channel|>'}
   ];
 
+  // ★ 判断当前是否处于"员工右面板对话"模式 —— 若是，采用 turn-row 结构：
+  //   一个 assistant 回合 = 一个 .rp-msg-row.rp-turn，内含 .rp-turn-segments，
+  //   依次放置 [思考段 / 文本段 / 工具卡片段]，而不是每段另起一行。
+  function _isEmployeeRpMode(){
+    return typeof EMPLOYEE_STORE!=='undefined'
+      && EMPLOYEE_STORE.selectedId
+      && (!window._rpView || window._rpView==='chat')
+      && !(typeof GROUP_CHAT_STATE!=='undefined' && GROUP_CHAT_STATE.isOpen);
+  }
   function ensureAssistantRow(){
     if(assistantRow)return;
     // ★ 总群打开时不追加员工消息行（防止覆盖总群内容）
@@ -145,6 +319,49 @@ async function send(){
     const emp = typeof EMPLOYEE_STORE!=='undefined'?getEmployee(EMPLOYEE_STORE.selectedId):null;
     const avatar = emp?emp.avatar:'🤖';
     const name = emp?emp.name:(window._botName||'Hermes');
+    const inner = $('rpMsgInner');
+    if(!inner) return;
+
+    if(_isEmployeeRpMode()){
+      // ── 员工模式：复用已有的 live turn-row 或新建一个 ──
+      let turnRow = $('msgLiveTurnRow');
+      if(!turnRow){
+        turnRow = document.createElement('div');
+        turnRow.className = 'rp-msg-row rp-turn';
+        turnRow.id = 'msgLiveTurnRow';
+        turnRow.dataset.role = 'assistant';
+        const role = document.createElement('div');
+        role.className = 'rp-msg-role assistant';
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'rp-msg-icon';
+        iconSpan.textContent = avatar;
+        const lbl = document.createElement('span');
+        lbl.className = 'rp-msg-name';
+        lbl.textContent = name;
+        role.appendChild(iconSpan);
+        role.appendChild(lbl);
+        turnRow.appendChild(role);
+        const segs = document.createElement('div');
+        segs.className = 'rp-turn-segments';
+        segs.id = 'msgLiveTurnSegments';
+        turnRow.appendChild(segs);
+        inner.appendChild(turnRow);
+      }
+      // 当前活动文本段：id=msgLiveStreamBody（被 tool 事件固化后会重建新的）
+      const segs = $('msgLiveTurnSegments');
+      let body = segs.querySelector('#msgLiveStreamBody');
+      if(!body){
+        body = document.createElement('div');
+        body.className = 'rp-msg-body rp-turn-text';
+        body.id = 'msgLiveStreamBody';
+        segs.appendChild(body);
+      }
+      assistantRow = turnRow;
+      assistantBody = body;
+      return;
+    }
+
+    // 非员工模式：保持原逻辑（独立 rp-msg-row）
     assistantRow=document.createElement('div');assistantRow.className='rp-msg-row';
     assistantBody=document.createElement('div');assistantBody.className='rp-msg-body';
     const role=document.createElement('div');role.className='rp-msg-role assistant';
@@ -152,76 +369,316 @@ async function send(){
     const lbl=document.createElement('span');lbl.className='rp-msg-name';lbl.textContent=name;
     role.appendChild(iconSpan);role.appendChild(lbl);
     assistantRow.appendChild(role);assistantRow.appendChild(assistantBody);
-    const inner = $('rpMsgInner');
-    if(inner) inner.appendChild(assistantRow);
+    inner.appendChild(assistantRow);
   }
 
   // ── Shared SSE handler wiring (used for initial connection and reconnect) ──
   let _reconnectAttempted=false;
 
+  // ★ OpenClaw 风格：检查当前视图是否仍显示我们这条流的 session
+  //   - 用于决定是否刷新 DOM（切换到其他 session 时只缓冲数据不渲染）
+  //   - assistantText/_reasoningBuffer 依然累积，切回时 _scheduleRender 会显示全部
+  function _isViewingOurSession(){
+    return !!(S.session && S.session.session_id===activeSid
+      && !(typeof GROUP_CHAT_STATE!=='undefined' && GROUP_CHAT_STATE.isOpen));
+  }
+
+  // 当用户切回本流所属 session 时，立刻补一次完整渲染
+  window.addEventListener('hermes:session-switched', (ev)=>{
+    try{
+      const sid = ev && ev.detail && ev.detail.session_id;
+      if(sid === activeSid){
+        // 切回了本流的 session —— 清空闭包 DOM 引用（旧的已被销毁），
+        // ensureAssistantRow 会重建，_scheduleRender 会用累积的 assistantText 刷新
+        assistantRow = null;
+        assistantBody = null;
+        ensureAssistantRow();
+        _scheduleRender();
+      }
+    }catch(_){}
+  });
+
   // rAF-throttled rendering: buffer tokens, render at most once per frame
   let _renderPending=false;
-  // Extract display text from assistantText, stripping completed thinking blocks
-  // and hiding content still inside an open thinking block.
+  // Extract display text from assistantText, stripping ALL thinking blocks
+  // (complete or in-progress) and hiding content still inside an open tag.
   function _streamDisplay(){
-    const raw=assistantText;
+    let raw=assistantText;
+    // Step 1: extract and remove all COMPLETE think blocks anywhere in the text
     for(const {open,close} of _thinkPairs){
-      // Trim leading whitespace before checking for the open tag — some models
-      // (e.g. MiniMax) emit newlines before <think>.
+      let idx=raw.indexOf(open);
+      while(idx!==-1){
+        const afterOpen=idx+open.length;
+        const closeIdx=raw.indexOf(close,afterOpen);
+        if(closeIdx===-1) break; // unclosed — handled below
+        raw=raw.slice(0,idx)+raw.slice(closeIdx+close.length);
+        idx=raw.indexOf(open);
+      }
+    }
+    // Step 2: if text starts with an unclosed think tag, hide everything
+    for(const {open,close} of _thinkPairs){
       const trimmed=raw.trimStart();
       if(trimmed.startsWith(open)){
         const ci=trimmed.indexOf(close,open.length);
-        if(ci!==-1){
-          // Thinking block complete — strip it, show the rest
-          return trimmed.slice(ci+close.length).replace(/^\s+/,'');
-        }
-        // Still inside thinking block — show placeholder
-        return '';
+        if(ci===-1) return ''; // still inside thinking block
       }
-      // Hide partial tag prefixes while streaming so users don't see
-      // `<thi`, `<think`, etc. before the model finishes the token.
-      if(open.startsWith(trimmed)) return '';
+      if(open.startsWith(trimmed)) return ''; // partial tag prefix
     }
-    return raw;
+    // Step 3: strip any orphaned tags
+    return raw.replace(/<\/?think>/gi,'').trim();
   }
+  // ★ 从 assistantText + _reasoningBuffer 中提取思考内容与显示文本
+  //   返回 {thinking: string, text: string}
+  //   reasoning 事件的内容优先进入 _reasoningBuffer，不再污染 assistantText。
+  function _extractThinkingAndText(){
+    let thinkingParts=[];
+    // 1) reasoningBuffer 的内容始终作为 thinking（最高优先级）
+    if(_reasoningBuffer.trim()){
+      thinkingParts.push(_reasoningBuffer.trim());
+    }
+    // 2) 从 assistantText 中提取内联 think 块（防御性：模型可能通过 token 输出 think 标签）
+    let remaining=assistantText;
+    for(const {open,close} of _thinkPairs){
+      let idx=remaining.indexOf(open);
+      while(idx!==-1){
+        const afterOpen=idx+open.length;
+        const closeIdx=remaining.indexOf(close,afterOpen);
+        if(closeIdx===-1) break;
+        thinkingParts.push(remaining.slice(afterOpen,closeIdx).trim());
+        remaining=remaining.slice(0,idx)+remaining.slice(closeIdx+close.length);
+        idx=remaining.indexOf(open);
+      }
+    }
+    // 3) 未闭合的 think 标签 → 视为进行中
+    for(const {open,close} of _thinkPairs){
+      const trimmed=remaining.trimStart();
+      if(trimmed.startsWith(open)){
+        const closeIdx=trimmed.indexOf(close,open.length);
+        if(closeIdx===-1){
+          thinkingParts.push(trimmed.slice(open.length).trim());
+          return {thinking:thinkingParts.join('\n'), text:''};
+        }
+      }
+      if(open.startsWith(trimmed)) return {thinking:thinkingParts.join('\n'), text:''};
+    }
+    // 4) 清理剩余文本中的孤儿标签
+    const cleanedText=remaining.replace(/^\s+/,'').replace(/<\/?think>/gi,'').trim();
+    return {thinking:thinkingParts.join('\n'), text:cleanedText};
+  }
+
+  let _lastRenderTime=0;
   function _scheduleRender(){
     if(_renderPending) return;
+    // Throttle: skip if last render was less than 80ms ago (reduces CPU load
+    // during fast token streaming while keeping display responsive)
+    const now=Date.now();
+    const elapsed=now-_lastRenderTime;
+    const MIN_INTERVAL=80;
+    const delay=Math.max(0,MIN_INTERVAL-elapsed);
     _renderPending=true;
-    requestAnimationFrame(()=>{
-      _renderPending=false;
-      if(assistantBody){
-        const txt=_streamDisplay();
-        const isThinking=!txt&&assistantText.length>0;
-        assistantBody.innerHTML=txt?renderMd(txt):(isThinking?'<span style="color:var(--muted);font-size:13px">Thinking\u2026</span>':'');
+    setTimeout(()=>{
+      // ★ 异常防御：无论中途哪步抛错，下一次 schedule 都要能进来。
+      //   现象：bug 报告中"执行一半日志和聊天框不刷新"多半是某次渲染抛异常卡住节流状态。
+      try{
+        _renderPending=false;
+        _lastRenderTime=Date.now();
+        // ★ 节流延迟中用户可能切换了 session —— 再次检查视图状态
+        if(!_isViewingOurSession()) return;
+      if(_isEmployeeRpMode()){
+        // ★ 员工模式：在 turn-row segments 内实时显示思考 + 文本
+        // 如果 turn-row/segments 不存在（切走又切回，rpMsgInner 被重建），
+        // 重新 ensureAssistantRow 创建结构
+        if(!$('msgLiveTurnSegments')){
+          assistantRow=null;
+          assistantBody=null;
+          ensureAssistantRow();
+        }
+        const {thinking,text}=_extractThinkingAndText();
+        const segs=$('msgLiveTurnSegments');
+        if(!segs) return;
+        // 思考段：查找或创建 .rp-live-thinking-card
+        let thinkCard=segs.querySelector('.rp-live-thinking-card');
+        if(thinking){
+          if(!thinkCard){
+            thinkCard=document.createElement('div');
+            thinkCard.className='rp-turn-thinking thinking-card rp-live-thinking-card open';
+            thinkCard.innerHTML='<div class="thinking-card-header" onclick="this.parentElement.classList.toggle(\'open\')"><span class="thinking-card-icon">'+(typeof li==='function'?li('lightbulb',14):'💡')+'</span><span class="thinking-card-label">思考过程</span><span class="thinking-card-toggle">'+(typeof li==='function'?li('chevron-right',12):'▶')+'</span></div><div class="thinking-card-body"></div>';
+            // 插到 segments 最前面（在已有文本段之前）
+            const firstChild=segs.firstChild;
+            if(firstChild) segs.insertBefore(thinkCard,firstChild);
+            else segs.appendChild(thinkCard);
+          }
+          const body=thinkCard.querySelector('.thinking-card-body');
+          if(body) body.innerHTML=renderMd(thinking);
+        }
+        // ★ 思考已完成（text 出现）→ 折叠思考卡片（无论 thinking 是否为空）
+        if(thinkCard && text){
+          thinkCard.classList.remove('open');
+        }
+        // 文本段
+        let currentBody=segs.querySelector('#msgLiveStreamBody');
+        if(text){
+          if(currentBody) currentBody.innerHTML=renderMd(text);
+        } else if(!text && assistantText.length>0 && !thinking){
+          // 纯占位（如 open tag 前缀匹配时）
+          if(currentBody) currentBody.innerHTML='<span style="color:var(--muted);font-size:13px">Thinking\u2026</span>';
+        } else if(!text && thinking){
+          // 还在思考中 → 如果活动文本段只显示占位符则隐藏
+          if(currentBody && !currentBody.textContent.trim()){
+            currentBody.innerHTML='';
+          }
+        }
+      } else {
+        // 非员工模式：原逻辑
+        // ★ 如果 assistantBody 已经不在文档中（例如 renderMessages 重建了 DOM），
+        //   清空闭包引用并重建，确保补渲时能继续显示
+        if(assistantBody && !document.body.contains(assistantBody)){
+          assistantBody=null;
+          assistantRow=null;
+          ensureAssistantRow();
+        }
+        if(assistantBody){
+          const txt=_streamDisplay();
+          const isThinking=!txt&&assistantText.length>0;
+          assistantBody.innerHTML=txt?renderMd(txt):(isThinking?'<span style="color:var(--muted);font-size:13px">Thinking\u2026</span>':'');
+        }
       }
       scrollIfPinned();
-    });
+      }catch(err){
+        // 捕获渲染异常，确保下一次 _scheduleRender 能重新进入 (防止卡死不刷新)
+        try{ console.error('[_scheduleRender] render error:', err); }catch(_){}
+        _renderPending=false;
+      }
+    },delay);
   }
 
   function _wireSSE(source){
     let _firstToken = true;
+    // ★ 看门狗：每 500ms 检查一次 assistantText 长度是否比上次渲染时的多，
+    //   如果多了但 DOM 没被渲染（render 被异常卡住、或节流状态错乱），强制调度一次。
+    //   这是防御性自愈：即使某条 SSE handler 挂了导致 _scheduleRender 没被调，
+    //   watchdog 也能把"已到后端但未显示"的内容推上 UI。
+    let _lastSeenTextLen = 0;
+    const _watchdog = setInterval(()=>{
+      try{
+        if((assistantText && assistantText.length > _lastSeenTextLen)
+           || (_reasoningBuffer && _reasoningBuffer.length > _lastSeenTextLen)){
+          _lastSeenTextLen = Math.max(
+            (assistantText||'').length,
+            (_reasoningBuffer||'').length
+          );
+          if(_isViewingOurSession()){
+            // 强制重置 pending 状态，确保下一次能进入
+            if(typeof _renderPending !== 'undefined') _renderPending = false;
+            try{ ensureAssistantRow(); }catch(_){}
+            _scheduleRender();
+          }
+        }
+      }catch(_){}
+    }, 500);
+    // 挂到 source 上以便 done/error 时清理
+    source._watchdog = _watchdog;
     source.addEventListener('token',e=>{
-      if(!S.session||S.session.session_id!==activeSid) return;
-      const d=JSON.parse(e.data);
-      assistantText+=d.text;
-      // 第一个 token 时更新员工状态为工作中
-      if(_firstToken&&typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof setEmployeeStatus==='function'){
-        setEmployeeStatus(EMPLOYEE_STORE.selectedId,'working');
-        _firstToken = false;
+      try{
+        // ★ 不再因 session 切换而丢弃 token —— 始终累积到 assistantText。
+        //   用户切回此 session 时 hermes:session-switched 会触发补渲。
+        const d=JSON.parse(e.data);
+        assistantText+=(d && d.text) || '';
+        // 第一个 token 时更新员工状态为工作中
+        if(_firstToken&&typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof setEmployeeStatus==='function'){
+          setEmployeeStatus(EMPLOYEE_STORE.selectedId,'working');
+          _firstToken = false;
+        }
+        // 只有当前视图仍在显示本流所属 session 时才更新 DOM
+        if(_isViewingOurSession()){
+          ensureAssistantRow();
+          _scheduleRender();
+        }
+      }catch(err){
+        try{ console.error('[SSE token handler] error:', err, 'data=', e && e.data && e.data.slice && e.data.slice(0,200)); }catch(_){}
       }
-      ensureAssistantRow();
-      _scheduleRender();
+    });
+
+    // ★ 原生 reasoning 内容（Claude 3.7, DeepSeek 等）实时显示
+    //   后端 reasoning_callback 推送增量内容，直接累加到独立的 _reasoningBuffer，
+    //   绝不污染 assistantText。token 与 reasoning 完全隔离。
+    source.addEventListener('reasoning',e=>{
+      try{
+        const d=JSON.parse(e.data);
+        const text=d.text||'';
+        if(!text) return;
+        _reasoningBuffer += text;
+        if(_isViewingOurSession()){
+          ensureAssistantRow();
+          _scheduleRender();
+        }
+      }catch(_){}
     });
 
     source.addEventListener('tool',e=>{
+      try{
       const d=JSON.parse(e.data);
-      if(!S.session||S.session.session_id!==activeSid) return;
-      removeThinking();
-      const oldRow=$('toolRunningRow');if(oldRow)oldRow.remove();
+      // 始终处理 tool 事件（记录到 S.toolCalls），但 DOM 更新仅在当前视图时
       const tc={name:d.name, preview:d.preview||'', args:d.args||{}, snippet:'', done:false};
       S.toolCalls.push(tc);
+      if(!_isViewingOurSession()){
+        // 只累积不渲染 —— assistantText 会在切回时由补渲逻辑显示
+        assistantText='';
+        _reasoningBuffer='';
+        return;
+      }
+      removeThinking();
+      const oldRow=$('toolRunningRow');if(oldRow)oldRow.remove();
+
+      if(_isEmployeeRpMode()){
+        // ★ 员工模式：工具卡片放入当前 turn-row 的 segments 中，
+        //   同时固化当前思考段+文本段，然后新建下一个活动文本段。
+        ensureAssistantRow();
+        const segs = $('msgLiveTurnSegments');
+        if(segs){
+          // 步骤 0：固化思考段（去掉 live 标记，折叠）
+          const thinkCard=segs.querySelector('.rp-live-thinking-card');
+          if(thinkCard){
+            thinkCard.classList.remove('open','rp-live-thinking-card');
+          }
+          // 步骤 1：固化当前文本段
+          const currentBody = segs.querySelector('#msgLiveStreamBody');
+          if(currentBody){
+            const {text:finalText}=_extractThinkingAndText();
+            if(finalText && finalText.trim()){
+              currentBody.innerHTML = renderMd(finalText);
+              currentBody.removeAttribute('id');
+            } else {
+              currentBody.remove();
+            }
+          }
+          // 步骤 2：把工具卡片追加到 segments
+          if(typeof buildToolCard==='function'){
+            const cardRow = buildToolCard(tc);
+            cardRow.classList.add('rp-turn-tool','rp-live-tool-card');
+            if(tc.tid) cardRow.dataset.tid = tc.tid;
+            segs.appendChild(cardRow);
+          }
+          // 步骤 3：新建下一个活动文本段（占位 Thinking）
+          assistantText='';
+          _reasoningBuffer='';
+          const newBody = document.createElement('div');
+          newBody.className = 'rp-msg-body rp-turn-text';
+          newBody.id = 'msgLiveStreamBody';
+          newBody.innerHTML = '<span style="color:var(--muted);font-size:13px">Thinking\u2026</span>';
+          segs.appendChild(newBody);
+          assistantBody = newBody;
+        }
+        scrollIfPinned();
+        return;
+      }
+
+      // 非员工模式：工具卡片进入独立的 liveToolCards 容器（主聊天等场景）
       appendLiveToolCard(tc);
       scrollIfPinned();
+      }catch(err){
+        try{ console.error('[SSE tool handler] error:', err); }catch(_){}
+      }
     });
 
     source.addEventListener('approval',e=>{
@@ -240,7 +697,9 @@ async function send(){
     });
 
     source.addEventListener('done',e=>{
-      source.close();
+      source.close(); if(source._watchdog){ clearInterval(source._watchdog); source._watchdog=null; }
+      // ★ reasoning 与 token 已分离，无需再向 assistantText 追加 </think>
+      //   _reasoningBuffer 会在 finalize 后自然丢弃
       const d=JSON.parse(e.data);
       delete INFLIGHT[activeSid];
       clearInflight();
@@ -282,7 +741,67 @@ async function send(){
         }
         clearLiveToolCards();
         S.busy=false;
-        syncTopbar();renderMessages();loadDir('.');
+        // ★ 员工模式：不重建整个右面板 DOM（避免清空再重建的闪烁/看起来"被清空"的问题）
+        //   只 finalize 当前 live turn-row 的思考段+活动文本段。
+        if(_isEmployeeRpMode()){
+          syncTopbar();
+          const segs=$('msgLiveTurnSegments');
+          // 固化思考段
+          if(segs){
+            const thinkCard=segs.querySelector('.rp-live-thinking-card');
+            if(thinkCard) thinkCard.classList.remove('open','rp-live-thinking-card');
+          }
+          // 固化活动文本段
+          const liveBody = $('msgLiveStreamBody');
+          if(liveBody){
+            const {thinking:finalThinking,text:finalText}=_extractThinkingAndText();
+            if(finalText && finalText.trim()){
+              liveBody.innerHTML = renderMd(finalText);
+              liveBody.removeAttribute('id');
+            } else if(finalThinking && finalThinking.trim()){
+              // 只有 thinking 没有外部文本 → 显示 thinking 内容
+              liveBody.innerHTML = renderMd(finalThinking);
+              liveBody.removeAttribute('id');
+            } else {
+              liveBody.remove();
+              if(segs && !segs.children.length){
+                const ph = document.createElement('div');
+                ph.className = 'rp-msg-body rp-turn-text';
+                ph.innerHTML = '<span style="color:var(--muted)">（无回复）</span>';
+                segs.appendChild(ph);
+              }
+            }
+          }
+          // 移除临时 id，让后续新回合不会复用本 turn-row
+          const liveTurn = $('msgLiveTurnRow');
+          if(liveTurn){
+            liveTurn.removeAttribute('id');
+            const innerSegs = liveTurn.querySelector('#msgLiveTurnSegments');
+            if(innerSegs) innerSegs.removeAttribute('id');
+            const lastAsstIdx = S.messages.map((m,i)=>({m,i})).reverse().find(x=>x.m && x.m.role==='assistant');
+            if(lastAsstIdx) liveTurn.dataset.msgIdx = lastAsstIdx.i;
+          }
+          // 语法高亮
+          const inner = $('rpMsgInner');
+          if(inner){
+            requestAnimationFrame(()=>{
+              if(typeof highlightCode==='function') highlightCode(inner);
+              if(typeof addCopyButtons==='function') addCopyButtons(inner);
+            });
+          }
+          loadDir('.');
+          // ★ 重新合并该员工的委派任务历史消息（S.messages 被 d.session.messages 覆盖后会丢失合并内容）
+          if(typeof _loadAllDelegatedTaskMessages==='function' && typeof getEmployee==='function' && _sendEmpId){
+            const _remergeEmp=getEmployee(_sendEmpId);
+            if(_remergeEmp){
+              _loadAllDelegatedTaskMessages(_remergeEmp).then(()=>{
+                if(typeof _renderRpMessages==='function') _renderRpMessages();
+              }).catch(()=>{});
+            }
+          }
+        } else {
+          syncTopbar();renderMessages();loadDir('.');
+        }
       }
       renderSessionList();setBusy(false);setStatus('');
       setComposerStatus('');
@@ -383,7 +902,7 @@ async function send(){
     source.addEventListener('apperror',e=>{
       // Application-level error sent explicitly by the server (rate limit, crash, etc.)
       // This is distinct from the SSE network 'error' event below.
-      source.close();
+      source.close(); if(source._watchdog){ clearInterval(source._watchdog); source._watchdog=null; }
       delete INFLIGHT[activeSid];clearInflight();stopApprovalPolling();
       if(!_approvalSessionId||_approvalSessionId===activeSid) hideApprovalCard(true);
       hideClarifyCard();
@@ -426,7 +945,7 @@ async function send(){
     });
 
     source.addEventListener('error',e=>{
-      source.close();
+      source.close(); if(source._watchdog){ clearInterval(source._watchdog); source._watchdog=null; }
       // Attempt one reconnect if the stream is still active server-side
       if(!_reconnectAttempted && streamId){
         _reconnectAttempted=true;
@@ -448,7 +967,7 @@ async function send(){
     });
 
     source.addEventListener('cancel',e=>{
-      source.close();
+      source.close(); if(source._watchdog){ clearInterval(source._watchdog); source._watchdog=null; }
       delete INFLIGHT[activeSid];clearInflight();stopApprovalPolling();
       if(!_approvalSessionId||_approvalSessionId===activeSid) hideApprovalCard(true);
       hideClarifyCard();

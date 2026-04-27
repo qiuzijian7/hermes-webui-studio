@@ -1,0 +1,53 @@
+name: plan-code-review
+title: Plan → Code → Review 流水线
+description: 三阶段流水线，规划师拆解需求，工程师实现，评审员把关。适合中等复杂度特性开发。
+version: 1
+
+members:
+  - key: planner
+    name: 规划师
+    preset: tech-planner
+    role: 技术规划师
+    avatar: "🧭"
+    skills:
+      - 需求拆解
+      - 架构设计
+      - 任务编排
+
+  - key: coder
+    name: 工程师
+    preset: senior-engineer
+    role: 资深工程师
+    avatar: "👨‍💻"
+    skills:
+      - 编码实现
+      - 单元测试
+      - 重构
+
+  - key: reviewer
+    name: 评审员
+    preset: code-reviewer
+    role: 代码评审员
+    avatar: "🔍"
+    skills:
+      - 代码审查
+      - 最佳实践
+      - 安全性审查
+
+topology:
+  manager: planner
+  subagents:
+    planner: [coder]
+    coder: [reviewer]
+
+entry:
+  to: planner
+  message: |
+    用户需求：{{user_input}}
+
+    请按如下流水线执行：
+    1. 先拆解需求，产出 plan.md（包含：目标、设计要点、子任务列表、验收标准）
+    2. 用 delegate_task 把"根据 plan.md 实现功能"委派给「工程师」
+    3. 工程师完成后，你用 delegate_task 把"评审这次变更"委派给「评审员」
+    4. 若评审未通过，用 delegate_task 再次委派工程师修复；每轮限制最多 3 次
+    5. 最终产出一份总结报告给用户，包含：plan.md、实现摘要、评审结论、未解决的 TODO

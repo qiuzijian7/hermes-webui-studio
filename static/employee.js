@@ -83,6 +83,7 @@ function switchCanvasWorkspace(newWsPath) {
   // 4. 加载新工作区的员工数据
   _loadEmployees();
   EMPLOYEE_STORE.selectedId = null;
+  localStorage.removeItem('hermes-webui-selected-employee');
   // 5. 关闭右侧面板（旧工作区的对话不再显示）
   if (typeof closeRightPanel === 'function') closeRightPanel();
   // 6. 重新渲染
@@ -195,10 +196,31 @@ function buildEmployeeSystemPrompt(emp) {
     }
   }
 
-  // 4. 行为指引
+  // 4. ★ 工作区上下文（告知当前 cwd，让 AI 知道去哪儿找文件）
+  let wsPath = '';
+  try {
+    wsPath = (typeof _currentCanvasWorkspace !== 'undefined' && _currentCanvasWorkspace && _currentCanvasWorkspace !== '__default__')
+      ? _currentCanvasWorkspace
+      : (typeof S !== 'undefined' && S.session && S.session.workspace) || '';
+  } catch(_) { wsPath = ''; }
+  if (wsPath) {
+    const wsName = (typeof getWorkspaceFriendlyName === 'function')
+      ? getWorkspaceFriendlyName(wsPath)
+      : wsPath.split(/[\/\\]/).filter(Boolean).pop() || wsPath;
+    parts.push(`## 工作区上下文
+- **当前工作区名称**：${wsName}
+- **工作区绝对路径**：\`${wsPath}\`
+- 所有 \`read_file\` / \`write_to_file\` / \`list_files\` 等工具的相对路径都以该工作区为根
+- 遇到"读取工作区文件 / 查看现有文档 / 继续项目"等指令时，**必须**先用 \`list_files\` 探索该目录，再 \`read_file\` 读取 README / PLAN / TASK / SPRINT 等疑似规划文档，**不要**直接询问用户文件内容`);
+  }
+
+  // 5. 行为指引（★ 强化"行动优先、探索优先"）
   parts.push(`## 行为指引
 - 始终以「${emp.name}」的身份回应，保持角色一致性
 - 根据你的角色和技能，提供专业、精准的建议和解决方案
+- **行动优先**：收到任务后，先用工具收集信息（\`list_files\` / \`read_file\` / \`search\`）再判断，**不要**在信息不足时立即反问用户；当你可以通过读文件/搜索得到答案时，**必须**自己去查
+- **合理假设**：对模糊目标，基于工作区现有文档做合理假设并**立即开始执行**；把假设写在回复中让用户纠偏，而非阻塞等待
+- 只有在**工具也拿不到答案且假设会导致重大错误**时，才向用户提问——且每次最多 1–2 个最关键问题
 - 如果问题超出你的专业领域，坦诚说明并给出力所能及的帮助`);
 
   // 5. subagent 关系上下文（始终追加，不受 customPrompt 影响）
@@ -213,7 +235,23 @@ function buildEmployeeSystemPrompt(emp) {
     const subs = getSubagentsOf(emp.id);
     if (subs && subs.length) {
       const subNames = subs.map(s => s.employee?.name || '?').join('、');
-      relationCtx += `\n\n## 管理范围\n你管理以下下属员工：${subNames}。你可以通过 delegate_task 向他们委派任务，指定 employee_name 为下属名称。`;
+      relationCtx += `\n\n## 管理范围
+你管理以下下属员工：${subNames}。你可以通过 \`delegate_task\` 向他们委派任务，指定 \`employee_name\` 为下属名称。
+
+## 任务分派 SOP（重要）
+作为管理者，当你收到"规划/分派/安排任务"类指令时，**必须**按以下顺序执行，而不是反问用户：
+
+1. **探索现状**：用 \`list_files\` 扫描工作区根目录，找出已有的 PLAN / TASK / SPRINT / README / DESIGN 等疑似规划文档
+2. **读取规划**：用 \`read_file\` 读取所有相关文档，理解项目背景、目标、优先级、时间节点
+3. **做出假设**：若文档中目标/截止时间等信息模糊，基于已有内容做合理假设（并在最终汇报中说明你的假设）
+4. **产出拆解**：用 \`write_to_file\` 写出任务拆解文档（如 \`task-breakdown.md\`），包含：每个子任务的 title / 负责人 / 交付物 / 优先级 / 估时
+5. **并行委派**：对每个下属并行调用 \`delegate_task\`，传入清晰的任务描述、上下文（引用你拆解文档的路径）和验收标准
+6. **汇总汇报**：用 \`send_group_message\` 在总群发布任务清单和委派情况
+
+**反模式（不要这样做）**：
+- ❌ 不读文件就向用户索要"本次冲刺目标 / 截止时间 / 范围边界 / 风险预案 / 优先级"
+- ❌ 只说"我将使用 write_to_file / delegate_task ..."而不实际调用工具
+- ❌ 一次只委派一个下属就结束（应在同一回合内并行 \`delegate_task\` 多个下属）`;
     }
   }
 
@@ -270,13 +308,38 @@ function setEmployeeStatus(id, status) {
   if (card) _updateCardStatus(card, emp);
 }
 
-function selectEmployee(id, fromUser) {
+function selectEmployee(id, fromUser, taskId) {
   // 如果总群正在打开中 且 不是用户主动点击，忽略员工选择请求（防止异步操作干扰总群UI）
   if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen && !fromUser) {
     console.log('[selectEmployee] 总群打开中，忽略非用户触发的选择:', id);
     return;
   }
+
+  // ★ 关闭该员工当前 active 任务的总群 SSE 监听（避免与 _attachLiveStreamToChat 双消费者竞争）
+  // 方案 A：SSE 引用现在存储在 task 对象上，不再在 emp 上
+  const emp = getEmployee(id);
+  if (emp && emp._activeTaskId && typeof DelegationVM !== 'undefined') {
+    const task = DelegationVM.getTask(emp._activeTaskId);
+    if (task && task.sseSource) {
+      console.log('[selectEmployee] 关闭总群任务 SSE 监听, taskId=', task.id);
+      // 标记为主动关闭，避免 error 处理器触发重复回传
+      task.sseSource._intentionallyClosed = true;
+      try { task.sseSource.close(); } catch(_) {}
+      task.sseSource = null;
+    }
+  }
+  // 向后兼容：若有旧字段残留，也清理
+  if (emp && emp._gcSseSource) {
+    try {
+      emp._gcSseSource._intentionallyClosed = true;
+      emp._gcSseSource.close();
+    } catch(_) {}
+    emp._gcSseSource = null;
+  }
+
   EMPLOYEE_STORE.selectedId = id;
+  // ★ 持久化选中状态，刷新UI后恢复
+  localStorage.setItem('hermes-webui-selected-employee', id);
   // 关闭总群模式
   if (typeof GROUP_CHAT_STATE !== 'undefined') GROUP_CHAT_STATE.isOpen = false;
   // 恢复总群隐藏的头部按钮
@@ -290,8 +353,8 @@ function selectEmployee(id, fromUser) {
   document.querySelectorAll('.emp-card').forEach(c => {
     c.classList.toggle('emp-selected', c.dataset.id === id);
   });
-  // 打开右侧对话面板
-  openEmployeeChat(id);
+  // 打开右侧对话面板（★ 传 taskId 以便加载委派任务的独立 session）
+  openEmployeeChat(id, taskId || undefined);
 }
 
 // ── 搜索/筛选 ────────────────────────────────────────────────────────────
@@ -430,8 +493,8 @@ function _buildCard(emp) {
     </div>
   `;
 
-  // 点击选中
-  card.addEventListener('click', () => selectEmployee(emp.id));
+  // 点击选中（始终传 fromUser=true，因为这是用户主动点击）
+  card.addEventListener('click', () => selectEmployee(emp.id, true));
 
   // 拖拽由外部初始化（card.dataset.dragInit 标记）
   if (!card.dataset.dragInit) {
@@ -452,7 +515,18 @@ function _updateCardStatus(card, emp) {
     dot.classList.toggle('emp-dot-animated', st.animated);
   }
   const label = card.querySelector('.emp-status-label');
-  if (label) { label.style.color = st.color; label.textContent = st.label; }
+  if (label) {
+    label.style.color = st.color;
+    // 方案 B：状态标签后追加"· 排队 N"
+    let extra = '';
+    if (typeof DelegationVM !== 'undefined' && typeof DelegationVM.getQueueLength === 'function') {
+      try {
+        const qlen = DelegationVM.getQueueLength(emp.id) || 0;
+        if (qlen > 0) extra = ` · 排队 ${qlen}`;
+      } catch (_) {}
+    }
+    label.textContent = st.label + extra;
+  }
   const avatar = card.querySelector('.emp-avatar');
   if (avatar) avatar.style.background = st.bg;
 }

@@ -1,0 +1,57 @@
+name: doc-pipeline
+title: 文档流水线（Draft → Edit → Publish）
+description: 三阶段文档流水线 — 起草者产出草稿、编辑润色、发布者整理归档。适合撰写博客/技术文档/README。
+version: 1
+
+members:
+  - key: writer
+    name: 起草者
+    preset: writer
+    role: 技术作家
+    avatar: "✍️"
+    skills:
+      - 技术写作
+      - 内容组织
+
+  - key: editor
+    name: 编辑
+    preset: editor
+    role: 编辑
+    avatar: "📝"
+    skills:
+      - 语言润色
+      - 逻辑梳理
+      - 风格统一
+
+  - key: publisher
+    name: 发布者
+    preset: senior-engineer
+    role: 发布专员
+    avatar: "📤"
+    skills:
+      - 文件组织
+      - 格式转换
+      - 发布归档
+
+topology:
+  manager: writer
+  subagents:
+    writer: [editor]
+    editor: [publisher]
+
+entry:
+  to: writer
+  message: |
+    文档需求：{{user_input}}
+
+    流水线如下：
+    1. 依据需求产出草稿（Markdown 格式，包含：概述、主体、结论）
+    2. 用 delegate_task 把"润色与校对"委派给「编辑」，具体要求：
+       - 修正语法与错别字
+       - 统一术语和语气
+       - 补充缺失的结构（如示例、总结框）
+    3. 编辑返回后，你用 delegate_task 把"整理与发布"委派给「发布者」，具体要求：
+       - 保存到目标位置（用户若指定路径则遵守；否则放 docs/）
+       - 更新索引/目录
+       - 产出发布链接或文件路径
+    4. 最终回复用户：文档路径、核心变更摘要、可优化项

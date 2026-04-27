@@ -85,6 +85,10 @@ async function loadSession(sid){
     const u=S.lastUsage||{};
     _syncCtxIndicator({input_tokens:_s.input_tokens||u.input_tokens||0,output_tokens:_s.output_tokens||u.output_tokens||0,estimated_cost:_s.estimated_cost||u.estimated_cost,context_length:u.context_length||0,last_prompt_tokens:u.last_prompt_tokens||0,threshold_tokens:u.threshold_tokens||0});
   }
+  // ★ 通知正在运行的 SSE 流：session 已切换，若此流所属 session 被切回，需补渲 DOM
+  try{
+    window.dispatchEvent(new CustomEvent('hermes:session-switched',{detail:{session_id:sid}}));
+  }catch(_){}
 }
 
 let _allSessions = [];  // cached for search filter

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hermes</title>
 <script>(function(){var t=localStorage.getItem('hermes-theme');if(t&&t!=='dark')document.documentElement.dataset.theme=t;})()</script>
-<link rel="stylesheet" href="/static/style.css?v=20260420d">
+<link rel="stylesheet" href="/static/style.css?v=20260427j">
 
 
   <!-- Marked.js — full-featured Markdown renderer (GFM tables, task lists, etc.) -->
@@ -28,7 +28,13 @@
     <!-- Agent Presets panel (was Chat) -->
     <div class="panel-view active" id="panelChat">
       <div class="sidebar-section" style="padding-bottom:6px">
-        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">员工预设</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-size:12px;font-weight:600;color:var(--text)">员工预设</div>
+          <button id="btnOpenWorkflows" class="wf-open-btn" title="应用协同模板（批量创建多员工 + 连线关系）" onclick="openWorkflowPicker()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span>模板</span>
+          </button>
+        </div>
         <div style="font-size:11px;color:var(--muted);line-height:1.4">拖拽到工作画布或点击添加</div>
       </div>
       <div class="preset-search-wrap">
@@ -197,31 +203,39 @@
       <button class="mobile-hamburger" id="btnHamburger" onclick="toggleMobileSidebar()" title="Menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <div style="flex:1;min-width:0;overflow:hidden"><div class="topbar-title" id="topbarTitle">Hermes Studio</div><div class="topbar-meta" id="topbarMeta">员工工作台 — 点击员工卡片开始对话</div></div>
-      <div class="topbar-chips">
-        <button class="workspace-tab active chip" data-tab="canvas" onclick="switchWorkspaceTab('canvas')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          工作画布
+      <button class="panel-toggle-btn" id="btnToggleSidebar" onclick="togglePanel('sidebar')" title="折叠/展开左侧栏 (Ctrl+B)" aria-label="Toggle sidebar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      </button>
+      <!-- 左侧工作区信息下拉：显示当前工作区名称+路径，点击切换工作区 -->
+      <div class="ws-selector-wrap topbar-ws-info" id="wsInfoWrap" style="flex:1;min-width:0;overflow:hidden">
+        <button class="ws-info-btn" id="wsInfoBtn" type="button" onclick="toggleWsInfoSelector()" title="点击切换工作区">
+          <div class="ws-info-btn-text">
+            <div class="topbar-title" id="topbarTitle">Hermes Studio</div>
+            <div class="topbar-meta" id="topbarMeta">员工工作台 — 点击员工卡片开始对话</div>
+          </div>
+          <svg class="ws-info-chevron" width="12" height="8" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
         </button>
-        <button class="workspace-tab chip" data-tab="files" onclick="switchWorkspaceTab('files')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          文件目录
-        </button>
+        <div class="ws-selector-dropdown ws-info-dropdown" id="wsInfoDropdown"></div>
       </div>
+      <div class="topbar-chips">
+        <!-- 兼容性隐藏按钮：保留旧的 workspace-tab 切换入口，便于 agent-presets.js/employee.js 调用 switchWorkspaceTab('canvas') -->
+        <button class="workspace-tab chip" data-tab="canvas" onclick="switchWorkspaceTab('canvas')" style="display:none"></button>
+        <button class="workspace-tab chip" data-tab="files" onclick="switchWorkspaceTab('files')" style="display:none"></button>
+        <button class="workspace-tab chip" data-tab="logs" onclick="switchWorkspaceTab('logs')" style="display:none"></button>
+      </div>
+      <button class="panel-toggle-btn" id="btnToggleRightPanel" onclick="togglePanel('rightpanel')" title="折叠/展开右侧栏 (Ctrl+Shift+B)" aria-label="Toggle right panel">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+      </button>
     </div>
-    <!-- 员工面板（中间区域） -->
-    <div class="employee-panel" id="employeePanel">
+    <!-- 中栏 Dock 容器：画布与聊天作为可拖拽的 DockPanel -->
+    <div class="dock-root" id="dockRoot">
+      <!-- 画布 DockPanel（由 DockManager 动态接管） -->
+      <div class="dock-panel-host" id="dockPanel_canvas" data-dock-title="工作画布">
+      <!-- 上半部分：工作画布（保留原员工面板） -->
+      <div class="employee-panel" id="employeePanel">
       <!-- 页签栏 -->
       <div class="workspace-tabs" id="workspaceTabs">
-        <!-- 工作区选择下拉框 -->
-        <div class="ws-selector-wrap" id="wsSelectorWrap">
-          <button class="ws-selector-btn" id="wsSelectorBtn" onclick="toggleWsSelector()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-            <span id="wsSelectorLabel">工作区</span>
-            <svg width="10" height="6" viewBox="0 0 10 6" style="opacity:.5"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-          </button>
-          <div class="ws-selector-dropdown" id="wsSelectorDropdown"></div>
-        </div>
+        <!-- 工作区选择下拉框已迁移至顶部栏（topbar） -->
         <button class="chip add-employee-btn" id="btnAddEmployee" onclick="showEmployeeDialog()" title="添加新员工">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/><circle cx="12" cy="7" r="4" fill="none"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
           <span>添加员工</span>
@@ -238,7 +252,7 @@
           <span class="canvas-zoom-sep"></span>
           <button class="emp-filter-btn" style="border-color:rgba(124,185,255,.3);color:var(--blue);background:rgba(124,185,255,.06)" onclick="openGroupChat()" title="打开工作区总群">🏠 总群</button>
         </div>
-        <!-- 文件目录刷新按钮（仅文件模式显示，在页签栏右侧） -->
+        <!-- 文件目录刷新按钮（已移到右栏输出区，保留隐藏按钮兼容旧引用） -->
         <button class="file-tab-refresh-btn" id="fileTabRefreshBtn" type="button" title="刷新目录" style="display:none" onclick="if(typeof loadDir==='function')loadDir(S.currentDir||'.')">↻</button>
 
         <!-- 画布缩放控件 -->
@@ -251,11 +265,23 @@
           <button class="canvas-zoom-btn canvas-save-btn" id="canvasSaveBtn" onclick="if(typeof saveCanvasData==='function')saveCanvasData()" title="保存画布 (Ctrl+S)">💾</button>
         </div>
       </div>
-      <!-- 工作画布 -->
+      <!-- 工作画布（常驻显示） -->
       <div class="workspace-tab-content active" id="canvasContent">
         <div class="employee-canvas" id="employeeCanvas">
           <div class="canvas-zoom-layer" id="canvasZoomLayer">
             <svg class="canvas-connections-svg" id="canvasConnectionsSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+          <!-- 画布交互提示（可关闭）。JS 通过 localStorage.hermes-canvas-hint-dismissed 控制首次显示 -->
+          <div class="canvas-hint" id="canvasHint" style="display:none">
+            <button class="canvas-hint-close" id="canvasHintClose" title="不再显示">×</button>
+            <div class="canvas-hint-title">画布交互</div>
+            <ul>
+              <li><kbd>Ctrl</kbd> + 滚轮 &nbsp;缩放</li>
+              <li><kbd>Space</kbd> + 拖拽 &nbsp;平移</li>
+              <li>右键 / 中键拖拽 &nbsp;平移</li>
+              <li>滚轮 &nbsp;上下平移 · <kbd>Shift</kbd> + 滚轮左右</li>
+              <li>左键拖拽 &nbsp;框选员工卡片</li>
+            </ul>
           </div>
           <div class="employee-empty-state" id="employeeEmptyState">
             <div class="emp-empty-icon">
@@ -275,82 +301,78 @@
           </div>
         </div>
       </div>
-      <!-- 文件目录 -->
-      <div class="workspace-tab-content" id="filesContent">
-        <div class="file-dir-toolbar" id="fileDirToolbar">
-          <div class="breadcrumb-bar" id="mainBreadcrumb"></div>
-          <button class="file-refresh-btn" id="btnRefreshDir" type="button" title="刷新目录" onclick="if(typeof loadDir==='function')loadDir(S.currentDir||'.')">↻</button>
-        </div>
-        <div class="main-file-tree" id="mainFileTree"></div>
+      <!-- 兼容旧DOM占位：文件目录/日志已移到右栏输出区 -->
+      <div class="workspace-tab-content" id="filesContent" style="display:none"></div>
+      <div class="workspace-tab-content" id="logsContent" style="display:none"></div>
       </div>
-    </div>
-  </main>
-  <!-- 右侧面板：对话 / 技能详情 -->
-  <aside class="rightpanel" id="rightPanel">
-    <div class="resize-handle" id="rightpanelResize"></div>
-    <!-- 对话模式 -->
-    <div class="rp-chat-view" id="rpChatView" style="display:none">
-      <div class="rp-header">
-        <div class="rp-employee-info" id="rpEmployeeInfo">
-          <span class="rp-employee-avatar" id="rpEmployeeAvatar"></span>
-          <div class="rp-employee-meta">
-            <span class="rp-employee-name" id="rpEmployeeName">员工</span>
-            <span class="rp-employee-role" id="rpEmployeeRole">角色</span>
+      </div><!-- /#dockPanel_canvas -->
+      <!-- 聊天 DockPanel（由 DockManager 动态接管） -->
+      <div class="dock-panel-host" id="dockPanel_chat" data-dock-title="聊天">
+      <!-- 下半部分：聊天/技能/提示词视图 -->
+      <div class="chat-panel" id="chatPanel">
+        <!-- 对话模式 -->
+        <div class="rp-chat-view" id="rpChatView" style="display:none">
+          <div class="rp-header">
+            <div class="rp-employee-info" id="rpEmployeeInfo">
+              <span class="rp-employee-avatar" id="rpEmployeeAvatar"></span>
+              <div class="rp-employee-meta">
+                <span class="rp-employee-name" id="rpEmployeeName">员工</span>
+                <span class="rp-employee-role" id="rpEmployeeRole">角色</span>
+              </div>
+            </div>
+            <div class="rp-header-actions">
+              <button class="panel-icon-btn" id="btnEditPrompt" title="编辑提示词" onclick="openEmployeePromptEditor()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+              <button class="panel-icon-btn" id="btnCondenseSkill" title="将对话沉淀为技能" onclick="condenseConversationToSkill()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></button>
+              <button class="panel-icon-btn" id="btnEmployeeSkills" title="配置员工技能" onclick="showEmployeeSkillDialog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+              <button class="panel-icon-btn close-preview" onclick="closeRightPanel()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
           </div>
-        </div>
-        <div class="rp-header-actions">
-          <button class="panel-icon-btn" id="btnEditPrompt" title="编辑提示词" onclick="openEmployeePromptEditor()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-          <button class="panel-icon-btn" id="btnCondenseSkill" title="将对话沉淀为技能" onclick="condenseConversationToSkill()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></button>
-          <button class="panel-icon-btn" id="btnEmployeeSkills" title="配置员工技能" onclick="showEmployeeSkillDialog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-          <button class="panel-icon-btn close-preview" onclick="closeRightPanel()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        </div>
-      </div>
-      <!-- 委派关系信息条 -->
-      <div class="rp-delegation-bar" id="rpDelegationBar" style="display:none">
-        <div class="rp-delegation-info" id="rpDelegationInfo"></div>
-        <div class="rp-delegation-history" id="rpDelegationHistory"></div>
-      </div>
-      <div class="rp-messages" id="rpMessages">
-        <div class="rp-empty-chat" id="rpEmptyChat">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.3"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <p>与该员工开始对话</p>
-        </div>
-        <div class="rp-messages-inner" id="rpMsgInner"></div>
-      </div>
-      <div id="liveToolCards" style="display:none;max-width:100%;width:100%;padding:0 12px;"></div>
-      <div class="reconnect-banner" id="reconnectBanner">
-        <span id="reconnectMsg"></span>
-        <div style="display:flex;gap:8px;flex-shrink:0">
-          <button class="reconnect-btn" onclick="dismissReconnect()">Dismiss</button>
-          <button class="reconnect-btn" onclick="refreshSession()">Reload</button>
-        </div>
-      </div>
-      <div class="approval-card" id="approvalCard" role="alertdialog" aria-labelledby="approvalHeading" aria-describedby="approvalDesc">
-        <div class="approval-inner">
-          <div class="approval-header"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span id="approvalHeading">Approval required</span></div>
-          <div class="approval-desc" id="approvalDesc"></div>
-          <div class="approval-cmd" id="approvalCmd"></div>
-          <div class="approval-btns">
-            <button class="approval-btn once" id="approvalBtnOnce" onclick="respondApproval('once')"><span class="approval-btn-label">Allow once</span><kbd class="approval-kbd">↵</kbd></button>
-            <button class="approval-btn session" id="approvalBtnSession" onclick="respondApproval('session')"><span class="approval-btn-label">Allow session</span></button>
-            <button class="approval-btn always" id="approvalBtnAlways" onclick="respondApproval('always')"><span class="approval-btn-label">Always allow</span></button>
-            <button class="approval-btn deny" id="approvalBtnDeny" onclick="respondApproval('deny')"><span class="approval-btn-label">Deny</span></button>
+          <!-- 委派关系信息条 -->
+          <div class="rp-delegation-bar" id="rpDelegationBar" style="display:none">
+            <div class="rp-delegation-info" id="rpDelegationInfo"></div>
+            <div class="rp-delegation-history" id="rpDelegationHistory"></div>
           </div>
-        </div>
-      </div>
-      <div class="clarify-card" id="clarifyCard" role="dialog" aria-labelledby="clarifyHeading">
-        <div class="clarify-inner">
-          <div class="clarify-header"><span class="clarify-icon">❓</span><span id="clarifyHeading">Question</span></div>
-          <div class="clarify-question" id="clarifyQuestion"></div>
-          <div class="clarify-choices" id="clarifyChoices"></div>
-          <div class="clarify-open" id="clarifyOpen">
-            <input type="text" class="clarify-input" id="clarifyInput" placeholder="Type your answer…" autocomplete="off">
-            <button class="clarify-submit" id="clarifySubmit" onclick="respondClarify()">↵</button>
+          <div class="rp-messages" id="rpMessages">
+            <div class="rp-empty-chat" id="rpEmptyChat">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.3"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <p>与该员工开始对话</p>
+            </div>
+            <div class="rp-messages-inner" id="rpMsgInner"></div>
           </div>
-        </div>
-      </div>
-      <div class="update-banner" id="updateBanner"><span id="updateMsg"></span><div style="display:flex;gap:8px;flex-shrink:0"><button class="update-btn" onclick="dismissUpdate()">Later</button><button class="update-btn update-primary" id="btnApplyUpdate" onclick="applyUpdates()">Update Now</button></div></div>
-      <div class="rp-composer" id="rpComposer">
+          <div id="liveToolCards" style="display:none;max-width:100%;width:100%;padding:0 12px;"></div>
+          <div class="reconnect-banner" id="reconnectBanner">
+            <span id="reconnectMsg"></span>
+            <div style="display:flex;gap:8px;flex-shrink:0">
+              <button class="reconnect-btn" onclick="dismissReconnect()">Dismiss</button>
+              <button class="reconnect-btn" onclick="refreshSession()">Reload</button>
+            </div>
+          </div>
+          <div class="approval-card" id="approvalCard" role="alertdialog" aria-labelledby="approvalHeading" aria-describedby="approvalDesc">
+            <div class="approval-inner">
+              <div class="approval-header"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span id="approvalHeading">Approval required</span></div>
+              <div class="approval-desc" id="approvalDesc"></div>
+              <div class="approval-cmd" id="approvalCmd"></div>
+              <div class="approval-btns">
+                <button class="approval-btn once" id="approvalBtnOnce" onclick="respondApproval('once')"><span class="approval-btn-label">Allow once</span><kbd class="approval-kbd">↵</kbd></button>
+                <button class="approval-btn session" id="approvalBtnSession" onclick="respondApproval('session')"><span class="approval-btn-label">Allow session</span></button>
+                <button class="approval-btn always" id="approvalBtnAlways" onclick="respondApproval('always')"><span class="approval-btn-label">Always allow</span></button>
+                <button class="approval-btn deny" id="approvalBtnDeny" onclick="respondApproval('deny')"><span class="approval-btn-label">Deny</span></button>
+              </div>
+            </div>
+          </div>
+          <div class="clarify-card" id="clarifyCard" role="dialog" aria-labelledby="clarifyHeading">
+            <div class="clarify-inner">
+              <div class="clarify-header"><span class="clarify-icon">❓</span><span id="clarifyHeading">Question</span></div>
+              <div class="clarify-question" id="clarifyQuestion"></div>
+              <div class="clarify-choices" id="clarifyChoices"></div>
+              <div class="clarify-open" id="clarifyOpen">
+                <input type="text" class="clarify-input" id="clarifyInput" placeholder="Type your answer…" autocomplete="off">
+                <button class="clarify-submit" id="clarifySubmit" onclick="respondClarify()">↵</button>
+              </div>
+            </div>
+          </div>
+          <div class="update-banner" id="updateBanner"><span id="updateMsg"></span><div style="display:flex;gap:8px;flex-shrink:0"><button class="update-btn" onclick="dismissUpdate()">Later</button><button class="update-btn update-primary" id="btnApplyUpdate" onclick="applyUpdates()">Update Now</button></div></div>
+          <div class="rp-composer" id="rpComposer">
         <div class="cmd-dropdown" id="cmdDropdown"></div>
         <div class="composer-box" id="composerBox">
           <div class="attach-tray" id="attachTray"></div>
@@ -393,84 +415,207 @@
           <div class="upload-bar-wrap" id="uploadBarWrap"><div class="upload-bar" id="uploadBar"></div></div>
         </div>
       </div>
-    </div>
-    <!-- 技能详情模式 -->
-    <div class="rp-skill-view" id="rpSkillView" style="display:none">
-      <div class="rp-header">
-        <div class="rp-employee-info">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-          <div class="rp-employee-meta"><span class="rp-employee-name" id="rpSkillName">技能名称</span><span class="rp-employee-role" id="rpSkillCategory">分类</span></div>
         </div>
-        <div class="rp-header-actions">
-          <button class="panel-icon-btn" title="分配给员工" onclick="assignSkillToEmployee()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></button>
-          <button class="panel-icon-btn close-preview" onclick="closeRightPanel()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        </div>
-      </div>
-      <div class="rp-skill-content" id="rpSkillContent">
-        <div class="rp-skill-meta" id="rpSkillMeta"></div>
-        <div class="rp-skill-body" id="rpSkillBody"></div>
-      </div>
-    </div>
-    <!-- 提示词编辑模式 -->
-    <div class="rp-prompt-view" id="rpPromptView" style="display:none">
-      <div class="rp-header">
-        <div class="rp-employee-info">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          <div class="rp-employee-meta"><span class="rp-employee-name" id="rpPromptTitle">编辑提示词</span><span class="rp-employee-role" id="rpPromptSubtitle">直接编辑角色提示词，修改即时生效</span></div>
-        </div>
-        <div class="rp-header-actions">
-          <button class="panel-icon-btn" title="保存并返回" onclick="saveEmployeePrompt()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-          <button class="panel-icon-btn close-preview" onclick="closePromptEditor()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        </div>
-      </div>
-      <div class="rp-prompt-content">
-        <div class="rp-prompt-section">
-          <label class="rp-prompt-label">角色提示词</label>
-          <textarea class="rp-prompt-textarea" id="rpPromptEditor" placeholder="角色提示词将根据预设、角色和技能自动生成，你也可以直接编辑修改" rows="16"></textarea>
-        </div>
-      </div>
-    </div>
-    <!-- 文件预览模式 -->
-    <div class="rp-file-view" id="rpFileView" style="display:none">
-      <div class="rp-header">
-        <div class="rp-employee-info">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <div class="rp-employee-meta">
-            <span class="rp-employee-name" id="rpFileName">文件名</span>
-            <span class="rp-employee-role" id="rpFilePath">路径</span>
+        <!-- 技能详情模式（中栏 chat-panel 内切换） -->
+        <div class="rp-skill-view" id="rpSkillView" style="display:none">
+          <div class="rp-header">
+            <div class="rp-employee-info">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              <div class="rp-employee-meta"><span class="rp-employee-name" id="rpSkillName">技能名称</span><span class="rp-employee-role" id="rpSkillCategory">分类</span></div>
+            </div>
+            <div class="rp-header-actions">
+              <button class="panel-icon-btn" title="分配给员工" onclick="assignSkillToEmployee()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></button>
+              <button class="panel-icon-btn close-preview" onclick="closeRightPanel()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+          </div>
+          <div class="rp-skill-content" id="rpSkillContent">
+            <div class="rp-skill-meta" id="rpSkillMeta"></div>
+            <div class="rp-skill-body" id="rpSkillBody"></div>
           </div>
         </div>
-        <div class="rp-header-actions">
-          <button class="panel-icon-btn" id="rpFileEditBtn" title="编辑文件" onclick="toggleRpFileEdit()" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-          <button class="panel-icon-btn" id="rpFileDownloadBtn" title="下载文件" onclick="downloadRpFile()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
-          <button class="panel-icon-btn close-preview" onclick="closeRpFilePreview()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <!-- 提示词编辑模式 -->
+        <div class="rp-prompt-view" id="rpPromptView" style="display:none">
+          <div class="rp-header">
+            <div class="rp-employee-info">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              <div class="rp-employee-meta"><span class="rp-employee-name" id="rpPromptTitle">编辑提示词</span><span class="rp-employee-role" id="rpPromptSubtitle">直接编辑角色提示词，修改即时生效</span></div>
+            </div>
+            <div class="rp-header-actions">
+              <button class="panel-icon-btn" title="保存并返回" onclick="saveEmployeePrompt()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+              <button class="panel-icon-btn close-preview" onclick="closePromptEditor()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+          </div>
+          <div class="rp-prompt-content">
+            <div class="rp-prompt-section">
+              <label class="rp-prompt-label">角色提示词</label>
+              <textarea class="rp-prompt-textarea" id="rpPromptEditor" placeholder="角色提示词将根据预设、角色和技能自动生成，你也可以直接编辑修改" rows="16"></textarea>
+            </div>
+          </div>
+        </div>
+        <!-- 空状态：未选择任何内容 -->
+        <div class="rp-empty" id="rpEmpty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity:.15"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/></svg>
+          <p id="rpEmptyTitle">还没有员工可对话</p>
+          <p style="font-size:11px;opacity:.5" id="rpEmptyHint">点击右上角"添加员工"创建你的第一个 AI 助手</p>
         </div>
       </div>
-      <div class="rp-file-content" id="rpFileContent">
-        <div class="rp-file-badge" id="rpFileBadge">text</div>
-        <!-- 预览模式切换按钮（HTML/MD 文件专有） -->
-        <div class="rp-file-mode-toggle" id="rpFileModeToggle" style="display:none">
-          <button class="rp-mode-btn active" id="rpModePreviewBtn" onclick="_switchRpFileMode('preview')">预览</button>
-          <button class="rp-mode-btn" id="rpModeSourceBtn" onclick="_switchRpFileMode('source')">源码</button>
+      </div><!-- /#dockPanel_chat -->
+    </div><!-- /#dockRoot -->
+  </main>
+  <!-- 右侧输出区：全部文件 / 变更 / 浏览器 -->
+  <aside class="rightpanel" id="rightPanel">
+    <div class="resize-handle" id="rightpanelResize"></div>
+    <div class="output-tabs" id="outputTabs">
+      <button class="output-tab active" data-out-tab="files" onclick="switchOutputTab('files')" title="全部文件">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span>全部文件</span>
+      </button>
+      <button class="output-tab" data-out-tab="changes" onclick="switchOutputTab('changes')" title="git 变更">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+        <span>变更</span>
+        <span class="output-tab-badge" id="outChangesBadge" style="display:none">0</span>
+      </button>
+      <button class="output-tab" data-out-tab="browser" onclick="switchOutputTab('browser')" title="浏览器">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span>浏览器</span>
+      </button>
+      <button class="output-tab" data-out-tab="logs" onclick="switchOutputTab('logs')" title="日志">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>日志</span>
+      </button>
+      <button class="output-tab" data-out-tab="agents" onclick="switchOutputTab('agents')" title="异步 Agents">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Agents</span>
+        <span class="output-tab-badge" id="outAgentsBadge" style="display:none">0</span>
+      </button>
+    </div>
+    <!-- 全部文件 tab：文件树 + 内嵌文件预览 -->
+    <div class="output-tab-panel active" id="outputPanelFiles">
+      <!-- 文件预览（打开文件时显示，关闭后显示文件树） -->
+      <div class="rp-file-view" id="rpFileView" style="display:none">
+        <div class="rp-header">
+          <div class="rp-employee-info">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <div class="rp-employee-meta">
+              <span class="rp-employee-name" id="rpFileName">文件名</span>
+              <span class="rp-employee-role" id="rpFilePath">路径</span>
+            </div>
+          </div>
+          <div class="rp-header-actions">
+            <button class="panel-icon-btn" id="rpFileEditBtn" title="编辑文件" onclick="toggleRpFileEdit()" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+            <button class="panel-icon-btn" id="rpFileDownloadBtn" title="下载文件" onclick="downloadRpFile()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+            <button class="panel-icon-btn close-preview" onclick="closeRpFilePreview()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
         </div>
-        <div class="rp-file-code" id="rpFileCode" style="display:none"></div>
-        <div class="rp-file-md" id="rpFileMd" style="display:none"></div>
-        <div class="rp-file-html-preview" id="rpFileHtmlPreview" style="display:none">
-          <iframe id="rpHtmlIframe" sandbox="allow-scripts allow-same-origin" style="width:100%;border:none;border-radius:8px;min-height:300px;background:#fff"></iframe>
+        <div class="rp-file-content" id="rpFileContent">
+          <div class="rp-file-badge" id="rpFileBadge">text</div>
+          <div class="rp-file-mode-toggle" id="rpFileModeToggle" style="display:none">
+            <button class="rp-mode-btn active" id="rpModePreviewBtn" onclick="_switchRpFileMode('preview')">预览</button>
+            <button class="rp-mode-btn" id="rpModeSourceBtn" onclick="_switchRpFileMode('source')">源码</button>
+          </div>
+          <div class="rp-file-code" id="rpFileCode" style="display:none"></div>
+          <div class="rp-file-md" id="rpFileMd" style="display:none"></div>
+          <div class="rp-file-html-preview" id="rpFileHtmlPreview" style="display:none">
+            <iframe id="rpHtmlIframe" sandbox="allow-scripts allow-same-origin" style="width:100%;border:none;border-radius:8px;min-height:300px;background:#fff"></iframe>
+          </div>
+          <div class="rp-file-img-wrap" id="rpFileImgWrap" style="display:none">
+            <img id="rpFileImg" alt="" style="max-width:100%;border-radius:6px">
+          </div>
         </div>
-        <div class="rp-file-img-wrap" id="rpFileImgWrap" style="display:none">
-          <img id="rpFileImg" alt="" style="max-width:100%;border-radius:6px">
+      </div>
+      <!-- 文件树（默认显示） -->
+      <div class="output-files-view" id="outputFilesView">
+        <div class="file-dir-toolbar" id="fileDirToolbar">
+          <div class="breadcrumb-bar" id="mainBreadcrumb"></div>
+          <button class="file-refresh-btn" id="btnRefreshDir" type="button" title="刷新目录" onclick="if(typeof loadDir==='function')loadDir(S.currentDir||'.')">↻</button>
         </div>
-
+        <div class="main-file-tree" id="mainFileTree"></div>
       </div>
     </div>
-    <!-- 空状态：未选择任何内容 -->
-    <div class="rp-empty" id="rpEmpty">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity:.15"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/></svg>
-      <p>还没有员工可对话</p>
-      <p style="font-size:11px;opacity:.5">点击右上角"添加员工"创建你的第一个 AI 助手</p>
+    <!-- 变更 tab -->
+    <div class="output-tab-panel" id="outputPanelChanges" style="display:none">
+      <div class="output-changes-toolbar">
+        <span class="output-changes-branch" id="outChangesBranch">—</span>
+        <span class="output-changes-summary" id="outChangesSummary"></span>
+        <button class="file-refresh-btn" type="button" title="刷新" onclick="if(typeof loadGitChanges==='function')loadGitChanges()" style="margin-left:auto">↻</button>
+      </div>
+      <div class="output-changes-list" id="outChangesList">
+        <div class="output-changes-empty" id="outChangesEmpty">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.3"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+          <p>没有未提交的变更</p>
+        </div>
+      </div>
+      <div class="output-changes-diff" id="outChangesDiff" style="display:none"></div>
+    </div>
+    <!-- 浏览器 tab -->
+    <div class="output-tab-panel" id="outputPanelBrowser" style="display:none">
+      <div class="output-browser-bar">
+        <button class="panel-icon-btn" title="后退" onclick="browserGoBack()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <button class="panel-icon-btn" title="刷新" onclick="browserReload()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+        <input class="output-browser-url" id="outBrowserUrl" type="url" placeholder="https://... 或 本地地址" onkeydown="if(event.key==='Enter')browserNavigate()">
+        <button class="panel-icon-btn" title="前往" onclick="browserNavigate()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+        <button class="panel-icon-btn" title="在新窗口打开" onclick="browserOpenExternal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+      </div>
+      <iframe id="outBrowserFrame" class="output-browser-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" src="about:blank"></iframe>
+      <div class="output-browser-empty" id="outBrowserEmpty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.25"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <p>输入网址访问</p>
+        <p style="font-size:11px;opacity:.6">例如：http://localhost:3000</p>
+      </div>
+    </div>
+    <!-- 日志 tab（从中栏迁移） -->
+    <div class="output-tab-panel" id="outputPanelLogs" style="display:none">
+      <div class="logs-toolbar">
+        <div class="logs-search-wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="logsSearch" placeholder="搜索日志..." oninput="filterLogs()">
+        </div>
+        <button class="logs-filter-btn active" data-filter="all" onclick="setLogFilter('all',this)">全部</button>
+        <button class="logs-filter-btn" data-filter="user_input" onclick="setLogFilter('user_input',this)">输入</button>
+        <button class="logs-filter-btn" data-filter="token" onclick="setLogFilter('token',this)">输出</button>
+        <button class="logs-filter-btn" data-filter="tool" onclick="setLogFilter('tool',this)">工具</button>
+        <button class="logs-filter-btn" data-filter="delegation" onclick="setLogFilter('delegation',this)">委派</button>
+        <button class="logs-filter-btn" data-filter="done" onclick="setLogFilter('done',this)">完成</button>
+        <span class="canvas-zoom-sep"></span>
+        <button class="logs-filter-btn" onclick="clearLogs()" title="清空日志">🗑️</button>
+        <label class="logs-autoscroll-label"><input type="checkbox" id="logsAutoScroll" checked> 自动滚动</label>
+      </div>
+      <div class="logs-list" id="logsList"></div>
+    </div>
+    <!-- 异步 Agents tab（多 agent 协同：spawn_agent 产生的子 agent 状态面板） -->
+    <div class="output-tab-panel" id="outputPanelAgents" style="display:none">
+      <div class="agents-toolbar">
+        <span class="agents-title">异步子 Agents</span>
+        <button class="panel-icon-btn" id="agentsRefreshBtn" title="刷新" onclick="refreshAgentsPanel()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
+        </button>
+        <span class="agents-hint" id="agentsHint">仅当前会话有活跃异步子 agent 时显示</span>
+      </div>
+      <div class="agents-list" id="agentsList">
+        <div class="agents-empty">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="7" r="4"/><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <div class="agents-empty-title">暂无运行中的异步子 agent</div>
+          <div class="agents-empty-hint">当员工 agent 调用 spawn_agent 派生后台子 agent 时，这里会显示其状态、Steer、取消按钮。</div>
+        </div>
+      </div>
     </div>
   </aside>
+</div>
+<!-- Workflow 协同模板选择器 -->
+<div class="wf-overlay" id="workflowOverlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="workflowTitle">
+  <div class="wf-card">
+    <div class="wf-header">
+      <h2 id="workflowTitle">选择协同模板</h2>
+      <button class="wf-close" onclick="closeWorkflowPicker()" title="关闭" aria-label="关闭">✕</button>
+    </div>
+    <div class="wf-lead">
+      选择一个多 Agent 协同模板，一键在当前工作区批量创建员工卡片与上下级连线关系。
+      已存在的同名员工将被跳过。
+    </div>
+    <div class="wf-list" id="workflowList">
+      <div class="wf-loading">正在加载模板…</div>
+    </div>
+  </div>
 </div>
 <div class="onboarding-overlay" id="onboardingOverlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
   <div class="onboarding-card">
@@ -512,6 +657,14 @@
           <button class="settings-tab" id="settingsTabPreferences" type="button" role="tab" aria-selected="false" aria-controls="settingsPanePreferences" onclick="switchSettingsSection('preferences')">
             <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
             <span class="settings-tab-title">Preferences</span>
+          </button>
+          <button class="settings-tab" id="settingsTabProviders" type="button" role="tab" aria-selected="false" aria-controls="settingsPaneProviders" onclick="switchSettingsSection('providers')">
+            <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            <span class="settings-tab-title">Providers</span>
+          </button>
+          <button class="settings-tab" id="settingsTabCli" type="button" role="tab" aria-selected="false" aria-controls="settingsPaneCli" onclick="switchSettingsSection('cli')">
+            <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            <span class="settings-tab-title">Local CLI</span>
           </button>
           <button class="settings-tab" id="settingsTabSystem" type="button" role="tab" aria-selected="false" aria-controls="settingsPaneSystem" onclick="switchSettingsSection('system')">
             <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><line x1="6" y1="7" x2="6.01" y2="7"/><line x1="6" y1="17" x2="6.01" y2="17"/></svg>
@@ -617,6 +770,48 @@
             </div>
             <button class="sm-btn" onclick="saveSettings()" style="margin-top:12px;width:100%;padding:8px;font-weight:600" data-i18n="settings_save_btn">Save Settings</button>
           </div>
+          <div class="settings-pane" id="settingsPaneProviders" role="tabpanel" aria-labelledby="settingsTabProviders">
+            <div class="settings-section-head">
+              <div>
+                <div class="settings-section-title">Providers</div>
+                <div class="settings-section-meta">Manage custom OpenAI-compatible endpoints (Ollama, vLLM, etc.).</div>
+              </div>
+            </div>
+            <div class="settings-field" style="margin-top:8px">
+              <label>Supported Providers</label>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Hermes has built-in support for these providers. Configure API keys in ~/.hermes/.env or via onboarding.</div>
+              <div id="builtInProvidersList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+            <div class="settings-field" style="margin-top:12px">
+              <label>Configured Providers</label>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Custom endpoints you have already saved.</div>
+              <div id="configuredProvidersList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+            <div id="providersList" style="margin-top:12px"></div>
+            <button class="sm-btn" onclick="addProviderRow()" style="margin-top:10px;width:100%;padding:8px;font-weight:600" data-i18n="add_provider">+ Add Provider</button>
+            <button class="sm-btn" onclick="saveProviders()" style="margin-top:10px;width:100%;padding:8px;font-weight:600" data-i18n="save_providers">Save Providers</button>
+            <div id="providersSaveError" style="font-size:12px;color:var(--accent);margin-top:8px;display:none"></div>
+          </div>
+          <div class="settings-pane" id="settingsPaneCli" role="tabpanel" aria-labelledby="settingsTabCli">
+            <div class="settings-section-head">
+              <div>
+                <div class="settings-section-title">Local CLI Backends</div>
+                <div class="settings-section-meta">Wrap a local AI CLI (Claude Code, Codex, llama.cpp, etc.) as a provider. Inspired by OpenClaw's CLI backend design.</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin:8px 0 12px">
+              配置本地 AI 命令行工具作为 fallback provider —— 当云端 API 不可用时，WebUI 可通过 stdin/stdout 调用本地 CLI。常用字段：
+              <code>command</code>(可执行文件路径)，<code>args</code>(启动参数)，<code>modelArg</code>(传模型的参数名如 <code>--model</code>)，
+              <code>sessionMode</code>(会话模式)，<code>modelAliases</code>(模型映射)。
+            </div>
+            <div id="cliBackendsList" style="display:flex;flex-direction:column;gap:10px"></div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button class="sm-btn" onclick="addCliBackendRow()" style="flex:1;padding:8px;font-weight:600">+ 新增 CLI 后端</button>
+              <button class="sm-btn" onclick="addCliBackendRow('knot-cli')" style="flex:1;padding:8px" title="预填 knot-cli 推荐配置">✨ 预设: knot-cli</button>
+              <button class="sm-btn" onclick="addCliBackendRow('claude-code')" style="flex:1;padding:8px" title="预填 Claude Code CLI 推荐配置">✨ 预设: Claude Code</button>
+            </div>
+            <div id="cliBackendsSaveError" style="font-size:12px;color:var(--accent);margin-top:8px;display:none"></div>
+          </div>
           <div class="settings-pane" id="settingsPaneSystem" role="tabpanel" aria-labelledby="settingsTabSystem">
             <div class="settings-section-head">
               <div>
@@ -697,24 +892,31 @@
 <div class="toast" id="toast"></div>
 <script src="/static/i18n.js?v=20260417b"></script>
 <script src="/static/icons.js?v=20260414"></script>
-<script src="/static/ui.js?v=20260418d"></script>
+<script src="/static/ui.js?v=20260424h"></script>
 <script src="/static/workspace.js?v=20260417f"></script>
 <script src="/static/sessions.js?v=20260418d"></script>
 <script src="/static/commands.js?v=20260414"></script>
-<script src="/static/messages.js?v=20260420m"></script>
-<script src="/static/panels.js?v=20260420a"></script>
-<script src="/static/employee.js?v=20260420g"></script>
+<script src="/static/messages.js?v=20260427d"></script>
+<script src="/static/panels.js?v=20260424w"></script>
+<script src="/static/employee.js?v=20260427n"></script>
 <script src="/static/canvas-connections.js?v=20260417u"></script>
 <script src="/static/agent-presets.js?v=20260420b"></script>
-<script src="/static/workspace-tabs.js?v=20260420b"></script>
+<script src="/static/workspace-tabs.js?v=20260427n"></script>
+<script src="/static/logs-panel.js?v=20260424g"></script>
 
 
 
-<script src="/static/right-panel.js?v=20260420f"></script>
+<script src="/static/right-panel.js?v=20260427m"></script>
 <!-- CodeMirror 6 editor module (async, non-blocking) -->
 <script type="module" src="/static/cm-editor.js?v=20260416d"></script>
 <script src="/static/onboarding.js?v=20260414"></script>
-<script src="/static/group-chat.js?v=20260420o"></script>
-<script src="/static/boot.js?v=20260418d"></script>
+<script src="/static/delegation-vm.js?v=20260421c"></script>
+<script src="/static/group-chat.js?v=20260427g"></script>
+<script src="/static/peer-delegate.js?v=20260427a"></script>
+<script src="/static/dock-manager.js?v=20260427a"></script>
+<script src="/static/layout.js?v=20260427d"></script>
+<script src="/static/agents-panel.js?v=20260427b"></script>
+<script src="/static/workflow-picker.js?v=20260427a"></script>
+<script src="/static/boot.js?v=20260427a"></script>
 </body>
 </html>
