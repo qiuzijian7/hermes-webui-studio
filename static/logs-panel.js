@@ -123,6 +123,15 @@ function connectLogsSSE() {
   _logsSSE.addEventListener('apperror', (e) => {
     try { console.log('[logs-panel] apperror event', e.data.slice(0,80)); _flushTokenGroup(); _appendLogEntry(JSON.parse(e.data), 'error'); } catch(err) { console.warn('[logs-panel] apperror parse error', err); }
   });
+  _logsSSE.addEventListener('user_input', (e) => {
+    try { _flushTokenGroup(); _appendLogEntry(JSON.parse(e.data), 'user_input'); } catch(err) { console.warn('[logs-panel] user_input parse error', err); }
+  });
+  _logsSSE.addEventListener('delegation', (e) => {
+    try { _flushTokenGroup(); _appendLogEntry(JSON.parse(e.data), 'delegation'); } catch(err) { console.warn('[logs-panel] delegation parse error', err); }
+  });
+  _logsSSE.addEventListener('group_message', (e) => {
+    try { _flushTokenGroup(); _appendLogEntry(JSON.parse(e.data), 'group_message'); } catch(err) { console.warn('[logs-panel] group_message parse error', err); }
+  });
   _logsSSE.addEventListener('employee_session_bound', (e) => {
     // No need to show in log panel — it's an internal event
   });
@@ -485,6 +494,11 @@ function _appendLogEntry(data, eventType) {
       entry.target_employee = data.target_employee || '';
       entry.task_id = data.task_id || '';
       break;
+    case 'group_message':
+      entry.message = data.message || ('[总群] ' + (data.sender_name || '') + ': ' + (data.text || '').slice(0, 120));
+      entry.text = data.text || '';
+      entry.sender_name = data.sender_name || '';
+      break;
     default:
       entry.message = JSON.stringify(data).slice(0, 120);
   }
@@ -582,6 +596,7 @@ function _eventBadge(event) {
     case 'compressed': return '📦';
     case 'user_input': return '💬';
     case 'delegation': return '🔀';
+    case 'group_message': return '🏠';
     default: return '📋';
   }
 }

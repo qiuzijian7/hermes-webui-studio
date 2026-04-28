@@ -182,14 +182,20 @@ async function openGroupChat() {
 
   const nameEl = $('rpEmployeeName');
   if (nameEl) {
-    // ★ 在标题中附加"自动协作"切换按钮
+    // ★ 在标题中附加"自动协作"和"心跳调度"切换按钮
     const autoOn = GROUP_CHAT_STATE.autoOrchestrate;
+    const hbOn = HEARTBEAT_STATE.enabled;
     nameEl.innerHTML = `${esc(_groupChatTitle(ws))}
       <button id="gcAutoOrchBtn"
               class="gc-auto-orch-btn${autoOn ? ' active' : ''}"
               onclick="event.stopPropagation();toggleAutoOrchestrate()"
               title="${autoOn ? '自动协作已开启：未 @ 人的消息会交给 @制作人 规划分工' : '点击开启自动协作：未 @ 人的消息会交给 @制作人 规划分工'}"
-      >🤖 自动协作</button>`;
+      >🤖 自动协作</button>
+      <button id="gcHeartbeatBtn"
+              class="gc-auto-orch-btn${hbOn ? ' active' : ''}"
+              onclick="event.stopPropagation();toggleHeartbeat()"
+              title="${hbOn ? '心跳调度已开启：员工完成任务后自动唤醒PM分析后续步骤' : '点击开启心跳调度：员工完成后自动触发PM调度'}"
+      >💓 心跳</button>`;
   }
 
   _refreshGroupMembers();
@@ -646,8 +652,10 @@ function _extractContent(m) {
 /** PM专员正在流式回复中（防止重入） */
 let _pmStreamBusy = false;
 
-/** 构建 PM 专员的 system prompt */
-function _buildPMSystemPrompt() {
+/** 构建 PM 专员的 system prompt
+ *  @param {object} [opts] - { heartbeatMode: bool } 心跳模式下追加调度指令
+ */
+function _buildPMSystemPrompt(opts = {}) {
   const parts = [
     '你是 PM专员（项目管理专员），你是用户的直属助手，负责协助用户进行项目管理、任务规划、沟通协调。',
     '',
@@ -656,12 +664,14 @@ function _buildPMSystemPrompt() {
     '- 帮助用户规划任务、拆解需求',
     '- 提供项目管理、团队协作方面的专业建议',
     '- 分析问题、提供解决方案',
+    '- 🔄 **心跳调度**：当员工完成任务时自动被唤醒，分析进度并决定后续行动',
     '',
     '## 团队成员',
   ];
   if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.employees.length) {
     for (const e of EMPLOYEE_STORE.employees) {
-      parts.push(`- **${e.name}** (${e.role || '员工'})`);
+      const statusEmoji = { idle: '🟢', thinking: '🟡', working: '🟡', error: '🔴' }[e.status] || '⚪';
+      parts.push(`- ${statusEmoji} **${e.name}** (${e.role || '员工'}) — 状态: ${e.status || 'idle'}`);
     }
     parts.push('');
     parts.push('用户可以通过在消息中 @员工名 来委派任务给特定员工。当用户不 @任何人时，消息是与你（PM专员）的直接对话。');
@@ -672,6 +682,29 @@ function _buildPMSystemPrompt() {
   parts.push('## 工作区');
   const ws = GROUP_CHAT_STATE.workspace || '';
   if (ws) parts.push(`当前工作区路径：${ws}`);
+
+  // ★ 心跳模式附加指令
+  if (opts.heartbeatMode) {
+    parts.push('');
+    parts.push('## 💓 心跳调度模式（当前处于此模式）');
+    parts.push('');
+    parts.push('你正在被系统自动唤醒，因为有员工刚刚完成了任务。请执行以下步骤：');
+    parts.push('');
+    parts.push('1. **分析完成结果**：检查员工的任务输出，判断是否达标、是否需要修改或补充');
+    parts.push('2. **评估整体进度**：结合当前团队状态和项目目标，判断哪些后续工作需要启动');
+    parts.push('3. **决策并行动**：');
+    parts.push('   - 若需要委派新任务：在回复中使用 `@员工名 任务描述` 格式，系统会自动将任务分配给对应员工');
+    parts.push('   - 若某员工的结果需要返工：使用 `@员工名 请修改：...` 告知具体问题');
+    parts.push('   - 若所有工作已完成：简要总结进度，无需委派');
+    parts.push('   - 若出现错误：分析原因，决定是重试、更换员工还是调整方案');
+    parts.push('');
+    parts.push('**重要规则：**');
+    parts.push('- 回复要简洁，优先用行动（@委派）而非冗长分析');
+    parts.push('- 不要重复已完成的任务，聚焦"下一步"');
+    parts.push('- 如果没有需要做的事情，只说"当前进度正常，暂无后续任务"即可');
+    parts.push('- 每次心跳最多委派 3 个新任务，避免过载');
+  }
+
   parts.push('');
   parts.push('请用简洁友好的语气与用户沟通。');
   return parts.join('\n');
@@ -2352,6 +2385,384 @@ function _updateDelegationBarWithGroupChat(emp) {
   _loadDelegationHistory(emp);
 }
 
+// ── PM专员心跳调度 ─────────────────────────────────────────────────────────────
+
+/** 心跳状态 */
+const HEARTBEAT_STATE = {
+  /** 是否正在处理心跳（防止重入） */
+  busy: false,
+  /** 上次心跳触发时间戳 */
+  lastTriggerTs: 0,
+  /** 心跳开关（localStorage 持久化） */
+  enabled: localStorage.getItem('pm_heartbeat_enabled') !== '0',  // 默认开启
+  /** 连接到 /api/logs 的 EventSource（复用全局日志 SSE 连接） */
+  logSource: null,
+};
+
+/** 切换心跳开关 */
+function toggleHeartbeat() {
+  HEARTBEAT_STATE.enabled = !HEARTBEAT_STATE.enabled;
+  localStorage.setItem('pm_heartbeat_enabled', HEARTBEAT_STATE.enabled ? '1' : '0');
+  if (typeof showToast === 'function') {
+    showToast(HEARTBEAT_STATE.enabled ? '💓 心跳调度已开启' : '⏸ 心跳调度已关闭');
+  }
+  // 更新 UI 按钮状态
+  const btn = document.getElementById('gcHeartbeatBtn');
+  if (btn) {
+    btn.classList.toggle('active', HEARTBEAT_STATE.enabled);
+    btn.title = HEARTBEAT_STATE.enabled
+      ? '心跳调度已开启：员工完成任务后自动唤醒PM分析后续步骤'
+      : '心跳调度已关闭：员工完成任务后不自动触发PM调度';
+  }
+}
+window.toggleHeartbeat = toggleHeartbeat;
+
+/**
+ * 初始化心跳监听：连接到 /api/logs SSE 流，监听 pm_heartbeat 事件。
+ * 全局日志 SSE 流已在 logs-panel.js 中建立（若有），这里用独立连接
+ * 以确保心跳事件不受日志面板打开/关闭影响。
+ */
+function _initHeartbeatListener() {
+  // 如果已有连接，跳过
+  if (HEARTBEAT_STATE.logSource) return;
+
+  try {
+    const source = new EventSource(
+      new URL('/api/logs/stream', location.origin).href,
+      { withCredentials: true }
+    );
+    HEARTBEAT_STATE.logSource = source;
+
+    // 心跳 hook 推送的事件类型是 'pm_heartbeat'（SSE 事件名）
+    source.addEventListener('pm_heartbeat', e => {
+      if (!HEARTBEAT_STATE.enabled) return;
+      try {
+        const d = JSON.parse(e.data);
+        _onHeartbeatReceived(d);
+      } catch (_) {}
+    });
+
+    source.addEventListener('error', () => {
+      // SSE 断开后自动重连（浏览器原生行为），这里记录日志
+      console.log('[心跳] SSE 连接断开，等待重连...');
+    });
+  } catch (e) {
+    console.warn('[心跳] 初始化 SSE 监听失败:', e);
+  }
+}
+
+/**
+ * 收到心跳事件后的处理逻辑
+ */
+async function _onHeartbeatReceived(data) {
+  if (!HEARTBEAT_STATE.enabled) return;
+  if (HEARTBEAT_STATE.busy) {
+    console.log('[心跳] PM专员正在处理中，跳过本次心跳');
+    return;
+  }
+  // PM专员正在流式回复中（用户主动对话），跳过
+  if (_pmStreamBusy) {
+    console.log('[心跳] PM专员正在与用户对话，跳过心跳');
+    return;
+  }
+
+  const workspace = data.workspace || '';
+  const completions = data.completions || [];
+  if (!workspace || !completions.length) return;
+
+  // 确保与当前工作区匹配
+  const currentWs = GROUP_CHAT_STATE.workspace || '';
+  if (currentWs && workspace !== currentWs) {
+    console.log('[心跳] 工作区不匹配，跳过:', workspace, '≠', currentWs);
+    return;
+  }
+
+  console.log('[心跳] 💓 收到心跳事件，触发PM调度:', completions.map(c => c.employee_name).join(', '));
+  HEARTBEAT_STATE.busy = true;
+  HEARTBEAT_STATE.lastTriggerTs = Date.now();
+
+  try {
+    await _triggerHeartbeatScheduling(workspace, completions);
+  } catch (e) {
+    console.error('[心跳] 调度失败:', e);
+  } finally {
+    HEARTBEAT_STATE.busy = false;
+  }
+}
+
+/**
+ * 触发 PM专员 心跳调度：
+ * 1. 收集当前员工状态
+ * 2. 调用 /api/pm-heartbeat/trigger
+ * 3. 通过 SSE 接收 PM 回复
+ * 4. 解析回复中的 @mention 并自动委派
+ */
+async function _triggerHeartbeatScheduling(workspace, completions) {
+  const sessionId = GROUP_CHAT_STATE.sessionId;
+  if (!sessionId) {
+    console.warn('[心跳] 总群 session 未初始化，跳过');
+    return;
+  }
+
+  // 收集当前员工状态
+  const employeeStatuses = [];
+  if (typeof EMPLOYEE_STORE !== 'undefined') {
+    for (const emp of EMPLOYEE_STORE.employees) {
+      const queueLen = (typeof DelegationVM !== 'undefined' && DelegationVM.getQueueLength)
+        ? DelegationVM.getQueueLength(emp.id) : 0;
+      const running = (typeof DelegationVM !== 'undefined' && DelegationVM.getRunningJob)
+        ? DelegationVM.getRunningJob(emp.id) : null;
+      employeeStatuses.push({
+        name: emp.name,
+        status: running ? 'working' : (emp.status || 'idle'),
+        queue_length: queueLen,
+      });
+    }
+  }
+
+  const model = $('modelSelect')?.value || '';
+  const sysPrompt = _buildPMSystemPrompt({ heartbeatMode: true });
+
+  try {
+    console.log('[心跳] 调用 /api/pm-heartbeat/trigger...');
+    const result = await api('/api/pm-heartbeat/trigger', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspace,
+        completions,
+        employee_statuses: employeeStatuses,
+        model,
+        system_prompt: sysPrompt,
+      }),
+    });
+
+    if (!result.ok || !result.stream_id) {
+      console.warn('[心跳] trigger 失败:', result);
+      return;
+    }
+
+    console.log('[心跳] 收到 stream_id:', result.stream_id, '开始监听 PM 回复...');
+
+    // 通过 SSE 接收 PM专员 的心跳回复
+    await _streamHeartbeatReply(result.stream_id, workspace);
+
+  } catch (e) {
+    console.error('[心跳] trigger API 调用失败:', e);
+  }
+}
+
+/**
+ * 接收 PM专员 心跳回复的 SSE 流。
+ * 完成后解析 @mention 并自动委派任务。
+ */
+function _streamHeartbeatReply(streamId, workspace) {
+  return new Promise((resolve) => {
+    const source = new EventSource(
+      new URL(`/api/chat/stream?stream_id=${encodeURIComponent(streamId)}`, location.origin).href,
+      { withCredentials: true }
+    );
+
+    let accumulatedText = '';
+
+    // 如果总群面板正在打开，在面板中实时渲染心跳回复
+    let assistantRow = null;
+    let bodyEl = null;
+
+    function ensureRow() {
+      if (assistantRow) return;
+      if (!GROUP_CHAT_STATE.isOpen) return;  // 总群未打开则不渲染
+
+      const inner = $('rpMsgInner');
+      if (!inner) return;
+
+      assistantRow = document.createElement('div');
+      assistantRow.className = 'rp-msg-row gc-msg-row gc-heartbeat-reply';
+      assistantRow.dataset.role = 'assistant';
+      assistantRow.innerHTML = `
+        <div class="rp-msg-role assistant">
+          <span class="rp-msg-icon">💓</span>
+          <span class="rp-msg-name">PM专员 · 心跳调度</span>
+        </div>
+        <div class="rp-msg-body"></div>
+      `;
+      bodyEl = assistantRow.querySelector('.rp-msg-body');
+      inner.appendChild(assistantRow);
+    }
+
+    let renderPending = false;
+    function scheduleRender() {
+      if (renderPending || !bodyEl) return;
+      renderPending = true;
+      requestAnimationFrame(() => {
+        renderPending = false;
+        if (bodyEl) {
+          const display = _stripThinkingTags(accumulatedText);
+          bodyEl.innerHTML = typeof renderMd === 'function' ? renderMd(display) : esc(display).replace(/\n/g, '<br>');
+          if (typeof _scrollMsgAreaIfSticky === 'function') _scrollMsgAreaIfSticky();
+        }
+      });
+    }
+
+    source.addEventListener('token', e => {
+      try {
+        const d = JSON.parse(e.data);
+        const txt = d.text || '';
+        if (!txt) return;
+        accumulatedText += txt;
+        const display = _stripThinkingTags(accumulatedText);
+        if (display.trim()) {
+          ensureRow();
+          scheduleRender();
+        }
+      } catch (_) {}
+    });
+
+    source.addEventListener('done', async () => {
+      source.close();
+      console.log('[心跳] PM回复完成, textLen=', accumulatedText.length);
+
+      const displayResult = _stripThinkingTags(accumulatedText.trim());
+
+      // 最终渲染
+      if (bodyEl && displayResult) {
+        bodyEl.innerHTML = typeof renderMd === 'function' ? renderMd(displayResult) : esc(displayResult).replace(/\n/g, '<br>');
+      }
+
+      // ★ 核心：解析 PM 回复中的 @mention 并自动委派任务
+      if (displayResult) {
+        await _processHeartbeatMentions(displayResult, workspace);
+      }
+
+      // 刷新总群消息
+      try {
+        await loadGroupChat(workspace);
+        if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+      } catch (_) {}
+
+      resolve();
+    });
+
+    source.addEventListener('error', () => {
+      source.close();
+      console.warn('[心跳] SSE error');
+      // 尝试从 session 获取结果并处理 @mention
+      loadGroupChat(workspace).then(async () => {
+        if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+        // 尝试从最后的 assistant 消息中提取 @mention
+        const msgs = GROUP_CHAT_STATE.messages || [];
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          if (msgs[i].role === 'assistant' && msgs[i]._sender === 'PM专员') {
+            const content = String(msgs[i].content || '');
+            if (content.includes('心跳') || msgs[i]._ts > HEARTBEAT_STATE.lastTriggerTs / 1000 - 10) {
+              await _processHeartbeatMentions(content, workspace);
+            }
+            break;
+          }
+        }
+      }).catch(() => {});
+      resolve();
+    });
+
+    source.addEventListener('apperror', e => {
+      source.close();
+      let errMsg = '未知错误';
+      try { const d = JSON.parse(e.data); errMsg = d.message || errMsg; } catch (_) {}
+      console.warn('[心跳] PM回复出错:', errMsg);
+      resolve();
+    });
+  });
+}
+
+/**
+ * 解析 PM专员 心跳回复中的 @mention，自动委派任务。
+ * 只委派给存在的员工；最多 3 个任务（防止过载）。
+ * 为每个员工提取与其相关的任务段落（而非全文）。
+ */
+async function _processHeartbeatMentions(pmReply, workspace) {
+  const mentions = parse_mentions_local(pmReply);
+  if (!mentions.length) {
+    console.log('[心跳] PM回复中无 @mention，无需委派');
+    return;
+  }
+
+  console.log('[心跳] PM回复中发现 @mentions:', mentions);
+
+  // 过滤掉不存在的员工 + PM专员自身
+  const validMentions = mentions.filter(name => {
+    if (name === 'PM专员') return false;
+    if (typeof EMPLOYEE_STORE === 'undefined') return false;
+    return EMPLOYEE_STORE.employees.some(e => e.name === name);
+  });
+
+  if (!validMentions.length) {
+    console.log('[心跳] 无有效员工 @mention');
+    return;
+  }
+
+  // 限制最多 3 个委派
+  const toDispatch = validMentions.slice(0, 3);
+  console.log('[心跳] 自动委派任务给:', toDispatch);
+
+  // 提取每个员工相关的任务段落：
+  // 策略：按行扫描 PM 回复，从 @员工名 出现位置开始到下一个 @员工名 或段落结束
+  const lines = pmReply.split('\n');
+
+  for (const empName of toDispatch) {
+    let taskDescription = '';
+
+    // 提取与该员工相关的行
+    const empMentionRegex = new RegExp(`@${empName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*`);
+    let capturing = false;
+    const relevantLines = [];
+
+    for (const line of lines) {
+      if (empMentionRegex.test(line)) {
+        capturing = true;
+        relevantLines.push(line.replace(empMentionRegex, '').trim());
+      } else if (capturing) {
+        // 遇到其他 @mention 或空行组结束捕获
+        if (/@[\w\u4e00-\u9fff]+/.test(line) && !empMentionRegex.test(line)) {
+          capturing = false;
+        } else if (line.trim() === '' && relevantLines.length > 0) {
+          // 空行分隔：继续收集（允许多行描述）但设上限
+          if (relevantLines.length < 10) relevantLines.push(line);
+          else capturing = false;
+        } else {
+          relevantLines.push(line);
+        }
+      }
+    }
+
+    taskDescription = relevantLines.join('\n').trim();
+    if (!taskDescription) {
+      // 回退：使用完整回复
+      taskDescription = pmReply;
+    }
+
+    const taskId = `hb-task-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    try {
+      await _dispatchTaskToEmployee(empName, `@${empName} ${taskDescription}`, taskId);
+    } catch (e) {
+      console.warn('[心跳] 自动委派失败:', empName, e);
+    }
+  }
+
+  // 在总群中发送系统消息记录自动委派
+  try {
+    const dispatchNames = toDispatch.map(n => `@${n}`).join('、');
+    await api('/api/group-chat/send', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspace,
+        message: `💓 心跳调度：PM专员已自动委派任务给 ${dispatchNames}`,
+        sender_name: '系统',
+      }),
+    });
+    await loadGroupChat(workspace);
+    if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+  } catch (_) {}
+}
+
 // ── 初始化 ──────────────────────────────────────────────────────────────────
 function initGroupChat() {
   // 覆盖 _updateDelegationBar 以包含总群链接
@@ -2360,6 +2771,9 @@ function initGroupChat() {
 
   // 初始化 @mention 补全
   initMentionAutocomplete();
+
+  // ★ 初始化心跳监听
+  _initHeartbeatListener();
 
   // 立即刷新委派栏，确保总群链接在页面初始加载时显示
   // （initRightPanel 在 initGroupChat 之前执行，此时 _updateDelegationBar 还是原始版本）

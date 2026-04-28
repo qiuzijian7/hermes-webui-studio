@@ -896,6 +896,10 @@ def handle_post(handler, parsed) -> bool:
     if parsed.path == "/api/group-chat/result":
         return _handle_group_chat_result(handler, body)
 
+    # ── PM Heartbeat (心跳调度) POST ──
+    if parsed.path == "/api/pm-heartbeat/trigger":
+        return _handle_pm_heartbeat_trigger(handler, body)
+
     # ── Async subagent control (POST) ──
     if parsed.path == "/api/agents/steer":
         from api.agents import handle_steer as _ag_steer
@@ -3275,6 +3279,12 @@ def _handle_group_chat_send(handler, body):
         return bad(handler, "message is required")
 
     try:
+        # ★ Log user message to the unified log panel
+        _broadcast_log_event('user_input', {
+            'text': message[:500] + ('...' if len(message) > 500 else ''),
+            'message': f"[总群] {sender_name}: {message[:120]}{'...' if len(message) > 120 else ''}",
+        }, session_id='', employee_name=sender_name)
+
         # Parse @mentions from the message
         mentioned_names = parse_mentions(message)
         print(f"[group_chat_send] mentions={mentioned_names}", file=sys.stderr, flush=True)
@@ -3366,6 +3376,13 @@ def _handle_group_chat_message(handler, body):
             content=message,
             sender_name=sender_name or None,
         )
+        # ★ Log assistant/employee message to the unified log panel
+        log_sender = sender_name or '员工'
+        _broadcast_log_event('group_message', {
+            'text': message[:500] + ('...' if len(message) > 500 else ''),
+            'message': f"[总群] {log_sender}: {message[:120]}{'...' if len(message) > 120 else ''}",
+            'sender_name': log_sender,
+        }, session_id='', employee_name=log_sender)
         return j(handler, {"ok": True, "message": msg})
     except Exception as e:
         return bad(handler, _sanitize_error(e), 500)
@@ -3428,6 +3445,103 @@ def _handle_group_chat_result(handler, body):
         return j(handler, {"ok": True, "message": msg})
     except Exception as e:
         return bad(handler, _sanitize_error(e), 500)
+
+
+# ── PM Heartbeat (心跳调度) endpoint ───────────────────────────────────────────
+
+def _handle_pm_heartbeat_trigger(handler, body):
+    """POST /api/pm-heartbeat/trigger
+
+    前端收到 pm_heartbeat 日志事件后调用此端点，
+    启动 PM专员 AI 对话，让 PM 分析员工完成情况并决定后续调度。
+
+    Body: {
+        workspace: str,          -- 工作区路径
+        completions: [           -- 已完成的员工列表
+            { employee_name, status, summary },
+            ...
+        ],
+    }
+
+    Returns: { ok: true, stream_id, session_id } (前端通过 SSE 接收 PM 回复)
+    """
+    from api.group_chat import get_or_create_group_chat
+
+    workspace = (body.get("workspace") or "").strip()
+    completions = body.get("completions") or []
+
+    if not workspace:
+        return bad(handler, "workspace is required")
+    if not completions:
+        return bad(handler, "completions list is required")
+
+    try:
+        gc_data = get_or_create_group_chat(workspace)
+        gc_session_id = gc_data.get("session_id")
+        if not gc_session_id:
+            return bad(handler, "Failed to get group chat session", 500)
+    except Exception as e:
+        return bad(handler, f"Failed to get group chat: {_sanitize_error(e)}", 500)
+
+    # 构建心跳模式的 user message
+    # 包含员工完成摘要 + 当前员工状态，让 PM 决定后续调度
+    completion_lines = []
+    for c in completions:
+        emp_name = c.get("employee_name", "未知")
+        status = c.get("status", "completed")
+        summary = (c.get("summary") or "")[:500]
+        emoji = "✅" if status == "completed" else "⚠️"
+        completion_lines.append(f"{emoji} **{emp_name}**（{status}）：{summary if summary else '无输出摘要'}")
+
+    # 获取员工状态概览（从前端传递，或使用默认值）
+    employee_statuses = body.get("employee_statuses") or []
+    status_lines = []
+    for es in employee_statuses:
+        name = es.get("name", "?")
+        status = es.get("status", "unknown")
+        status_emoji = {"idle": "🟢", "thinking": "🟡", "working": "🟡", "error": "🔴"}.get(status, "⚪")
+        queue_len = es.get("queue_length", 0)
+        queue_info = f"（队列中 {queue_len} 个任务）" if queue_len > 0 else ""
+        status_lines.append(f"  {status_emoji} {name}: {status}{queue_info}")
+
+    heartbeat_msg = (
+        "💓 **心跳调度通知**\n\n"
+        "以下员工刚刚完成了任务：\n"
+        + "\n".join(completion_lines) + "\n"
+    )
+    if status_lines:
+        heartbeat_msg += (
+            "\n**当前团队状态：**\n"
+            + "\n".join(status_lines) + "\n"
+        )
+    heartbeat_msg += (
+        "\n请根据以上信息决定下一步行动："
+        "\n1. 如果有员工的任务结果需要后续处理，通过 @员工名 委派新任务"
+        "\n2. 如果所有工作已完成，简要总结当前进度"
+        "\n3. 如果有员工出错，分析原因并决定是否重新委派"
+        "\n\n直接回复你的分析和决策。如需委派，在回复中使用 @员工名 格式。"
+    )
+
+    # 使用总群 session 启动 PM专员 AI 对话
+    model = body.get("model") or gc_data.get("model") or DEFAULT_MODEL
+    s = get_session(gc_session_id)
+
+    stream_id = uuid.uuid4().hex
+    q = queue.Queue()
+    with STREAMS_LOCK:
+        STREAMS[stream_id] = q
+
+    # 不在这里传 system_prompt（前端会动态构建包含心跳模式的 PM 提示词）
+    system_prompt = body.get("system_prompt") or ""
+
+    thr = threading.Thread(
+        target=_run_agent_streaming,
+        args=(gc_session_id, heartbeat_msg, model, workspace, stream_id, None, system_prompt, "PM专员"),
+        daemon=True,
+    )
+    thr.start()
+
+    return j(handler, {"ok": True, "stream_id": stream_id, "session_id": gc_session_id})
 
 
 def _aggregate_task_assistant_reply(messages: list, task_id: str = "") -> str:
