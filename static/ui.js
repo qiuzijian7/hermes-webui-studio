@@ -1087,20 +1087,27 @@ async function checkInflightOnBoot(sid) {
 function syncTopbar(){
   // ★ 2026-04-27 Bug 修复：抽取出一个通用的"把当前工作区信息写到 #wsInfoBtn"逻辑，
   //   无论是否有 session 都应该让按钮显示工作区名——因为它本质是"工作区切换按钮"。
+  //   同时把 document.title（浏览器 tab 标题）也一起更新，保持视觉一致。
   const _syncWsInfoBtn = () => {
     const _currentWs = (typeof _currentCanvasWorkspace !== 'undefined' && _currentCanvasWorkspace && _currentCanvasWorkspace !== '__default__')
       ? _currentCanvasWorkspace
       : ((S.session && S.session.workspace) ? S.session.workspace : '');
-    if (!_currentWs) return; // 无工作区信息就保留 HTML 默认
+    if (!_currentWs) return ''; // 无工作区信息就保留 HTML 默认
     const wsName = typeof getWorkspaceFriendlyName === 'function'
       ? getWorkspaceFriendlyName(_currentWs)
       : _currentWs.split(/[\/\\]/).filter(Boolean).pop();
     const _ttW = $('topbarTitle'); if (_ttW) _ttW.textContent = wsName || _ttW.textContent;
     const _tmW = $('topbarMeta'); if (_tmW) _tmW.textContent = _currentWs;
+    // ★ 2026-04-27(v2) Bug 修复：浏览器 tab 标题（document.title）原本用 sessionTitle
+    //   （如 "Untitled"），与顶栏按钮不一致。改为统一优先使用工作区友好名：
+    //   "GodotWorkspace — Hermes"。无工作区时回退到 botName。
+    if (wsName) {
+      document.title = wsName + ' \u2014 ' + (window._botName || 'Hermes');
+    }
+    return wsName || '';
   };
 
   if(!S.session){
-    document.title=window._botName||'Hermes';
     if(typeof syncWorkspaceDisplays==='function') syncWorkspaceDisplays();
     if(typeof syncModelChip==='function') syncModelChip();
     if(typeof _syncHermesPanelSessionActions==='function') _syncHermesPanelSessionActions();
@@ -1110,12 +1117,17 @@ function syncTopbar(){
         sidebarName.textContent=t('no_workspace');
       }
     }
-    // ★ 无 session 时也要用 _currentCanvasWorkspace 更新顶部按钮
-    _syncWsInfoBtn();
+    // ★ 无 session 时也要用 _currentCanvasWorkspace 更新顶部按钮 + document.title。
+    //   如果 _syncWsInfoBtn 返回空字符串（无工作区信息），回退到 botName。
+    const _wsName = _syncWsInfoBtn();
+    if (!_wsName) {
+      document.title = window._botName || 'Hermes';
+    }
     return;
   }
   const sessionTitle=S.session.title||t('untitled');
   const _tt=$('topbarTitle');if(_tt)_tt.textContent=sessionTitle;
+  // 先设一个兜底 title（万一下面 _syncWsInfoBtn 因没有工作区信息未覆盖，至少不为空白）
   document.title=sessionTitle+' \u2014 '+(window._botName||'Hermes');
   const vis=S.messages.filter(m=>m&&m.role&&m.role!=='tool');
   const _tm=$('topbarMeta');if(_tm)_tm.textContent=t('n_messages',vis.length);

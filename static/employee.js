@@ -372,7 +372,7 @@ function buildEmployeeSystemPrompt(emp) {
 3. **做出假设**：若文档中目标/截止时间等信息模糊，基于已有内容做合理假设（并在最终汇报中说明你的假设）
 4. **产出拆解**：用 \`write_to_file\` 写出任务拆解文档（如 \`task-breakdown.md\`），包含：每个子任务的 title / 负责人 / 交付物 / 优先级 / 估时
 5. **并行委派**：对每个下属并行调用 \`delegate_task\`，传入清晰的任务描述、上下文（引用你拆解文档的路径）和验收标准
-6. **汇总汇报**：用 \`send_group_message\` 在总群发布任务清单和委派情况
+6. **汇总汇报**：用 \`send_group_message\` 在PM专员发布任务清单和委派情况
 
 **反模式（不要这样做）**：
 - ❌ 不读文件就向用户索要"本次冲刺目标 / 截止时间 / 范围边界 / 风险预案 / 优先级"
@@ -383,13 +383,13 @@ function buildEmployeeSystemPrompt(emp) {
     }
   }
 
-  // 6. 总群协作指引（始终追加，告知员工如何使用 send_group_message 和 delegate_task 协作）
+  // 6. PM专员协作指引（始终追加，告知员工如何使用 send_group_message 和 delegate_task 协作）
   let groupChatCtx = '';
   if (emp.subagentOf || (typeof getSubagentsOf === 'function' && getSubagentsOf(emp.id)?.length)) {
-    groupChatCtx = `\n\n## 总群协作\n你当前在总群上下文中工作。你可以使用以下工具与团队成员协作：\n- **send_group_message**: 向总群发送消息，汇报进度、请求帮助、或与其他员工协调。支持 @mention 其他员工来委派任务。\n- **delegate_task**: 向下属员工委派子任务。委派结果会自动回传到总群，所有成员可见。\n\n协作建议：\n- 复杂任务请使用 delegate_task 分解给下属，不要自己全部执行\n- 需要其他员工协助时，使用 send_group_message @对方名\n- 定期用 send_group_message 汇报进度，让团队了解你的工作状态`;
+    groupChatCtx = `\n\n## PM专员协作\n你当前在PM专员上下文中工作。你可以使用以下工具与团队成员协作：\n- **send_group_message**: 向PM专员发送消息，汇报进度、请求帮助、或与其他员工协调。支持 @mention 其他员工来委派任务。\n- **delegate_task**: 向下属员工委派子任务。委派结果会自动回传到PM专员，所有成员可见。\n\n协作建议：\n- 复杂任务请使用 delegate_task 分解给下属，不要自己全部执行\n- 需要其他员工协助时，使用 send_group_message @对方名\n- 定期用 send_group_message 汇报进度，让团队了解你的工作状态`;
   } else {
-    // 普通员工（无上下级关系）也可以向总群发消息
-    groupChatCtx = `\n\n## 总群协作\n你当前在总群上下文中工作。你可以使用 **send_group_message** 工具向总群发送消息，汇报进度或请求帮助。`;
+    // 普通员工（无上下级关系）也可以向PM专员发消息
+    groupChatCtx = `\n\n## PM专员协作\n你当前在PM专员上下文中工作。你可以使用 **send_group_message** 工具向PM专员发送消息，汇报进度或请求帮助。`;
   }
 
   // 7. 用户自定义提示词

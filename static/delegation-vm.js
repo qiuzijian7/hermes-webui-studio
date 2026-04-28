@@ -63,6 +63,13 @@
         empName: task.empName || '',
         status: task.status || 'pending',
         workspace: task.workspace || '',
+        // ★ 2026-04-27：新增字段供刷新后 UI 路径 3 恢复使用
+        //   - createdAt：用于挑选"最新"的运行中任务
+        //   - taskContent：openEmployeeChat 刷新后需要它来补渲"委派消息 + 任务分隔"
+        //   - requesterName：结果回传总群时沿用原请求者标识
+        createdAt: task.createdAt || Date.now(),
+        taskContent: task.taskContent || '',
+        requesterName: task.requesterName || '你',
       };
       localStorage.setItem(_TASK_PERSIST_KEY, JSON.stringify(map));
     } catch (_) {}
@@ -484,6 +491,8 @@
     /**
      * 从 localStorage 持久化映射恢复 task 到内存 Map。
      * 仅恢复 sessionId 等元数据，不恢复 streamId/sseSource 等运行时字段。
+     * ★ 2026-04-27：同时恢复 taskContent / requesterName / createdAt，
+     *   供 openEmployeeChat 刷新后补渲"委派消息 + 任务分隔"使用。
      * @returns {Task|null}
      */
     _restorePersistedTask(taskId) {
@@ -496,14 +505,20 @@
         taskId,
         empId: meta.empId || '',
         empName: meta.empName || '',
-        taskContent: '',
+        taskContent: meta.taskContent || '',
         workspace: meta.workspace || '',
-        requesterName: '你',
+        requesterName: meta.requesterName || '你',
       });
       task.sessionId = meta.sessionId || null;
       task.status = meta.status || 'done';
+      if (meta.createdAt) task.createdAt = Number(meta.createdAt) || task.createdAt;
       this.tasks.set(taskId, task);
       return task;
+    },
+
+    /** 暴露 _loadPersistedMap 给外部（right-panel.js 路径 3 恢复需要） */
+    _loadPersistedMap() {
+      return _loadPersistedMap();
     },
   };
 

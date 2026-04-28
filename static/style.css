@@ -3869,6 +3869,22 @@ body.resizing{user-select:none;cursor:col-resize;}
   background: rgba(45,111,163,.15);
 }
 
+/* ── PM专员对话样式 ────────────────────────────────────────────────────── */
+.gc-pm-thinking .gc-pm-dots {
+  color: var(--text-dim, #888);
+  animation: gc-pm-pulse 1.2s ease-in-out infinite;
+}
+@keyframes gc-pm-pulse {
+  0%, 100% { opacity: .4; }
+  50% { opacity: 1; }
+}
+.gc-pm-tool-info {
+  font-size: .82em;
+  color: var(--text-dim, #888);
+  padding: 2px 0;
+  opacity: .8;
+}
+
 /* ── Inline tool-XML fallback card (OpenClaw-style) ─────────────────────── */
 /* 当模型把工具调用以 pseudo-XML 形式输出到可见文本时（如 write_to_file 等），    */
 /* 前端用 _transformInlineToolXml 生成此折叠卡片替代原始 XML 标签。              */

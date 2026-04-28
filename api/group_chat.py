@@ -71,7 +71,7 @@ def get_or_create_group_chat(workspace: str) -> dict:
 
     # Create new group chat session (outside _GROUP_CHAT_MAP_LOCK to avoid deadlock with LOCK)
     ws_name = Path(ws).name or "workspace"
-    title = f"{ws_name}_总群"
+    title = "PM专员"
 
     try:
         from api.profiles import get_active_profile_name

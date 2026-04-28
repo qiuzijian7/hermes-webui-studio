@@ -236,7 +236,7 @@ function _setRightPanelView(view) {
     }
     if (hintEl) {
       hintEl.textContent = hasEmployees
-        ? '在画布上点击员工卡片，或点击顶部"总群"进入群聊'
+        ? '在画布上点击员工卡片，或点击顶部"PM专员"进入群聊'
         : '点击右上角"添加员工"创建你的第一个 AI 助手';
     }
   }
@@ -442,6 +442,15 @@ async function openEmployeeChat(empId, taskId) {
     // ★ 异步加载该员工所有委派任务的 session 消息，追加到 S.messages
     await _loadAllDelegatedTaskMessages(emp);
 
+    // ★ 2026-04-27 方案 C 兜底：扫描 S.messages 中所有 [总群委派任务 #task-xxx] 前缀的
+    //   user 消息，为每个 taskId 在该消息之前插入 _taskDivider 分隔符。
+    //   方案 C 下 task.sessionId === emp.sessionId，所有委派消息都在主 session 里，
+    //   _loadAllDelegatedTaskMessages 的 `task.sessionId !== emp.sessionId` 守卫会
+    //   全部过滤掉，导致历史委派任务没有视觉分隔。这里基于消息文本补渲。
+    //   ★ 同时处理 ghost task：localStorage 登记但后端 session 里找不到的任务
+    //   （dispatch 失败/中断所致），前端补渲 ghost 消息，避免"点了链接啥也看不到"。
+    _ensureDelegationDividersForMainSession(emp);
+
     // 切换员工/打开聊天：重置渲染窗口到"最近一页"，避免一次性渲染全部历史造成卡顿
     _resetRenderWindow('employee', S.session?.session_id || emp.id);
     _renderRpMessages();
@@ -466,9 +475,73 @@ async function openEmployeeChat(empId, taskId) {
 
   // ── 如果员工正在执行总群委派的任务，显示委派消息 + 接入 SSE 流 ──
   // ★ 方案 A：从 DelegationVM 读取该员工最新的 active 任务
-  const activeTask = (typeof DelegationVM !== 'undefined' && emp._activeTaskId)
-    ? DelegationVM.getTask(emp._activeTaskId)
-    : null;
+  //
+  // ★ 2026-04-27 Bug 修复：刷新页面后 emp._activeTaskId 丢失（只在内存，不持久化），
+  //   此前逻辑只看 _activeTaskId → 读不到 activeTask → 页面不补渲"正在执行的任务"
+  //   信息，用户刷新后看到的是"空白的聊天框"，直到任务结束才出现结果。
+  //
+  //   修复策略：
+  //   1) 优先 emp._activeTaskId（内存路径，最准确，用于非刷新场景）
+  //   2) 退化到 DelegationVM.running 查该员工 running Job（内存里有就用）
+  //   3) 再退化到 DelegationVM 持久化映射 _loadPersistedMap → 找 empId 匹配
+  //      且 status in [pending,running] 的 task → 用 _restorePersistedTask
+  //      恢复到内存 Map，再走后续逻辑
+  let activeTask = null;
+  if (typeof DelegationVM !== 'undefined') {
+    // 路径 1：内存 _activeTaskId
+    if (emp._activeTaskId) {
+      activeTask = DelegationVM.getTask(emp._activeTaskId);
+      console.log('[openEmployeeChat] 路径1: emp._activeTaskId=', emp._activeTaskId, '→ task=', activeTask ? {id:activeTask.id, status:activeTask.status, streamId:activeTask.streamId} : null);
+    }
+    // 路径 2：DelegationVM.running 里该员工的 Job
+    if (!activeTask || !['pending', 'running'].includes(activeTask.status)) {
+      const runJob = DelegationVM.getRunningJob(emp.id);
+      console.log('[openEmployeeChat] 路径2: runJob=', runJob ? {id:runJob.id, taskStatus:runJob.task?.status} : null);
+      if (runJob && runJob.task && ['pending', 'running'].includes(runJob.task.status)) {
+        activeTask = runJob.task;
+      }
+    }
+    // 路径 3：localStorage 持久化映射（刷新后唯一信息源）
+    if (!activeTask || !['pending', 'running'].includes(activeTask.status)) {
+      try {
+        const persistMap = (typeof _loadDelegationPersistMap === 'function')
+          ? _loadDelegationPersistMap()
+          : null;
+        if (persistMap && typeof persistMap === 'object') {
+          let bestTid = null;
+          let bestTs = -1;
+          const candidates = [];
+          for (const [tid, meta] of Object.entries(persistMap)) {
+            if (!meta || meta.empId !== emp.id) continue;
+            if (!['pending', 'running'].includes(meta.status || '')) continue;
+            candidates.push({tid, status: meta.status, createdAt: meta.createdAt});
+            // 取 createdAt 最大的一条（若缺失则用 tid 字典序兜底）
+            const ts = Number(meta.createdAt || 0);
+            if (ts > bestTs) {
+              bestTs = ts;
+              bestTid = tid;
+            } else if (bestTid === null) {
+              bestTid = tid;
+            }
+          }
+          console.log('[openEmployeeChat] 路径3: persistMap candidates=', candidates, 'bestTid=', bestTid);
+          if (bestTid && typeof DelegationVM._restorePersistedTask === 'function') {
+            const restored = DelegationVM._restorePersistedTask(bestTid);
+            if (restored) {
+              activeTask = restored;
+              // 记到 emp 上，便于后续 UI 逻辑沿用既有路径
+              emp._activeTaskId = bestTid;
+              console.log('[openEmployeeChat] 刷新后从持久化映射恢复 active 任务:', bestTid);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[openEmployeeChat] 恢复 activeTask 失败', e);
+      }
+    }
+  }
+  console.log('[openEmployeeChat] activeTask 最终结果:', activeTask ? {id:activeTask.id, status:activeTask.status, streamId:activeTask.streamId, taskContent:!!activeTask.taskContent} : null,
+    'S.messages.length=', S.messages?.length, 'emp._activeTaskId=', emp._activeTaskId);
 
   if (activeTask && (activeTask.status === 'pending' || activeTask.status === 'running')) {
     // ★ 先添加任务分隔标记（如果还没有）
@@ -490,6 +563,7 @@ async function openEmployeeChat(empId, taskId) {
         _taskLabel: activeLabelShort,
         _ts: activeTask.createdAt / 1000,
       });
+      console.log('[openEmployeeChat] 已添加 _taskDivider for', activeTask.id);
     }
     // 如果 session 消息中没有这条委派消息（后端可能还没持久化），前端侧手动追加
     const hasTaskMsg = S.messages.some(m =>
@@ -498,12 +572,16 @@ async function openEmployeeChat(empId, taskId) {
     if (!hasTaskMsg && activeTask.taskContent) {
       const taskMsg = { role: 'user', content: activeTask.taskContent, _ts: Date.now() / 1000, _taskId: activeTask.id };
       S.messages.push(taskMsg);
+      console.log('[openEmployeeChat] 已手动追加 taskContent user 消息 for', activeTask.id);
     }
+    console.log('[openEmployeeChat] 渲染 active 任务, streamId=', activeTask.streamId, hasDivider ? '(divider已存在)' : '(新增divider)', hasTaskMsg ? '(taskMsg已存在)' : '(新增taskMsg)');
     _renderRpMessages();
     // 有真实 streamId → 直接接入；还在 pending → 显示占位并轮询
     if (activeTask.streamId) {
+      console.log('[openEmployeeChat] 接入 SSE 流, streamId=', activeTask.streamId);
       _attachLiveStreamToChat(emp, activeTask);
     } else {
+      console.log('[openEmployeeChat] 显示 Thinking 占位（streamId 尚未就绪）');
       _showThinkingPlaceholder(emp, activeTask);
     }
     // ★ 微信式：插入委派分隔/占位/live流后，再次强制滚到底
@@ -644,6 +722,178 @@ async function _loadAllDelegatedTaskMessages(emp) {
   }
 }
 
+/**
+ * ★ 2026-04-27 方案 C 兜底：扫描 S.messages 中所有带 "[总群委派任务 #task-xxx]"
+ * 前缀的 user 消息，为每一个 taskId（且尚未插入 divider 的）在该消息之前插入
+ * 一条 _taskDivider 分隔消息。
+ *
+ * 背景：方案 C 下 task.sessionId === emp.sessionId，所有委派消息都累积到员工
+ * 主 session。_loadAllDelegatedTaskMessages 的 `task.sessionId !== emp.sessionId`
+ * 守卫会把方案 C 下所有任务都过滤掉（它原本是为独立 task session 设计的），
+ * 结果就是：openEmployeeChat 打开聊天后，只看到 user 原始委派消息与 assistant
+ * 回复交错的"平铺消息流"，视觉上分不清一段任务的边界 / 结果属于哪个任务 / 点击
+ * 跳转锚点也找不到分隔符。
+ *
+ * 策略：不改原有函数（保留它对"独立 session"路径的处理），在主 session 消息
+ * 加载后单独做一次"基于文本的"分隔符兜底补渲：
+ *   1. 遍历 S.messages，匹配 role=user 且 content 以 "[总群委派任务 #task-xxx]"
+ *      开头的消息，抽出 taskId；
+ *   2. 若 S.messages 中尚无 _taskDivider && _taskId===taskId，则构造一条
+ *      divider 消息并插入到该 user 消息之前；
+ *   3. taskStatus 优先从 DelegationVM（内存 Map 或持久化映射）读取真实状态，
+ *      否则默认 'done'（过去消息的默认语义）。
+ *
+ * 因为在 _renderRpMessages 之前调用，_renderRpMessages 的 dedupe 也只按
+ *   role+_taskId+content+reasoning 键合并，新插入的 divider 不会被误去重。
+ */
+/**
+ * ★ 2026-04-27 方案 C 兜底：为方案 C 下（task.sessionId===emp.sessionId）的
+ * 委派任务补渲"分隔符"，并处理 ghost task（任务登记在 localStorage 但后端
+ * session 里找不到对应的 "[总群委派任务 #xxx] ..." 用户消息）。
+ *
+ * 背景：
+ *   A) 方案 C 下，_loadAllDelegatedTaskMessages 的 `task.sessionId !== emp.sessionId`
+ *      守卫会把方案 C 下所有任务都过滤掉（它原本是为独立 task session 设计的），
+ *      结果就是：openEmployeeChat 打开聊天后，只看到 user 原始委派消息与 assistant
+ *      回复交错的"平铺消息流"，视觉上分不清一段任务的边界。
+ *   B) 更严重：总群 @ 员工时后端先创建 group-chat 系统消息 "已将任务 [#xxx] 委派给
+ *      @Name"，然后前端调 _dispatchTaskToEmployee。若 _startDelegatedJob 失败
+ *      （agent 抛异常、网络中断、窗口在 await 过程中被刷新），任务的 fullTaskMsg
+ *      就永远不会被 `/api/chat/start` 写进员工 session → 用户点击总群的任务
+ *      链接跳到员工聊天，**什么都看不到**，以为系统"吞"了任务。
+ *
+ * 策略（两阶段）：
+ *   Phase 1：扫描 S.messages，为所有带 "[总群委派任务 #task-xxx]" 前缀的 user
+ *            消息补插 _taskDivider（taskStatus 从 DelegationVM/持久化映射读）。
+ *   Phase 2：遍历 localStorage 持久化映射，找该员工的 task；若 Phase 1 没覆盖
+ *            到（即 S.messages 里没有该任务的用户消息），则前端主动追加一条
+ *            ghost 用户消息 + divider（状态按持久化读），并在 divider 上打
+ *            `_taskGhost=true` 标记以便渲染层显示警示文案（\"任务登记但未送达，
+ *            可能后端未收到 → 建议重试\"）。
+ *
+ * 参数：
+ *   @param {object} [emp] 当前员工对象；用于 Phase 2 过滤该员工的任务。
+ *                         不传时跳过 Phase 2（保持向后兼容）。
+ */
+function _ensureDelegationDividersForMainSession(emp) {
+  if (typeof S === 'undefined' || !Array.isArray(S.messages)) return;
+  console.log('[_ensureDelegationDividers] 开始, emp=', emp?.name, 'S.messages.length=', S.messages.length);
+  const persistMap = (typeof _loadDelegationPersistMap === 'function') ? _loadDelegationPersistMap() : {};
+  // 先收集现有 divider 的 taskId 集合，避免重复插入
+  const existingDividerIds = new Set();
+  for (const m of S.messages) {
+    if (m && m._taskDivider && m._taskId) existingDividerIds.add(m._taskId);
+  }
+  // ── Phase 1：基于 S.messages 中已存在的 user 消息补插 divider ──
+  // 同时记录每个 taskId 已在 S.messages 里出现过 → Phase 2 可据此判断"ghost"
+  const seenTaskIdsInMessages = new Set();
+  const inserts = []; // [{ idx, divider }]
+  for (let i = 0; i < S.messages.length; i++) {
+    const m = S.messages[i];
+    if (!m || m.role !== 'user') continue;
+    const content = typeof m.content === 'string' ? m.content : '';
+    if (!content.startsWith('[总群委派任务')) continue;
+    const match = content.match(/^\[总群委派任务 #(task-[A-Za-z0-9_-]+)\]/);
+    if (!match) continue;
+    const taskId = match[1];
+    seenTaskIdsInMessages.add(taskId);
+    if (existingDividerIds.has(taskId)) continue;
+    existingDividerIds.add(taskId);  // 防御同一 taskId 多次出现
+    // 推断任务状态：优先内存 Map → 持久化映射 → 默认 done
+    let status = 'done';
+    try {
+      if (typeof DelegationVM !== 'undefined') {
+        const t = DelegationVM.getTask ? DelegationVM.getTask(taskId) : null;
+        if (t && t.status) status = t.status;
+        else if (persistMap[taskId] && persistMap[taskId].status) status = persistMap[taskId].status;
+      } else if (persistMap[taskId] && persistMap[taskId].status) {
+        status = persistMap[taskId].status;
+      }
+    } catch (_) {}
+    // 抽任务短标签：去掉前缀行 + 跳过空行/样板行，取首条有效内容
+    const labelRaw = content
+      .replace(/^\[总群委派任务 #[^\]]+\]\s*/, '')
+      .split('\n')
+      .find(l => l.trim() && !l.startsWith('---') && !l.startsWith('⚠️')) || '';
+    const labelShort = labelRaw.length > 60 ? labelRaw.slice(0, 60) + '…' : labelRaw;
+    // 为该 user 消息打上 _taskId（若尚未有），便于渲染阶段定位
+    if (!m._taskId) m._taskId = taskId;
+    const divider = {
+      role: 'system',
+      content: `📋 委派任务 #${taskId}`,
+      _taskDivider: true,
+      _taskId: taskId,
+      _taskStatus: status,
+      _taskLabel: labelShort,
+      _ts: m._ts || (Date.now() / 1000),
+    };
+    inserts.push({ idx: i, divider });
+  }
+  // 逆序插入保持原索引有效
+  for (let k = inserts.length - 1; k >= 0; k--) {
+    const { idx, divider } = inserts[k];
+    S.messages.splice(idx, 0, divider);
+  }
+  if (inserts.length > 0) {
+    console.log('[_ensureDelegationDividers] Phase 1 插入', inserts.length, '条 divider, taskIds=', inserts.map(i=>i.divider._taskId));
+  }
+
+  // ── Phase 2：ghost 任务补渲 ──
+  // 遍历 localStorage 持久化映射，找该员工的 task；若 Phase 1 没覆盖到（即
+  // S.messages 里没有该任务的用户消息，后端 session 也没写入），则追加一条
+  // ghost user 消息 + divider，避免用户点击总群任务链接后看到"空"聊天框。
+  if (!emp || !emp.id) return;
+  // 按 createdAt 升序排列，确保 ghost 消息追加顺序与时间一致
+  const ghostCandidates = [];
+  for (const [tid, meta] of Object.entries(persistMap)) {
+    if (!meta || meta.empId !== emp.id) continue;
+    if (seenTaskIdsInMessages.has(tid)) continue;  // Phase 1 已处理，跳过
+    if (existingDividerIds.has(tid)) continue;      // 已有 divider，跳过
+    // 只补渲有 taskContent 的 ghost（没有的话啥都没法显示）
+    if (!meta.taskContent) continue;
+    // ★ 2026-04-28：跳过 pending/running 状态的任务——这些任务的消息/分隔符
+    //   由 openEmployeeChat 的 activeTask 代码块来补渲（它会手动 push taskContent
+    //   + divider + 接入 SSE/显示占位）。若 Phase 2 也把它们当 ghost 补渲，
+    //   会导致：① divider 被错标为 _taskGhost 显示 "⚠ 未送达"；② 消息重复。
+    if (meta.status === 'pending' || meta.status === 'running') continue;
+    ghostCandidates.push({ tid, meta });
+  }
+  ghostCandidates.sort((a, b) => Number(a.meta.createdAt || 0) - Number(b.meta.createdAt || 0));
+  if (ghostCandidates.length > 0) {
+    console.log('[_ensureDelegationDividers] Phase 2 ghost 候选:', ghostCandidates.map(g => ({tid:g.tid, status:g.meta.status, empName:g.meta.empName})));
+  }
+  for (const { tid, meta } of ghostCandidates) {
+    const status = meta.status || 'error';
+    const taskContent = meta.taskContent || '';
+    // 抽短标签
+    const labelRaw = taskContent
+      .replace(/^\[总群委派任务 #[^\]]+\]\s*/, '')
+      .split('\n')
+      .find(l => l.trim() && !l.startsWith('---') && !l.startsWith('⚠️')) || '';
+    const labelShort = labelRaw.length > 60 ? labelRaw.slice(0, 60) + '…' : labelRaw;
+    // ★ 追加 ghost divider（带 _taskGhost 标记，渲染层据此加警示）
+    S.messages.push({
+      role: 'system',
+      content: `📋 委派任务 #${tid}`,
+      _taskDivider: true,
+      _taskId: tid,
+      _taskStatus: status,
+      _taskLabel: labelShort,
+      _taskGhost: true,
+      _ts: Number(meta.createdAt || Date.now()) / 1000,
+    });
+    // 追加 ghost user 消息（带 _taskGhost + _taskId，便于去重 / 跳转定位）
+    S.messages.push({
+      role: 'user',
+      content: taskContent,
+      _taskId: tid,
+      _taskGhost: true,
+      _ts: Number(meta.createdAt || Date.now()) / 1000,
+    });
+    existingDividerIds.add(tid);
+  }
+}
+
 // ── 刷新后委派任务自愈轮询 ─────────────────────────────────────────────────
 // 页面刷新后，原本正在跑的委派任务 streamId 已丢失，无法重连 SSE。
 // 本函数对 localStorage 中 status=running/pending 的委派任务启动后台轮询：
@@ -664,12 +914,19 @@ function _startDelegatedRunningTaskPolling(emp) {
   _stopDelegatedRunningTaskPolling(emp.id);
 
   // 收集 running/pending 任务
+  //
+  // ★ 2026-04-27 方案 C Bug 修复：移除 task.sessionId !== emp.sessionId 守卫。
+  //   该守卫原本是防止"task session == 主 session"时的重复轮询——但方案 C
+  //   下两者本来就相等，守卫会让轮询完全不启动，导致刷新页面后"正在执行的
+  //   任务内容"永远不会被补渲到聊天框里。
+  //
+  //   现在的安全保障在于 line 795-801 已经用 "role + content + reasoning" 三元组
+  //   对 S.messages 做去重 push，轮询多次拉取同一条消息不会导致 UI 重复显示。
   const runningTasks = [];
   const seen = new Set();
   for (const task of DelegationVM.tasks.values()) {
     if (task.empId === emp.id && task.sessionId
-        && (task.status === 'running' || task.status === 'pending')
-        && task.sessionId !== emp.sessionId) {
+        && (task.status === 'running' || task.status === 'pending')) {
       runningTasks.push({id: task.id, sessionId: task.sessionId, status: task.status});
       seen.add(task.id);
     }
@@ -679,8 +936,7 @@ function _startDelegatedRunningTaskPolling(emp) {
     for (const [tid, meta] of Object.entries(persistMap)) {
       if (seen.has(tid)) continue;
       if (meta.empId === emp.id && meta.sessionId
-          && (meta.status === 'running' || meta.status === 'pending')
-          && meta.sessionId !== emp.sessionId) {
+          && (meta.status === 'running' || meta.status === 'pending')) {
         runningTasks.push({id: tid, sessionId: meta.sessionId, status: meta.status});
         seen.add(tid);
       }
@@ -729,20 +985,24 @@ function _startDelegatedRunningTaskPolling(emp) {
           && String(lastMsg.content || '').trim().length > 0
           && !(lastMsg.tool_calls && lastMsg.tool_calls.length);
 
-        // 合并新消息到 S.messages（按任务分组，避免重复）
+        // ★ 2026-04-27 方案 C Bug 修复：dedupe 比较不再按 _taskId（该字段在
+        //   主 session 消息上本就没有，老逻辑导致永远匹配不到 → 重复 push）。
+        //   改为按 role + content + reasoning 三元组全局匹配。
+        //   同时去掉强行 {..., _taskId: rt.id}，保持主 session 消息的归属中立
+        //   （多个任务交错时不会被误打上单一 task 标签）。
         let added = 0;
         for (const m of msgs) {
           if (m.role === 'system') continue;
           const _mc = String(m.content || '').trim();
           const _mr = String(m.reasoning || '').trim();
+          if (!_mc && !_mr) continue;
           const _exists = S.messages.some(sm =>
-            sm._taskId === rt.id
-            && sm.role === m.role
+            sm.role === m.role
             && String(sm.content || '').trim() === _mc
             && String(sm.reasoning || '').trim() === _mr
           );
           if (_exists) continue;
-          S.messages.push({ ...m, _taskId: rt.id });
+          S.messages.push({ ...m });
           added++;
         }
 
@@ -813,23 +1073,34 @@ function _showThinkingPlaceholder(emp, task) {
   if (!task) return;
 
   // 轮询检测 task.streamId 更新（/api/chat/start 返回后 task.streamId 会被设为真实值）
+  // ★ 2026-04-27：把 timer 挂到 task 上，供 openGroupChat 切换时主动 clearInterval，
+  //   避免用户在 streamId 返回前频繁切换总群↔员工导致多条 poll 泄漏 30s。
+  //   开新 poll 前先关旧 poll（同一 task 多次打开占位的情况）。
+  if (task._placeholderPollTimer) {
+    try { clearInterval(task._placeholderPollTimer); } catch (_) {}
+    task._placeholderPollTimer = null;
+  }
   let _pollCount = 0;
   const _pollTimer = setInterval(() => {
     _pollCount++;
     if (_pollCount > 60) {  // 最多轮询 30 秒
       clearInterval(_pollTimer);
+      if (task._placeholderPollTimer === _pollTimer) task._placeholderPollTimer = null;
       return;
     }
     // 任务已取消或结束：停止轮询
     if (task.status === 'cancelled' || task.status === 'done' || task.status === 'error') {
       clearInterval(_pollTimer);
+      if (task._placeholderPollTimer === _pollTimer) task._placeholderPollTimer = null;
       return;
     }
     if (task.streamId) {
       clearInterval(_pollTimer);
+      if (task._placeholderPollTimer === _pollTimer) task._placeholderPollTimer = null;
       _attachLiveStreamToChat(emp, task);
     }
   }, 500);
+  task._placeholderPollTimer = _pollTimer;
 }
 
 /**
@@ -838,6 +1109,7 @@ function _showThinkingPlaceholder(emp, task) {
  * 方案 A：基于 task 对象，状态隔离
  */
 function _attachLiveStreamToChat(emp, task) {
+  console.log('[_attachLiveStreamToChat] 开始, emp=', emp?.name, 'taskId=', task?.id, 'streamId=', task?.streamId, 'status=', task?.status);
   if (!task || !task.streamId) return;
   const streamId = task.streamId;
   const capturedTaskId = task.id;
@@ -905,6 +1177,19 @@ function _attachLiveStreamToChat(emp, task) {
     new URL(`/api/chat/stream?stream_id=${encodeURIComponent(streamId)}`, location.origin).href,
     { withCredentials: true }
   );
+  // ★ 2026-04-27 Bug 修复：把 SSE 句柄挂到 task 上，供 openGroupChat 在切换
+  //   到总群视图时主动关闭——否则该 SSE 会在后台继续消费 done 事件，
+  //   把 task.status 置为 done、清空 emp._activeTaskId，
+  //   导致用户切回员工聊天时看不到"正在执行"的任务信息。
+  //   关闭前打标 _intentionallyClosed，error 处理器据此忽略关闭信号，
+  //   避免误把正常切换识别为连接故障。
+  try {
+    if (task._chatSseSource && task._chatSseSource !== source) {
+      task._chatSseSource._intentionallyClosed = true;
+      try { task._chatSseSource.close(); } catch(_) {}
+    }
+  } catch(_) {}
+  task._chatSseSource = source;
   // ★ 包装 addEventListener：任何具名事件到达都先标记 _receivedAnyEvent=true，
   //   再清超时、再交给原 handler。
   //   解决："source.onmessage 永远不会被调到（所有事件都有 event:xxx）"导致必定 5s 超时的问题。
@@ -930,6 +1215,7 @@ function _attachLiveStreamToChat(emp, task) {
       // 流已结束的回调
       _streamEnded = true;
       source.close();
+      if (task._chatSseSource === source) task._chatSseSource = null;
       // ★ 仅当任务仍在进行中时才更新状态
       if (task.status === 'pending' || task.status === 'running') {
         task.status = 'done';
@@ -1193,8 +1479,11 @@ function _attachLiveStreamToChat(emp, task) {
   });
 
   source.addEventListener('done', async e => {
+    console.log('[_attachLiveStreamToChat] ★ done 事件, taskId=', capturedTaskId, 'assistantTextLen=', assistantText.length);
+    if(typeof UAL!=='undefined') UAL.log('stream','done',{taskId:capturedTaskId,textLen:assistantText.length});
     _streamEnded = true;
     source.close();
+    if (task._chatSseSource === source) task._chatSseSource = null;
     // ★ reasoning 与 token 已分离（_rpReasoningBuffer），无需再向 assistantText 追加 </think>
     clearTimeout(_streamTimeout);
     // ★ 基于 task 状态判断（而非 emp 共享字段）
@@ -1276,9 +1565,21 @@ function _attachLiveStreamToChat(emp, task) {
   });
 
   source.addEventListener('error', () => {
+    console.log('[_attachLiveStreamToChat] error 事件, taskId=', capturedTaskId, '_streamEnded=', _streamEnded, '_intentionallyClosed=', !!source._intentionallyClosed);
+    if(typeof UAL!=='undefined') UAL.log('stream','error',{taskId:capturedTaskId,intentionallyClosed:!!source._intentionallyClosed});
     if (_streamEnded) return;
+    // ★ 2026-04-27: 切换到总群时会主动关闭 SSE（task._chatSseSource），
+    //   EventSource close 会同步触发一次 error 事件。此时任务仍在后台执行，
+    //   不能把 task.status 置为 error（否则切回员工聊天后任务被标记为出错）。
+    if (source._intentionallyClosed) {
+      _streamEnded = true;
+      clearTimeout(_streamTimeout);
+      if (task._chatSseSource === source) task._chatSseSource = null;
+      return;
+    }
     _streamEnded = true;
     source.close();
+    if (task._chatSseSource === source) task._chatSseSource = null;
     // ★ 基于 task 状态
     if (task.status === 'pending' || task.status === 'running') {
       task.status = 'error';
@@ -1316,6 +1617,7 @@ function _attachLiveStreamToChat(emp, task) {
     if (_streamEnded) return;
     _streamEnded = true;
     source.close();
+    if (task._chatSseSource === source) task._chatSseSource = null;
     // ★ 基于 task 状态
     if (task.status === 'pending' || task.status === 'running') {
       task.status = 'error';
@@ -1537,14 +1839,20 @@ function _renderRpMessages() {
       const statusLabel = m._taskStatus === 'done' ? '已完成' : m._taskStatus === 'error' ? '出错' : m._taskStatus === 'running' ? '执行中' : '';
       const taskLabel = m._taskLabel ? ` — ${esc(m._taskLabel)}` : '';
       const statusHtml = statusLabel ? `<span class="rp-task-divider-status" style="font-size:11px;color:var(--muted);margin-left:4px">(${esc(statusLabel)})</span>` : '';
+      // ★ 2026-04-27 ghost 标记：任务登记在 localStorage 但后端 session 没写入
+      //   （dispatch 失败/中断所致），附加警示 + 重试按钮
+      const ghostHtml = m._taskGhost
+        ? `<span class="rp-task-divider-ghost" style="font-size:11px;color:#ef4444;margin-left:6px" title="该任务未在后端 session 中找到——可能 dispatch 失败或被中断。">⚠ 未送达</span> <button class="rp-task-retry-btn" style="font-size:11px;padding:1px 6px;margin-left:4px;border:1px solid #ef4444;border-radius:4px;background:transparent;color:#ef4444;cursor:pointer" onclick="event.preventDefault();_retryGhostTask('${esc(m._taskId || '')}')">重试</button>`
+        : '';
       const dividerRow = document.createElement('div');
       dividerRow.className = 'rp-msg-row rp-task-divider';
       dividerRow.dataset.taskId = m._taskId || '';
+      if (m._taskGhost) dividerRow.dataset.taskGhost = '1';
       dividerRow.innerHTML = `
         <div class="rp-task-divider-line"></div>
         <div class="rp-task-divider-label">
           <span class="rp-task-divider-icon">${statusIcon}</span>
-          <a href="#" class="gc-task-link" data-task-id="${esc(m._taskId || '')}" onclick="event.preventDefault();jumpToGroupChatTask('${esc(m._taskId || '')}');return false;" title="点击跳转到总群对应消息">${esc(m.content || '')}</a>${taskLabel}${statusHtml}
+          <a href="#" class="gc-task-link" data-task-id="${esc(m._taskId || '')}" onclick="event.preventDefault();jumpToGroupChatTask('${esc(m._taskId || '')}');return false;" title="点击跳转到总群对应消息">${esc(m.content || '')}</a>${taskLabel}${statusHtml}${ghostHtml}
         </div>
         <div class="rp-task-divider-line"></div>
       `;
@@ -2339,6 +2647,69 @@ async function _cancelCurrentJob(empId, jobId) {
     if (typeof showToast === 'function') showToast(`取消失败: ${err.message || err}`, 2500);
   }
 }
+
+/** ★ 2026-04-27：重试一个 ghost task（localStorage 登记但后端 session 未写入的任务）
+ *  - 从 DelegationVM 持久化映射读 empName / taskContent / workspace
+ *  - 把任务状态重置为 pending
+ *  - 复用 _dispatchTaskToEmployee 重走"方案 B"入队 + 启动流程
+ *  - 关闭 ghost 标记（通过 status 更新 → 下一次渲染不再显示 "未送达" 徽标）
+ */
+async function _retryGhostTask(taskId) {
+  if (!taskId) return;
+  if (typeof DelegationVM === 'undefined' || typeof DelegationVM.getPersistedTask !== 'function') {
+    if (typeof showToast === 'function') showToast('DelegationVM 不可用，无法重试');
+    return;
+  }
+  const meta = DelegationVM.getPersistedTask(taskId);
+  if (!meta || !meta.taskContent) {
+    if (typeof showToast === 'function') showToast('任务元数据缺失，无法重试');
+    return;
+  }
+  const empName = meta.empName || '';
+  if (!empName) {
+    if (typeof showToast === 'function') showToast('任务缺少员工名，无法重试');
+    return;
+  }
+  // 用户二次确认
+  let ok;
+  if (typeof showConfirmDialog === 'function') {
+    ok = await showConfirmDialog({
+      title: '重试委派任务',
+      message: `将使用原任务内容重新委派给 ${empName}。\n（taskId=${taskId} 之前未送达到员工 session，这可能是由于上次 dispatch 失败或浏览器中断）`,
+      confirmLabel: '重新委派',
+      cancelLabel: '取消',
+    });
+  } else {
+    ok = confirm(`重新委派任务给 ${empName}？`);
+  }
+  if (!ok) return;
+  // 不复用原 taskId（可能已有残留状态）——直接用原 taskContent 重新发一遍
+  //   _dispatchTaskToEmployee 会创建新的 Task 对象、入队、启动。
+  //   原 ghost taskId 通过 setTaskStatus 标为 cancelled 避免再次补渲为 ghost。
+  try {
+    DelegationVM.setTaskStatus(taskId, 'cancelled');
+  } catch (_) {}
+  // 调用 _dispatchTaskToEmployee 复用原逻辑——用新生成的 taskId
+  const newTaskId = `task-${Math.random().toString(36).slice(2, 10)}`;
+  if (typeof _dispatchTaskToEmployee === 'function') {
+    try {
+      await _dispatchTaskToEmployee(empName, meta.taskContent, newTaskId, { orchestrate: false });
+      if (typeof showToast === 'function') showToast(`已重新委派任务给 ${empName}（#${newTaskId.slice(0, 13)}）`);
+      // 刷新当前员工聊天显示（若正在看该员工）
+      const emp = (typeof getEmployee === 'function' && typeof EMPLOYEE_STORE !== 'undefined')
+        ? getEmployee(EMPLOYEE_STORE.selectedId) : null;
+      if (emp && emp.name === empName && typeof openEmployeeChat === 'function') {
+        try { await openEmployeeChat(emp.id); } catch (_) {}
+      }
+    } catch (e) {
+      console.warn('[重试任务] _dispatchTaskToEmployee 失败:', e);
+      if (typeof showToast === 'function') showToast(`重试失败: ${e.message || e}`);
+    }
+  } else {
+    if (typeof showToast === 'function') showToast('无法重试：_dispatchTaskToEmployee 不可用');
+  }
+}
+window._retryGhostTask = _retryGhostTask;
 
 // ── 初始化 ─────────────────────────────────────────────────────────────────
 function initRightPanel() {

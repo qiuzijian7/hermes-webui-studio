@@ -13,6 +13,7 @@ async function send(){
   // 总群模式：如果总群面板打开，走总群发送路径（不受 S.busy 限制）
   if(typeof GROUP_CHAT_STATE!=='undefined'&&GROUP_CHAT_STATE.isOpen){
     console.log('[send] 总群模式, isOpen=true, text=', text);
+    if(typeof UAL!=='undefined') UAL.log('message','send-to-group',{textLen:text.length,textPreview:text.slice(0,50)});
     $('msg').value='';autoResize();hideCmdDropdown();
     await sendGroupMessage(text);
     return;
@@ -108,6 +109,7 @@ async function send(){
           },
         };
         const pos=DelegationVM.enqueueJob(manualJob);
+        if(typeof UAL!=='undefined') UAL.log('message','enqueue',{empName:_curEmp.name,pos,textLen:text.length});
         if(typeof showToast==='function'){
           showToast(`员工「${_curEmp.name}」正在处理任务，你的消息已加入队列（第 ${pos} 位）`,3500);
         }
@@ -120,6 +122,7 @@ async function send(){
   if(S.busy){
     if(text){
       MSG_QUEUE.push(text);
+      if(typeof UAL!=='undefined') UAL.log('message','busy-queue',{textLen:text.length,queueLen:MSG_QUEUE.length});
       $('msg').value='';autoResize();
       updateQueueBadge();
       showToast(`Queued: "${text.slice(0,40)}${text.length>40?'\u2026':''}"`,2000);

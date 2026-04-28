@@ -66,7 +66,7 @@ function _refreshGroupMembers() {
 /** 获取总群标题 */
 function _groupChatTitle(wsPath) {
   const wsName = wsPath ? wsPath.split(/[\/\\]/).filter(Boolean).pop() : 'workspace';
-  return `${wsName}_总群`;
+  return `PM专员`;
 }
 
 /** 查找适合的"协调员"（用于自动协作模式）
@@ -134,6 +134,33 @@ async function openGroupChat() {
   // 取消选中员工
   if (typeof EMPLOYEE_STORE !== 'undefined') EMPLOYEE_STORE.selectedId = null;
   document.querySelectorAll('.emp-card').forEach(c => c.classList.remove('emp-selected'));
+
+  // ★ 2026-04-27 Bug 修复：打开总群前，主动关闭所有员工 active 任务挂在聊天面板上
+  //   的 SSE（task._chatSseSource）与占位轮询定时器（task._placeholderPollTimer）。
+  //   否则 DOM 已被总群渲染替换，但后台 SSE/轮询仍在运行：
+  //     - SSE 会消费 done 事件，把 task.status 置为 done、清空 emp._activeTaskId，
+  //       导致用户切回员工聊天时丢失"正在执行"的任务信息；
+  //     - _showThinkingPlaceholder 的 500ms×60 轮询会在 streamId 到达时静默调用
+  //       _attachLiveStreamToChat，但此刻总群已打开（被 isOpen 守卫拦住），轮询
+  //       继续 30 秒才退出，白白消耗资源。
+  //   关闭后重新打开员工聊天时，_attachLiveStreamToChat / _showThinkingPlaceholder
+  //   会按新 DOM 重建；SSE 通过 STREAM_HISTORY 回放把 token 全部补给新连接。
+  try {
+    if (typeof DelegationVM !== 'undefined' && DelegationVM.tasks) {
+      for (const task of DelegationVM.tasks.values()) {
+        if (!task) continue;
+        if (task._chatSseSource) {
+          task._chatSseSource._intentionallyClosed = true;
+          try { task._chatSseSource.close(); } catch (_) {}
+          task._chatSseSource = null;
+        }
+        if (task._placeholderPollTimer) {
+          try { clearInterval(task._placeholderPollTimer); } catch (_) {}
+          task._placeholderPollTimer = null;
+        }
+      }
+    }
+  } catch (_) {}
 
   // 保存工作区到状态
   GROUP_CHAT_STATE.workspace = ws;
@@ -281,8 +308,8 @@ function _renderGroupMessages() {
     emptyDiv.className = 'gc-empty-state';
     emptyDiv.innerHTML = `
       <div class="gc-empty-icon">🏠</div>
-      <div class="gc-empty-title">工作区总群</div>
-      <div class="gc-empty-hint">发送消息或 @员工名 来委派任务</div>
+      <div class="gc-empty-title">PM专员</div>
+      <div class="gc-empty-hint">直接发消息与PM对话，或 @员工名 来委派任务</div>
     `;
     inner.appendChild(emptyDiv);
     return;
@@ -312,7 +339,7 @@ function _renderGroupMessages() {
     }
 
     // 发送者信息
-    const senderName = m._sender || (m.role === 'user' ? '你' : m.role === 'system' ? '系统' : '助手');
+    const senderName = m._sender || (m.role === 'user' ? '你' : m.role === 'system' ? '系统' : 'PM专员');
     const senderAvatar = _senderAvatar(m);
     const isUser = m.role === 'user';
     const isSystem = m.role === 'system';
@@ -616,14 +643,48 @@ function _extractContent(m) {
 
 // ── 发送总群消息 ─────────────────────────────────────────────────────────────
 
+/** PM专员正在流式回复中（防止重入） */
+let _pmStreamBusy = false;
+
+/** 构建 PM 专员的 system prompt */
+function _buildPMSystemPrompt() {
+  const parts = [
+    '你是 PM专员（项目管理专员），你是用户的直属助手，负责协助用户进行项目管理、任务规划、沟通协调。',
+    '',
+    '## 你的能力',
+    '- 与用户进行自然对话，回答问题、提供建议',
+    '- 帮助用户规划任务、拆解需求',
+    '- 提供项目管理、团队协作方面的专业建议',
+    '- 分析问题、提供解决方案',
+    '',
+    '## 团队成员',
+  ];
+  if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.employees.length) {
+    for (const e of EMPLOYEE_STORE.employees) {
+      parts.push(`- **${e.name}** (${e.role || '员工'})`);
+    }
+    parts.push('');
+    parts.push('用户可以通过在消息中 @员工名 来委派任务给特定员工。当用户不 @任何人时，消息是与你（PM专员）的直接对话。');
+  } else {
+    parts.push('- （当前无团队成员）');
+  }
+  parts.push('');
+  parts.push('## 工作区');
+  const ws = GROUP_CHAT_STATE.workspace || '';
+  if (ws) parts.push(`当前工作区路径：${ws}`);
+  parts.push('');
+  parts.push('请用简洁友好的语气与用户沟通。');
+  return parts.join('\n');
+}
+
 async function sendGroupMessage(text) {
-  console.log('[总群] sendGroupMessage called, text=', text);
+  console.log('[PM专员] sendGroupMessage called, text=', text);
   let ws = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : (S.session?.workspace || '');
   // 兼容 __default__：回退到 session 或默认工作区
   if (!ws || ws === '__default__') {
     ws = S.session?.workspace || GROUP_CHAT_STATE.workspace || '';
   }
-  console.log('[总群] sendGroupMessage, ws=', ws);
+  console.log('[PM专员] sendGroupMessage, ws=', ws);
   if (!ws) {
     showToast('请先选择工作区');
     return;
@@ -631,20 +692,18 @@ async function sendGroupMessage(text) {
 
   if (!text.trim()) return;
 
-  // ★ 自动协作模式：若未 @ 任何人，自动指定协调员（优先"制作人"，否则首个含"总监"/"经理"的员工）
-  let isOrchestrateMode = false;
   let finalText = text.trim();
-  if (GROUP_CHAT_STATE.autoOrchestrate && !/@[\w\u4e00-\u9fff]+/.test(finalText)) {
-    const orchestrator = _findOrchestratorEmployee();
-    if (orchestrator) {
-      finalText = `@${orchestrator.name} ${finalText}`;
-      isOrchestrateMode = true;
-      console.log('[总群] 自动协作：指定协调员 =', orchestrator.name);
-    } else {
-      showToast('自动协作需要至少一名"制作人"或"总监"类员工');
-      return;
-    }
+  const hasMention = /@[\w\u4e00-\u9fff]+/.test(finalText);
+
+  // ★ PM专员正在回复中且新消息不含 @ → 提示等待（防止消息丢失）
+  if (_pmStreamBusy && !hasMention) {
+    showToast('PM专员正在回复中，请稍候...');
+    return;
   }
+
+  // ★ 分支判断（简洁版）：
+  //   - 含 @ → 走委派任务流程
+  //   - 不含 @ → PM专员直接AI对话（无论自动协作是否开启）
 
   // 立即在聊天区显示用户消息（不等 API 返回）
   GROUP_CHAT_STATE.messages.push({
@@ -655,18 +714,28 @@ async function sendGroupMessage(text) {
   });
   _renderGroupMessages();
 
+  // ★ 路径 A：不含 @ 的普通消息 → PM专员直接AI对话
+  if (!hasMention) {
+    console.log('[PM专员] 无 @mention，走PM专员AI对话路径');
+    if(typeof UAL!=='undefined') UAL.log('group-chat','pm-direct-chat',{textLen:finalText.length});
+
+    // 直接启动PM专员AI对话（/api/chat/start 会自动把 user message 加入 session）
+    await _startPMDirectChat(finalText, ws);
+    return;
+  }
+
+  // ★ 路径 B：含 @ 的消息 → 走委派任务流程
   try {
-    console.log('[总群] sendGroupMessage: calling /api/group-chat/send...');
+    console.log('[PM专员] sendGroupMessage: calling /api/group-chat/send...');
     const data = await api('/api/group-chat/send', {
       method: 'POST',
       body: JSON.stringify({
         workspace: ws,
         message: finalText,
         sender_name: '你',
-        orchestrate: isOrchestrateMode,  // ★ 告诉后端这是协调任务
       }),
     });
-    console.log('[总群] sendGroupMessage response:', JSON.stringify(data).slice(0, 200));
+    console.log('[PM专员] sendGroupMessage response:', JSON.stringify(data).slice(0, 200));
 
     if (data.ok) {
       // 用服务端数据刷新（替换本地临时消息）
@@ -675,23 +744,233 @@ async function sendGroupMessage(text) {
 
       // 如果有 @mention，委派任务给对应员工
       if (data.mentions && data.mentions.length) {
-        console.log('[总群] mentions:', data.mentions);
+        console.log('[PM专员] mentions:', data.mentions);
         for (const mention of data.mentions) {
-          _dispatchTaskToEmployee(mention.name, finalText, mention.task_id, { orchestrate: isOrchestrateMode });
+          _dispatchTaskToEmployee(mention.name, finalText, mention.task_id);
         }
       } else {
-        console.log('[总群] 无 mentions');
+        console.log('[PM专员] 无 mentions');
       }
     } else {
-      // API 返回了错误（非网络异常）
       const errMsg = data.error || data.message || '未知错误';
       showToast(`发送失败: ${errMsg}`);
-      console.warn('[总群] send failed:', data);
+      console.warn('[PM专员] send failed:', data);
     }
   } catch(e) {
     showToast('发送失败: ' + e.message);
-    console.warn('[总群] send error:', e);
+    console.warn('[PM专员] send error:', e);
   }
+}
+
+/**
+ * PM专员直接AI对话：使用总群 session 调用 /api/chat/start，
+ * 通过 SSE 流式渲染PM的回复到总群面板中。
+ */
+async function _startPMDirectChat(userMessage, workspace) {
+  if (_pmStreamBusy) {
+    showToast('PM专员正在回复中，请稍候...');
+    return;
+  }
+  _pmStreamBusy = true;
+
+  const sessionId = GROUP_CHAT_STATE.sessionId;
+  if (!sessionId) {
+    showToast('PM专员会话未初始化');
+    _pmStreamBusy = false;
+    return;
+  }
+
+  const model = $('modelSelect')?.value || '';
+  const sysPrompt = _buildPMSystemPrompt();
+
+  // 在消息区显示"思考中"占位
+  const inner = $('rpMsgInner');
+  let thinkingEl = null;
+  if (inner) {
+    thinkingEl = document.createElement('div');
+    thinkingEl.className = 'rp-msg-row gc-msg-row gc-pm-thinking';
+    thinkingEl.dataset.role = 'assistant';
+    thinkingEl.innerHTML = `
+      <div class="rp-msg-role assistant">
+        <span class="rp-msg-icon">🤖</span>
+        <span class="rp-msg-name">PM专员</span>
+      </div>
+      <div class="rp-msg-body"><span class="gc-pm-dots">思考中...</span></div>
+    `;
+    inner.appendChild(thinkingEl);
+    if (typeof _scrollMsgAreaIfSticky === 'function') _scrollMsgAreaIfSticky();
+  }
+
+  try {
+    console.log('[PM专员] 启动AI对话, session_id=', sessionId, 'model=', model);
+    const startData = await api('/api/chat/start', {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: sessionId,
+        message: userMessage,
+        model: model,
+        workspace: workspace || undefined,
+        system_prompt: sysPrompt,
+        employee_name: 'PM专员',
+      }),
+    });
+
+    const streamId = startData.stream_id;
+    console.log('[PM专员] chat/start 返回, stream_id=', streamId);
+
+    if (!streamId) {
+      if (thinkingEl) thinkingEl.remove();
+      showToast('启动对话失败：未获得 stream_id');
+      _pmStreamBusy = false;
+      return;
+    }
+
+    // SSE 流式接收 PM 专员的回复
+    await _streamPMReply(streamId, workspace, thinkingEl);
+
+  } catch (e) {
+    if (thinkingEl) thinkingEl.remove();
+    showToast('PM专员对话失败: ' + e.message);
+    console.error('[PM专员] 对话失败:', e);
+    _pmStreamBusy = false;
+  }
+}
+
+/**
+ * 通过 SSE 流式接收 PM 专员的回复并渲染到总群面板。
+ * 完成后将回复存入总群 session 并刷新。
+ */
+function _streamPMReply(streamId, workspace, thinkingEl) {
+  return new Promise((resolve) => {
+    const source = new EventSource(
+      new URL(`/api/chat/stream?stream_id=${encodeURIComponent(streamId)}`, location.origin).href,
+      { withCredentials: true }
+    );
+
+    let accumulatedText = '';
+    let assistantRow = null;
+    let bodyEl = null;
+
+    // 渲染辅助：创建/获取PM回复的消息行
+    function ensureRow() {
+      if (assistantRow) return;
+      // 移除思考中占位
+      if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
+
+      const inner = $('rpMsgInner');
+      if (!inner) return;
+
+      assistantRow = document.createElement('div');
+      assistantRow.className = 'rp-msg-row gc-msg-row';
+      assistantRow.dataset.role = 'assistant';
+      assistantRow.innerHTML = `
+        <div class="rp-msg-role assistant">
+          <span class="rp-msg-icon">🤖</span>
+          <span class="rp-msg-name">PM专员</span>
+        </div>
+        <div class="rp-msg-body"></div>
+      `;
+      bodyEl = assistantRow.querySelector('.rp-msg-body');
+      inner.appendChild(assistantRow);
+    }
+
+    // rAF 节流渲染
+    let renderPending = false;
+    function scheduleRender() {
+      if (renderPending) return;
+      renderPending = true;
+      requestAnimationFrame(() => {
+        renderPending = false;
+        if (bodyEl) {
+          // 剥离思考标签后渲染
+          const display = _stripThinkingTags(accumulatedText);
+          bodyEl.innerHTML = typeof renderMd === 'function' ? renderMd(display) : esc(display).replace(/\n/g, '<br>');
+          if (typeof _scrollMsgAreaIfSticky === 'function') _scrollMsgAreaIfSticky();
+        }
+      });
+    }
+
+    source.addEventListener('token', e => {
+      try {
+        const d = JSON.parse(e.data);
+        const txt = d.text || '';
+        if (!txt) return;
+
+        // 思考标签过滤（与 messages.js 一致）
+        accumulatedText += txt;
+
+        // 有内容后显示消息行
+        const display = _stripThinkingTags(accumulatedText);
+        if (display.trim()) {
+          ensureRow();
+          scheduleRender();
+        }
+      } catch (_) {}
+    });
+
+    source.addEventListener('tool', e => {
+      // PM专员对话中的工具调用：显示工具状态
+      try {
+        const d = JSON.parse(e.data);
+        ensureRow();
+        if (bodyEl && d.name) {
+          // 简单显示工具执行信息
+          const toolInfo = document.createElement('div');
+          toolInfo.className = 'gc-pm-tool-info';
+          toolInfo.textContent = `🔧 ${d.name}${d.preview ? ': ' + d.preview : ''}`;
+          bodyEl.appendChild(toolInfo);
+          if (typeof _scrollMsgAreaIfSticky === 'function') _scrollMsgAreaIfSticky();
+        }
+      } catch (_) {}
+    });
+
+    source.addEventListener('done', async () => {
+      source.close();
+      console.log('[PM专员] SSE done, textLen=', accumulatedText.length);
+
+      // 移除思考中占位（如果还存在）
+      if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
+
+      // 最终渲染
+      const displayResult = _stripThinkingTags(accumulatedText.trim());
+      if (bodyEl && displayResult) {
+        bodyEl.innerHTML = typeof renderMd === 'function' ? renderMd(displayResult) : esc(displayResult).replace(/\n/g, '<br>');
+      }
+
+      // 刷新总群消息（后端 session 已包含 AI 回复）
+      try {
+        await loadGroupChat(workspace);
+        if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+      } catch (_) {}
+
+      _pmStreamBusy = false;
+      resolve();
+    });
+
+    source.addEventListener('error', () => {
+      source.close();
+      if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
+      console.warn('[PM专员] SSE error');
+
+      // 尝试从 session 获取结果
+      _pmStreamBusy = false;
+      loadGroupChat(workspace).then(() => {
+        if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+      }).catch(() => {});
+      resolve();
+    });
+
+    source.addEventListener('apperror', e => {
+      source.close();
+      if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
+      let errMsg = '未知错误';
+      try { const d = JSON.parse(e.data); errMsg = d.message || d.hint || errMsg; } catch (_) {}
+      showToast(`PM专员回复出错: ${errMsg}`);
+      console.warn('[PM专员] SSE apperror:', errMsg);
+      _pmStreamBusy = false;
+      resolve();
+    });
+  });
 }
 
 /** 委派任务到指定员工（方案 B：入队列，等员工空闲时启动）
@@ -965,6 +1244,7 @@ function _tryAttachLiveStreamToRpPanel(emp, task) {
  */
 async function _startDelegatedJob(emp, ctx, job) {
   const { id: taskId, task, fullTaskMsg, workspace: ws, requesterName } = ctx;
+  console.log('[_startDelegatedJob] ▶ 启动, emp=', emp.name, 'taskId=', taskId, 'sessionId=', emp.sessionId, 'ws=', ws);
 
   // 如果任务在启动前已被取消
   if (task && task.status === 'cancelled') {
@@ -973,44 +1253,57 @@ async function _startDelegatedJob(emp, ctx, job) {
     return;
   }
 
-  // 为委派任务创建独立会话
-  // ★ 关键：不再修改 emp.sessionId —— 委派任务使用独立的 task.sessionId，
-  //   员工聊天框继续用 emp.sessionId（主 session）。这样员工聊天框不会被
-  //   委派 session 覆盖，也不会在任务完成后出现"内容被清空"的问题。
-  console.log('[总群] 为委派任务创建新会话...');
-  let taskSessionId = null;
-  try {
-    const sessionData = await api('/api/session/new', {
-      method: 'POST',
-      body: JSON.stringify({ model: emp.model || $('modelSelect')?.value || '', workspace: ws || undefined }),
-    });
-    if (sessionData.session) {
-      taskSessionId = sessionData.session.session_id;
-      if (task) task.sessionId = taskSessionId;
-      // ★ 持久化 task 元数据（sessionId 赋值后刷新可恢复）
-      if (task && typeof DelegationVM !== 'undefined' && DelegationVM._persistTask) {
-        DelegationVM._persistTask(task);
+  // ★ 2026-04-27 方案 C：委派任务直接使用员工主 session（emp.sessionId），
+  //   不再为每个委派任务创建独立的 task session。
+  //
+  //   背景：原设计（独立 task session）导致用户在员工聊天框回复时，
+  //   后端 LLM 请求的 session_id = emp.sessionId，看不到 task session 里的
+  //   上下文历史（比如制作人做的任务拆解表），模型被迫"从空白重新开始"，
+  //   表现为用户反馈的"模型失忆 / 忘记已做的工作"。
+  //
+  //   方案 C 优势：所有委派任务的消息都累积到员工主 session，用户继续对话时
+  //   LLM 自然看到完整上下文；task.sessionId === emp.sessionId，UI 合并显示
+  //   逻辑不再需要跨 session 拉取历史。
+  //
+  //   代价：同一员工的多个委派任务不再能后端并行执行——但原本 DelegationVM
+  //   就已经把同员工的 Job 做串行队列调度（见 enqueueJob/runningJob 机制），
+  //   所以并行这个"特性"在原先也不真正生效，方案 C 没带来功能退化。
+  console.log('[总群] 使用员工主 session 执行委派任务（方案 C）');
+  let taskSessionId = emp.sessionId || null;
+  if (!taskSessionId) {
+    // 员工还没有主 session：建一个并绑定到 emp.sessionId
+    try {
+      const sessionData = await api('/api/session/new', {
+        method: 'POST',
+        body: JSON.stringify({ model: emp.model || $('modelSelect')?.value || '', workspace: ws || undefined }),
+      });
+      if (sessionData.session) {
+        taskSessionId = sessionData.session.session_id;
+        emp.sessionId = taskSessionId;
+        if (typeof _saveEmployees === 'function') {
+          try { _saveEmployees(); } catch(_) {}
+        }
+        console.log('[总群] 新建员工主 session:', taskSessionId);
       }
-      console.log('[总群] 新会话创建成功:', taskSessionId);
-    }
-  } catch (e) {
-    showToast(`为「${emp.name}」创建会话失败: ${e.message}`);
-    console.error('[总群] 创建会话失败:', e);
-    if (task) {
-      task.status = 'error';
-      if (typeof DelegationVM !== 'undefined') {
-        DelegationVM._stopTaskStreams(task, 'session_failed');
-        if (DelegationVM._persistTask) DelegationVM._persistTask(task);
+    } catch (e) {
+      showToast(`为「${emp.name}」创建会话失败: ${e.message}`);
+      console.error('[总群] 创建会话失败:', e);
+      if (task) {
+        task.status = 'error';
+        if (typeof DelegationVM !== 'undefined') {
+          DelegationVM._stopTaskStreams(task, 'session_failed');
+          if (DelegationVM._persistTask) DelegationVM._persistTask(task);
+        }
       }
+      if (typeof setEmployeeStatus === 'function') setEmployeeStatus(emp.id, 'error');
+      if (emp._activeTaskId === taskId) emp._activeTaskId = null;
+      if (job && typeof DelegationVM !== 'undefined') DelegationVM.completeJob(emp.id, taskId, 'error');
+      return;
     }
-    if (typeof setEmployeeStatus === 'function') setEmployeeStatus(emp.id, 'error');
-    if (emp._activeTaskId === taskId) emp._activeTaskId = null;
-    if (job && typeof DelegationVM !== 'undefined') DelegationVM.completeJob(emp.id, taskId, 'error');
-    return;
   }
 
   if (!taskSessionId) {
-    console.error('[总群] 会话创建返回空');
+    console.error('[总群] 无法获得员工 session');
     if (task) {
       task.status = 'error';
       if (typeof DelegationVM !== 'undefined' && DelegationVM._persistTask) DelegationVM._persistTask(task);
@@ -1019,9 +1312,18 @@ async function _startDelegatedJob(emp, ctx, job) {
     return;
   }
 
+  // task.sessionId 记录到 task 上，便于 DelegationVM/跳转/结果回传使用
+  // 方案 C 下 task.sessionId === emp.sessionId，但保留该字段以兼容既有跳转逻辑。
+  if (task) {
+    task.sessionId = taskSessionId;
+    if (typeof DelegationVM !== 'undefined' && DelegationVM._persistTask) {
+      DelegationVM._persistTask(task);
+    }
+  }
+
   // await 期间可能被取消
   if (task && task.status === 'cancelled') {
-    console.log('[总群] 任务在创建 session 后已被取消, taskId=', taskId);
+    console.log('[总群] 任务在准备 session 后已被取消, taskId=', taskId);
     if (job && typeof DelegationVM !== 'undefined') DelegationVM.completeJob(emp.id, taskId, 'cancelled');
     return;
   }
@@ -1244,6 +1546,7 @@ function _watchEmployeeStream(task, job) {
     return;
   }
   console.log('[总群] _watchEmployeeStream, taskId=', task.id, 'empName=', task.empName, 'streamId=', task.streamId);
+  if(typeof UAL!=='undefined') UAL.log('delegation','watch-stream',{taskId:task.id,empName:task.empName,streamId:task.streamId});
 
   const source = new EventSource(
     new URL(`/api/chat/stream?stream_id=${encodeURIComponent(task.streamId)}`, location.origin).href,
@@ -1439,11 +1742,10 @@ function _updateGroupDelegationBar() {
   if (!ws || ws === '__default__') ws = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '');
   if (!ws && typeof _currentCanvasWorkspace !== 'undefined') ws = _currentCanvasWorkspace;
   if (ws) {
-    const groupTitle = _groupChatTitle(ws);
-    parts.push(`<span class="rp-del-label">总群：</span><span class="rp-del-name gc-link" onclick="openGroupChat()" title="打开${esc(groupTitle)}">${esc(groupTitle)}</span>`);
+    parts.push(`<span class="rp-del-name gc-link" onclick="openGroupChat()" title="打开PM专员">PM专员</span>`);
   }
 
-  // 成员（总群打开时显示：按钮 + 下拉面板，支持层级展示）
+  // 成员（PM专员打开时显示：按钮 + 下拉面板，支持层级展示）
   if (GROUP_CHAT_STATE.isOpen) {
     _refreshGroupMembers();
     const members = GROUP_CHAT_STATE.members;
@@ -2017,11 +2319,10 @@ function _updateDelegationBarWithGroupChat(emp) {
   if (!ws || ws === '__default__') ws = (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '');
   if (!ws || ws === '__default__') ws = (S.session?.workspace || '');
   if (!ws || ws === '__default__') ws = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '');
-  // 最终兜底：使用 _currentCanvasWorkspace 即使是 __default__（确保始终有总群名）
+  // 最终兜底：使用 _currentCanvasWorkspace 即使是 __default__（确保始终有PM专员名）
   if (!ws && typeof _currentCanvasWorkspace !== 'undefined') ws = _currentCanvasWorkspace;
   if (ws) {
-    const groupTitle = _groupChatTitle(ws);
-    parts.push(`<span class="rp-del-label">总群：</span><span class="rp-del-name gc-link" onclick="openGroupChat()" title="打开${esc(groupTitle)}">${esc(groupTitle)}</span>`);
+    parts.push(`<span class="rp-del-name gc-link" onclick="openGroupChat()" title="打开PM专员">PM专员</span>`);
   }
 
   // 上级
