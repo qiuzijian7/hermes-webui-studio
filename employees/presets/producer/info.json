@@ -1,0 +1,15 @@
+{
+  "template_version": 1,
+  "id": "producer",
+  "name": "制作人",
+  "role": "总监层",
+  "desc": "确保项目按时交付，管理冲刺计划、范围和跨部门协调",
+  "category": "directors",
+  "model": "opus",
+  "skills": [
+    "sprint-plan",
+    "scope-check",
+    "estimate"
+  ],
+  "characterImg": "character_3"
+}

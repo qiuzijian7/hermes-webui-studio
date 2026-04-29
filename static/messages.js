@@ -1,3 +1,12 @@
+// ★ 全局判断：当前是否处于"员工右面板对话"模式
+//   从 _wireSSE 内部提升为全局函数，使 send() 等外部函数也能调用
+function _isEmployeeRpMode(){
+  return typeof EMPLOYEE_STORE!=='undefined'
+    && EMPLOYEE_STORE.selectedId
+    && (!window._rpView || window._rpView==='chat')
+    && !(typeof GROUP_CHAT_STATE!=='undefined' && GROUP_CHAT_STATE.isOpen);
+}
+
 async function send(){
   const text=$('msg').value.trim();
   const pendingFiles=S.pendingFiles||[];
@@ -159,7 +168,16 @@ async function send(){
   if(typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof getEmployee==='function'&&typeof buildEmployeeSystemPrompt==='function'){
     _emp=getEmployee(EMPLOYEE_STORE.selectedId);
     if(_emp){
-      _empSysPrompt=buildEmployeeSystemPrompt(_emp);
+      // 优先使用后端异步构建（Jinja2 + 多语言 + skill 内容），失败降级到同步本地
+      if(typeof buildEmployeeSystemPromptAsync==='function'){
+        try{
+          _empSysPrompt=await buildEmployeeSystemPromptAsync(_emp);
+        }catch(_){
+          _empSysPrompt=buildEmployeeSystemPrompt(_emp);
+        }
+      }else{
+        _empSysPrompt=buildEmployeeSystemPrompt(_emp);
+      }
       _empModel=_emp.model||'';
       // 规范化：短名称（如 'sonnet'）→ 完整模型 ID（如 'anthropic/claude-sonnet-4.6'）
       // 同时更新员工的 model 字段，避免下次再走 fallback
@@ -209,7 +227,12 @@ async function send(){
   S.toolCalls=[];  // clear tool calls from previous turn
   clearLiveToolCards();  // clear any leftover live cards from last turn
   S.messages.push(userMsg);
-  try{renderMessages();}catch(_){}
+  // ★ 员工模式：渲染到右侧面板（rpMsgInner），而非左侧主面板（msgInner）
+  if(_isEmployeeRpMode()){
+    try{if(typeof _renderRpMessages==='function') _renderRpMessages();}catch(_){}
+  } else {
+    try{renderMessages();}catch(_){}
+  }
   // 用户发送消息：强制滚到底（看到自己发的消息），并重置粘底标记
   try{ if(typeof _scrollMsgAreaToBottom==='function') _scrollMsgAreaToBottom(); }catch(_){}
   try{appendThinking();}catch(_){}
@@ -287,7 +310,10 @@ async function send(){
     // Only hide approval card if it belongs to the session that just finished
     if(!_approvalSessionId || _approvalSessionId===activeSid) hideApprovalCard(true);hideClarifyCard();removeThinking();
     S.messages.push({role:'assistant',content:`**Error:** ${e.message}`});
-    renderMessages();setBusy(false);setComposerStatus(`Error: ${e.message}`);
+    if(_isEmployeeRpMode()){
+      try{if(typeof _renderRpMessages==='function') _renderRpMessages();}catch(_){}
+    } else { renderMessages(); }
+    setBusy(false);setComposerStatus(`Error: ${e.message}`);
     // 更新员工状态为出错（使用发送时记录的ID）
     if(_sendEmpId && typeof setEmployeeStatus==='function'){
       setEmployeeStatus(_sendEmpId,'error');
@@ -307,15 +333,7 @@ async function send(){
     {open:'<|channel>thought\n',close:'<channel|>'}
   ];
 
-  // ★ 判断当前是否处于"员工右面板对话"模式 —— 若是，采用 turn-row 结构：
-  //   一个 assistant 回合 = 一个 .rp-msg-row.rp-turn，内含 .rp-turn-segments，
-  //   依次放置 [思考段 / 文本段 / 工具卡片段]，而不是每段另起一行。
-  function _isEmployeeRpMode(){
-    return typeof EMPLOYEE_STORE!=='undefined'
-      && EMPLOYEE_STORE.selectedId
-      && (!window._rpView || window._rpView==='chat')
-      && !(typeof GROUP_CHAT_STATE!=='undefined' && GROUP_CHAT_STATE.isOpen);
-  }
+  // ★ _isEmployeeRpMode 已提升为全局函数（文件顶部），这里不再需要局部定义
   function ensureAssistantRow(){
     if(assistantRow)return;
     // ★ 总群打开时不追加员工消息行（防止覆盖总群内容）
@@ -508,12 +526,17 @@ async function send(){
           if(!thinkCard){
             thinkCard=document.createElement('div');
             thinkCard.className='rp-turn-thinking thinking-card rp-live-thinking-card open';
+            // ★ AG-UI thinking_start/end 控制动画状态
+            if(_thinkingActive) thinkCard.classList.add('thinking-active');
             thinkCard.innerHTML='<div class="thinking-card-header" onclick="this.parentElement.classList.toggle(\'open\')"><span class="thinking-card-icon">'+(typeof li==='function'?li('lightbulb',14):'💡')+'</span><span class="thinking-card-label">思考过程</span><span class="thinking-card-toggle">'+(typeof li==='function'?li('chevron-right',12):'▶')+'</span></div><div class="thinking-card-body"></div>';
             // 插到 segments 最前面（在已有文本段之前）
             const firstChild=segs.firstChild;
             if(firstChild) segs.insertBefore(thinkCard,firstChild);
             else segs.appendChild(thinkCard);
           }
+          // ★ 根据 _thinkingActive 控制思考卡片动画
+          if(_thinkingActive) thinkCard.classList.add('thinking-active');
+          else thinkCard.classList.remove('thinking-active');
           const body=thinkCard.querySelector('.thinking-card-body');
           if(body) body.innerHTML=renderMd(thinking);
         }
@@ -546,7 +569,10 @@ async function send(){
         if(assistantBody){
           const txt=_streamDisplay();
           const isThinking=!txt&&assistantText.length>0;
-          assistantBody.innerHTML=txt?renderMd(txt):(isThinking?'<span style="color:var(--muted);font-size:13px">Thinking\u2026</span>':'');
+          // ★ AG-UI 步骤状态优先于 "Thinking…" 占位
+          const stepLabel=_currentStep==='call_llm'?'🧠 调用模型…':
+                          _currentStep==='execute_tool'?'🔧 执行工具…':'';
+          assistantBody.innerHTML=txt?renderMd(txt):(isThinking?(stepLabel||'<span style="color:var(--muted);font-size:13px">Thinking\u2026</span>'):'');
         }
       }
       scrollIfPinned();
@@ -560,6 +586,10 @@ async function send(){
 
   function _wireSSE(source){
     let _firstToken = true;
+    // ★ AG-UI 精细化状态：thinking/message/step 的开始结束标记
+    let _thinkingActive = false;   // thinking_start → true, thinking_end → false
+    let _messageActive = false;    // message_start → true, message_end → false
+    let _currentStep = '';         // step_started 设置, step_finished 清空
     // ★ 看门狗：每 500ms 检查一次 assistantText 长度是否比上次渲染时的多，
     //   如果多了但 DOM 没被渲染（render 被异常卡住、或节流状态错乱），强制调度一次。
     //   这是防御性自愈：即使某条 SSE handler 挂了导致 _scheduleRender 没被调，
@@ -618,6 +648,155 @@ async function send(){
           ensureAssistantRow();
           _scheduleRender();
         }
+      }catch(_){}
+    });
+
+    // ── AG-UI 精细化事件（Knot 等协议的 Start/End/Step 事件）──────────────
+    // TextMessageStart / TextMessageEnd：标记文本消息的开始和结束
+    source.addEventListener('message_start',e=>{
+      try{
+        const d=JSON.parse(e.data);
+        // 文本消息开始：可在此初始化状态或显示"正在回复…"占位
+        if(_isViewingOurSession()){
+          ensureAssistantRow();
+          _scheduleRender();
+        }
+      }catch(_){}
+    });
+    source.addEventListener('message_end',e=>{
+      try{
+        const d=JSON.parse(e.data);
+        // 文本消息结束：固化当前文本段，停止"正在回复…"状态
+        if(_isViewingOurSession()){
+          _scheduleRender();
+        }
+      }catch(_){}
+    });
+
+    // ThinkingTextMessageStart / ThinkingTextMessageEnd：标记思考过程
+    source.addEventListener('thinking_start',e=>{
+      try{
+        const d=JSON.parse(e.data);
+        _thinkingActive = true;
+        // 思考开始：显示思考中卡片（展开状态 + 动画）
+        if(_isViewingOurSession()){
+          ensureAssistantRow();
+          // 如果在员工模式，更新思考卡片状态
+          if(_isEmployeeRpMode()){
+            const segs=$('msgLiveTurnSegments');
+            if(segs){
+              const thinkCard=segs.querySelector('.rp-live-thinking-card');
+              if(thinkCard) thinkCard.classList.add('thinking-active');
+            }
+          }
+          _scheduleRender();
+        }
+      }catch(_){}
+    });
+    source.addEventListener('thinking_end',e=>{
+      try{
+        const d=JSON.parse(e.data);
+        _thinkingActive = false;
+        // 思考结束：折叠思考卡片，停止动画
+        if(_isViewingOurSession()){
+          if(_isEmployeeRpMode()){
+            const segs=$('msgLiveTurnSegments');
+            if(segs){
+              const thinkCard=segs.querySelector('.rp-live-thinking-card');
+              if(thinkCard){
+                thinkCard.classList.remove('thinking-active');
+                thinkCard.classList.remove('open');
+              }
+            }
+          }
+          _scheduleRender();
+        }
+      }catch(_){}
+    });
+
+    // ToolCallArgs / ToolCallEnd / ToolCallResult：工具调用增量参数和结果
+    source.addEventListener('tool_args',e=>{
+      try{
+        const d=JSON.parse(e.data);
+        // 增量工具参数：更新最后一个未完成工具卡片的参数显示
+        if(!_isViewingOurSession()) return;
+        const lastTool = S.toolCalls[S.toolCalls.length - 1];
+        if(lastTool && !lastTool.done){
+          if(d.args_delta) lastTool.argsRaw = (lastTool.argsRaw||'') + d.args_delta;
+          _scheduleRender();
+        }
+      }catch(_){}
+    });
+    source.addEventListener('tool_end',e=>{
+      try{
+        const d=JSON.parse(e.data);
+        // 工具调用完成：更新工具卡片为完成状态
+        const lastTool = S.toolCalls[S.toolCalls.length - 1];
+        if(lastTool && !lastTool.done){
+          lastTool.done = true;
+          if(d.name) lastTool.name = d.name;
+        }
+      }catch(_){}
+    });
+    source.addEventListener('tool_result',e=>{
+      try{
+        const d=JSON.parse(e.data);
+        // 工具返回结果：可在此显示结果摘要
+        if(!_isViewingOurSession()) return;
+        const lastTool = S.toolCalls[S.toolCalls.length - 1];
+        if(lastTool){
+          lastTool.done = true;
+          lastTool.result = d.result || '';
+          if(typeof _scheduleRender==='function') _scheduleRender();
+        }
+      }catch(_){}
+    });
+
+    // StepStarted / StepFinished：Agent 执行步骤生命周期
+    //   step_name: "call_llm" | "execute_tool"
+    //   StepFinished 包含 token_usage
+    source.addEventListener('step_started',e=>{
+      try{
+        const d=JSON.parse(e.data);
+        const stepName = d.step_name || '';
+        _currentStep = stepName;
+        if(_isViewingOurSession()){
+          // 在状态栏显示当前步骤
+          const stepLabel = stepName === 'call_llm' ? '🧠 调用模型' :
+                            stepName === 'execute_tool' ? '🔧 执行工具' : stepName;
+          setComposerStatus(stepLabel);
+          // ★ 员工模式：在活动文本段显示步骤状态
+          if(_isEmployeeRpMode()){
+            const liveBody=$('msgLiveStreamBody');
+            if(liveBody && !liveBody.textContent.trim()){
+              liveBody.innerHTML='<span style="color:var(--muted);font-size:13px">'+stepLabel+'…</span>';
+            }
+          }
+        }
+      }catch(_){}
+    });
+    source.addEventListener('step_finished',e=>{
+      try{
+        const d=JSON.parse(e.data);
+        const stepName = d.step_name || '';
+        _currentStep = '';
+        // 如果有 token_usage，更新用量显示
+        if(d.token_usage && _isViewingOurSession()){
+          const tu = d.token_usage;
+          // 缓存逐步的 token 用量，done 事件时合并
+          if(!S._stepTokenUsage) S._stepTokenUsage = {prompt_tokens:0,completion_tokens:0,total_tokens:0};
+          S._stepTokenUsage.prompt_tokens += (tu.prompt_tokens || 0);
+          S._stepTokenUsage.completion_tokens += (tu.completion_tokens || 0);
+          S._stepTokenUsage.total_tokens += (tu.total_tokens || 0);
+          // 实时显示 token 用量指示器
+          if(typeof _syncCtxIndicator==='function'){
+            _syncCtxIndicator({
+              input_tokens: S._stepTokenUsage.prompt_tokens,
+              output_tokens: S._stepTokenUsage.completion_tokens,
+            });
+          }
+        }
+        setComposerStatus('');
       }catch(_){}
     });
 
@@ -891,6 +1070,7 @@ async function send(){
             empOpts.model=presetMatch.model;
             empOpts.skills=presetMatch.skills;
             empOpts.role=presetMatch.role;
+            if(presetMatch.configHtml) empOpts.configHtml=presetMatch.configHtml;
           }
           const emp=createEmployee(empOpts);
           // Create connection line from sender to new employee
@@ -1003,7 +1183,9 @@ async function send(){
         }catch(_){
           S.messages.push({role:'assistant',content:'**Error:** An error occurred. Check server logs.'});
         }
-        renderMessages();
+        if(_isEmployeeRpMode()){
+          try{if(typeof _renderRpMessages==='function') _renderRpMessages();}catch(_){}
+        } else { renderMessages(); }
       }else if(typeof trackBackgroundError==='function'){
         const _errTitle=(typeof _allSessions!=='undefined'&&_allSessions.find(s=>s.session_id===activeSid)||{}).title||null;
         try{const d=JSON.parse(e.data);trackBackgroundError(activeSid,_errTitle,d.message||'Error');}
@@ -1060,7 +1242,10 @@ async function send(){
       }
       if(S.session&&S.session.session_id===activeSid){
         clearLiveToolCards();if(!assistantText)removeThinking();
-        S.messages.push({role:'assistant',content:'*Task cancelled.*'});renderMessages();
+        S.messages.push({role:'assistant',content:'*Task cancelled.*'});
+        if(_isEmployeeRpMode()){
+          try{if(typeof _renderRpMessages==='function') _renderRpMessages();}catch(_){}
+        } else { renderMessages(); }
       }
       renderSessionList();
       if(!S.session||!INFLIGHT[S.session.session_id]){setBusy(false);setComposerStatus('');}
@@ -1078,7 +1263,10 @@ async function send(){
     if(S.session&&S.session.session_id===activeSid){
       S.activeStreamId=null;const _cbe=$('btnCancel');if(_cbe)_cbe.style.display='none';
       clearLiveToolCards();if(!assistantText)removeThinking();
-      S.messages.push({role:'assistant',content:'**Error:** Connection lost'});renderMessages();
+      S.messages.push({role:'assistant',content:'**Error:** Connection lost'});
+      if(_isEmployeeRpMode()){
+        try{if(typeof _renderRpMessages==='function') _renderRpMessages();}catch(_){}
+      } else { renderMessages(); }
     }else{
       // User switched away — show background error banner
       if(typeof trackBackgroundError==='function'){

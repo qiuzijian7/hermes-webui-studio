@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "art-director",
+  "name": "艺术总监",
+  "role": "部门主管",
+  "desc": "视觉标识、风格指南、艺术圣经和美术生产管线",
+  "category": "leads",
+  "model": "sonnet",
+  "skills": [
+    "design-review"
+  ],
+  "characterImg": "character_6"
+}

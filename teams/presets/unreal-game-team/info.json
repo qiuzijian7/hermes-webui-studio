@@ -1,0 +1,125 @@
+{
+  "template_version": 1,
+  "id": "unreal-game-team",
+  "name": "Unreal 游戏团队",
+  "icon": "🎬",
+  "desc": "基于 Unreal Engine 5 的完整游戏开发团队，包含 GAS、Blueprint、Replication 等专业分工",
+  "color": "#0E84B5",
+  "members": [
+    {
+      "name": "制作人",
+      "presetId": "producer"
+    },
+    {
+      "name": "技术总监",
+      "presetId": "technical-director"
+    },
+    {
+      "name": "游戏设计师",
+      "presetId": "game-designer"
+    },
+    {
+      "name": "主程序员",
+      "presetId": "lead-programmer"
+    },
+    {
+      "name": "艺术总监",
+      "presetId": "art-director"
+    },
+    {
+      "name": "QA 负责人",
+      "presetId": "qa-lead"
+    },
+    {
+      "name": "UE5 专家",
+      "presetId": "unreal-specialist"
+    },
+    {
+      "name": "GAS 专家",
+      "presetId": "ue-gas-specialist"
+    },
+    {
+      "name": "Blueprint 专家",
+      "presetId": "ue-blueprint-specialist"
+    },
+    {
+      "name": "Replication 专家",
+      "presetId": "ue-replication-specialist"
+    },
+    {
+      "name": "UMG/CommonUI 专家",
+      "presetId": "ue-umg-specialist"
+    },
+    {
+      "name": "游戏逻辑程序员",
+      "presetId": "gameplay-programmer"
+    },
+    {
+      "name": "AI 程序员",
+      "presetId": "ai-programmer"
+    },
+    {
+      "name": "UI 程序员",
+      "presetId": "ui-programmer"
+    },
+    {
+      "name": "网络程序员",
+      "presetId": "network-programmer"
+    },
+    {
+      "name": "关卡设计师",
+      "presetId": "level-designer"
+    },
+    {
+      "name": "系统设计师",
+      "presetId": "systems-designer"
+    },
+    {
+      "name": "技术美术",
+      "presetId": "technical-artist"
+    },
+    {
+      "name": "音效设计师",
+      "presetId": "sound-designer"
+    },
+    {
+      "name": "QA 测试员",
+      "presetId": "qa-tester"
+    }
+  ],
+  "manages": {
+    "制作人": [
+      "技术总监",
+      "游戏设计师",
+      "艺术总监",
+      "QA 负责人"
+    ],
+    "技术总监": [
+      "主程序员",
+      "UE5 专家"
+    ],
+    "主程序员": [
+      "游戏逻辑程序员",
+      "AI 程序员",
+      "UI 程序员",
+      "网络程序员"
+    ],
+    "UE5 专家": [
+      "GAS 专家",
+      "Blueprint 专家",
+      "Replication 专家",
+      "UMG/CommonUI 专家"
+    ],
+    "游戏设计师": [
+      "关卡设计师",
+      "系统设计师"
+    ],
+    "艺术总监": [
+      "技术美术",
+      "音效设计师"
+    ],
+    "QA 负责人": [
+      "QA 测试员"
+    ]
+  }
+}

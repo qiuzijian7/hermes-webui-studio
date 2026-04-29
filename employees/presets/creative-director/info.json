@@ -1,0 +1,14 @@
+{
+  "template_version": 1,
+  "id": "creative-director",
+  "name": "创意总监",
+  "role": "总监层",
+  "desc": "最高创意权威，决定项目愿景、基调和美学方向，解决部门间创意冲突",
+  "category": "directors",
+  "model": "opus",
+  "skills": [
+    "brainstorm",
+    "design-review"
+  ],
+  "characterImg": "character_1"
+}

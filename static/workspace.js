@@ -65,12 +65,21 @@ async function loadDir(path){
     S.entries=data.entries||[];renderBreadcrumb();renderFileTree();
     // Re-fetch contents of expanded dirs so new/deleted files show immediately
     if(!path||path==='.'){
+      const staleDirs=[];
       for(const dirPath of (S._expandedDirs||[])){
         try{
           const dcQs=sid?`session_id=${sid}&path=${encodeURIComponent(dirPath)}`:`path=${encodeURIComponent(dirPath)}`;
           const dc=await api(`/api/list?${dcQs}`);
           S._dirCache[dirPath]=dc.entries||[];
-        }catch(e2){S._dirCache[dirPath]=[];}
+        }catch(e2){
+          S._dirCache[dirPath]=[];
+          staleDirs.push(dirPath);
+        }
+      }
+      // Remove expanded dirs that no longer exist on disk
+      if(staleDirs.length&&S._expandedDirs){
+        for(const d of staleDirs) S._expandedDirs.delete(d);
+        _saveExpandedDirs();
       }
       if(S._expandedDirs&&S._expandedDirs.size>0)renderFileTree();
     }

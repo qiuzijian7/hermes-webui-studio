@@ -196,7 +196,7 @@ function _attachHistoryScrollListener(rerenderFn) {
 window._attachHistoryScrollListener = _attachHistoryScrollListener;
 
 // ── 面板视图切换 ────────────────────────────────────────────────────────────
-let _rpView = 'empty'; // 'empty' | 'chat' | 'skill' | 'file' | 'prompt'
+let _rpView = 'empty'; // 'empty' | 'chat' | 'skill' | 'file' | 'prompt' | 'confightml' | 'params'
 window._rpView = _rpView; // ★ 暴露到 window 以便 messages.js / ui.js 跨文件读取
 
 
@@ -235,8 +235,9 @@ function _setRightPanelView(view) {
       titleEl.textContent = hasEmployees ? '选择一位员工开始对话' : '还没有员工可对话';
     }
     if (hintEl) {
+      const _pmName = typeof PM_NAME !== 'undefined' ? PM_NAME : 'PM专员';
       hintEl.textContent = hasEmployees
-        ? '在画布上点击员工卡片，或点击顶部"PM专员"进入群聊'
+        ? `在画布上点击员工卡片，或点击顶部"${_pmName}"进入群聊`
         : '点击右上角"添加员工"创建你的第一个 AI 助手';
     }
   }
@@ -247,6 +248,8 @@ function _setRightPanelView(view) {
   const skillView = $('rpSkillView');
   const fileView = $('rpFileView');
   const promptView = $('rpPromptView');
+  const paramsView = $('rpParamsView');
+  const confightmlView = $('rpConfigHtmlView');
   const emptyView = $('rpEmpty');
 
   // ★ 2026-04 新布局：file view 在右栏输出区；其他 view 在中栏 chat-panel。
@@ -258,6 +261,8 @@ function _setRightPanelView(view) {
     if (chatView) chatView.style.display = view === 'chat' ? 'flex' : 'none';
     if (skillView) skillView.style.display = view === 'skill' ? 'flex' : 'none';
     if (promptView) promptView.style.display = view === 'prompt' ? 'flex' : 'none';
+    if (paramsView) paramsView.style.display = view === 'params' ? 'flex' : 'none';
+    if (confightmlView) confightmlView.style.display = view === 'confightml' ? 'flex' : 'none';
     if (emptyView) emptyView.style.display = view === 'empty' ? 'flex' : 'none';
     // 切到非 file 视图时：隐藏文件预览
     if (fileView) fileView.style.display = 'none';
@@ -273,7 +278,7 @@ function _setRightPanelView(view) {
     panel.style.opacity = '1';
     panel.style.pointerEvents = '';
     panel.style.width = panel.style.width || '460px';
-    panel.style.minWidth = panel.style.minWidth || '340px';
+    panel.style.minWidth = panel.style.minWidth || '200px';
     // 始终移除 workspace-panel-collapsed 确保面板可见
     if (layout) {
       layout.classList.remove('workspace-panel-collapsed');
@@ -300,6 +305,10 @@ function closeRightPanel() {
   if (btnCondense) btnCondense.style.display = '';
   const btnSkills = $('btnEmployeeSkills');
   if (btnSkills) btnSkills.style.display = '';
+  const btnConfigHtml = $('btnEmployeeConfigHtml');
+  if (btnConfigHtml) btnConfigHtml.style.display = '';
+
+
   // 移动端滑出
   const panel = $('rightPanel');
   if (panel) panel.classList.remove('mobile-open');
@@ -348,11 +357,16 @@ async function openEmployeeChat(empId, taskId) {
   // 更新头部信息
   const avatarEl = $('rpEmployeeAvatar');
   if (avatarEl) {
-    if (emp.characterImg) {
+    if (emp.avatarStyle || emp.avatar) {
+      // DiceBear SVG 头像（优先）
+      const url = getEmployeeAvatarUrl(emp, { size: 128 });
+      const fallback = esc(emp.avatar || '🤖').replace(/'/g, "\\'");
+      avatarEl.innerHTML = `<div class="rp-employee-avatar rp-avatar-animated" data-status="${emp.status}"><img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit" onerror="this.parentElement.innerHTML='<span style=font-size:20px>${fallback}</span>'"></div>`;
+    } else if (emp.characterImg) {
       const fb = (emp.avatar||'').replace(/'/g, "\\'");
       avatarEl.innerHTML = `<div class="rp-employee-avatar-sprite" style="background-image:url('/static/img/characters/${emp.characterImg}_frame32x32.png');background-size:300% 400%;background-position:0 0;background-repeat:no-repeat" data-fallback="${fb}" onerror="this.remove();this.parentElement.textContent='${fb}'"></div>`;
     } else {
-      avatarEl.textContent = emp.avatar;
+      avatarEl.textContent = emp.avatar || '🤖';
     }
   }
   const nameEl = $('rpEmployeeName');
@@ -472,6 +486,35 @@ async function openEmployeeChat(empId, taskId) {
 
   // 更新委派关系信息条
   _updateDelegationBar(emp);
+
+  // ★ 同步员工的 configHtml 到输出区浏览器
+  //   点击员工卡片时，如果该员工有配置页面，自动在浏览器中显示
+  try {
+    const frame = $('outBrowserFrame');
+    const empty = $('outBrowserEmpty');
+    if (frame) {
+      if (emp.configHtml) {
+        frame.srcdoc = _injectSendToChatIntoHtml(emp.configHtml);
+        frame.src = '';
+        frame.classList.add('loaded');
+        if (empty) empty.classList.add('hidden');
+        const urlInput = $('outBrowserUrl');
+        if (urlInput) urlInput.value = 'config://' + emp.id;
+        // ★ 自动切换输出区到浏览器 tab，让用户直接看到 configHtml 页面
+        if (typeof switchOutputTab === 'function') switchOutputTab('browser');
+      } else {
+        // 如果当前浏览器显示的是上一个员工的 config，清空
+        if (frame.srcdoc) {
+          frame.srcdoc = '';
+          frame.src = 'about:blank';
+          frame.classList.remove('loaded');
+          if (empty) empty.classList.remove('hidden');
+          const urlInput = $('outBrowserUrl');
+          if (urlInput) urlInput.value = '';
+        }
+      }
+    }
+  } catch(_) {}
 
   // ── 如果员工正在执行总群委派的任务，显示委派消息 + 接入 SSE 流 ──
   // ★ 方案 A：从 DelegationVM 读取该员工最新的 active 任务
@@ -1203,6 +1246,10 @@ function _attachLiveStreamToChat(emp, task) {
 
   let assistantText = initialText;  // ★ 以已积累文本为起始
 
+  // ★ AG-UI 精细化状态
+  let _rpThinkingActive = false;  // thinking_start → true, thinking_end → false
+  let _rpCurrentStep = '';         // step_started 设置, step_finished 清空
+
   // ★ 超时保护：如果 5 秒内没收到任何事件，可能是 done 被旧 SSE 消费。
   //   此时轮询后端检查流是否真的结束了。
   let _receivedAnyEvent = false;
@@ -1322,16 +1369,21 @@ function _attachLiveStreamToChat(emp, task) {
         if (!thinkCard) {
           thinkCard = document.createElement('div');
           thinkCard.className = 'rp-turn-thinking thinking-card rp-live-thinking-card open';
+          // ★ AG-UI thinking_start/end 控制动画
+          if (_rpThinkingActive) thinkCard.classList.add('thinking-active');
           thinkCard.innerHTML = `<div class="thinking-card-header" onclick="this.parentElement.classList.toggle('open')"><span class="thinking-card-icon">${typeof li === 'function' ? li('lightbulb', 14) : '💡'}</span><span class="thinking-card-label">思考过程</span><span class="thinking-card-toggle">${typeof li === 'function' ? li('chevron-right', 12) : '▶'}</span></div><div class="thinking-card-body"></div>`;
           const firstChild = segments.firstChild;
           if (firstChild) segments.insertBefore(thinkCard, firstChild);
           else segments.appendChild(thinkCard);
         }
+        // ★ 根据 _rpThinkingActive 控制思考卡片动画
+        if (_rpThinkingActive) thinkCard.classList.add('thinking-active');
+        else thinkCard.classList.remove('thinking-active');
         const body = thinkCard.querySelector('.thinking-card-body');
         if (body) body.innerHTML = renderMd(thinking);
       } else if (thinkCard && text) {
         // 思考已结束且文本出现了 → 折叠思考卡片
-        thinkCard.classList.remove('open', 'rp-live-thinking-card');
+        thinkCard.classList.remove('open', 'rp-live-thinking-card', 'thinking-active');
       }
 
       // 文本段
@@ -1339,7 +1391,10 @@ function _attachLiveStreamToChat(emp, task) {
       if (text) {
         if (currentBody) currentBody.innerHTML = renderMd(text);
       } else if (!text && assistantText.length > 0 && !thinking) {
-        if (currentBody) currentBody.innerHTML = '<span style="color:var(--muted);font-size:13px">Thinking…</span>';
+        // ★ 如果有 step 状态，显示步骤名称而非 "Thinking…"
+        const stepLabel = _rpCurrentStep === 'call_llm' ? '🧠 调用模型…' :
+                          _rpCurrentStep === 'execute_tool' ? '🔧 执行工具…' : 'Thinking…';
+        if (currentBody) currentBody.innerHTML = '<span style="color:var(--muted);font-size:13px">' + stepLabel + '</span>';
       } else if (!text && thinking) {
         // 还在思考中 → 如果活动文本段只显示占位符则清空
         if (currentBody && !currentBody.textContent.trim()) {
@@ -1376,6 +1431,128 @@ function _attachLiveStreamToChat(emp, task) {
       //   方便刷新后通过持久化数据恢复（保持向后兼容）
       task.accumulatedText = (_rpReasoningBuffer ? '<think>' + _rpReasoningBuffer + '</think>' : '') + assistantText;
       _scheduleRender();
+    } catch (_) {}
+  });
+
+  // ── AG-UI 精细化事件（Knot 等协议的 Start/End/Step 事件）──────────────
+  source.addEventListener('message_start', e => {
+    try {
+      _scheduleRender();
+    } catch (_) {}
+  });
+  source.addEventListener('message_end', e => {
+    try {
+      _scheduleRender();
+    } catch (_) {}
+  });
+  source.addEventListener('thinking_start', e => {
+    try {
+      _rpThinkingActive = true;
+      if (!segments) segments = $('rpLiveTurnSegments');
+      if (segments) {
+        const thinkCard = segments.querySelector('.rp-live-thinking-card');
+        if (thinkCard) thinkCard.classList.add('thinking-active');
+      }
+      _scheduleRender();
+    } catch (_) {}
+  });
+  source.addEventListener('thinking_end', e => {
+    try {
+      _rpThinkingActive = false;
+      if (!segments) segments = $('rpLiveTurnSegments');
+      if (segments) {
+        const thinkCard = segments.querySelector('.rp-live-thinking-card');
+        if (thinkCard) {
+          thinkCard.classList.remove('thinking-active');
+          thinkCard.classList.remove('open');
+        }
+      }
+      _scheduleRender();
+    } catch (_) {}
+  });
+  source.addEventListener('tool_args', e => {
+    try {
+      const d = JSON.parse(e.data);
+      // 增量工具参数 — 更新最后一个 live tool 卡片的参数
+      if (!segments) segments = $('rpLiveTurnSegments');
+      if (segments) {
+        const liveToolCards = segments.querySelectorAll('.rp-live-tool-card');
+        const lastCard = liveToolCards[liveToolCards.length - 1];
+        if (lastCard && d.args_delta) {
+          const argsEl = lastCard.querySelector('.tool-card-args');
+          if (argsEl) argsEl.textContent = (argsEl.textContent || '') + d.args_delta;
+        }
+      }
+    } catch (_) {}
+  });
+  source.addEventListener('tool_end', e => {
+    try {
+      const d = JSON.parse(e.data);
+      // 标记工具完成 — 移除 live 标记
+      if (!segments) segments = $('rpLiveTurnSegments');
+      if (segments) {
+        const liveToolCards = segments.querySelectorAll('.rp-live-tool-card');
+        const lastCard = liveToolCards[liveToolCards.length - 1];
+        if (lastCard) lastCard.classList.remove('rp-live-tool-card');
+      }
+    } catch (_) {}
+  });
+  source.addEventListener('tool_result', e => {
+    try {
+      const d = JSON.parse(e.data);
+      // 工具结果 — 在最后一个 tool 卡片内追加结果
+      if (!segments) segments = $('rpLiveTurnSegments');
+      if (segments && d.result) {
+        const toolCards = segments.querySelectorAll('.rp-turn-tool');
+        const lastCard = toolCards[toolCards.length - 1];
+        if (lastCard) {
+          let resultEl = lastCard.querySelector('.tool-card-result');
+          if (!resultEl) {
+            resultEl = document.createElement('div');
+            resultEl.className = 'tool-card-result';
+            resultEl.style.cssText = 'font-size:12px;color:var(--muted);margin-top:4px;padding:4px 8px;background:rgba(255,255,255,.03);border-radius:4px;max-height:120px;overflow:auto;';
+            lastCard.appendChild(resultEl);
+          }
+          const resultText = typeof d.result === 'string' ? d.result : JSON.stringify(d.result);
+          resultEl.textContent = resultText.length > 500 ? resultText.slice(0, 500) + '...' : resultText;
+        }
+      }
+    } catch (_) {}
+  });
+  source.addEventListener('step_started', e => {
+    try {
+      const d = JSON.parse(e.data);
+      const stepName = d.step_name || '';
+      _rpCurrentStep = stepName;
+      const stepLabel = stepName === 'call_llm' ? '🧠 调用模型' :
+                        stepName === 'execute_tool' ? '🔧 执行工具' : stepName;
+      if (typeof setComposerStatus === 'function') setComposerStatus(stepLabel);
+      // ★ 在活动文本段显示步骤状态
+      const liveBody = $('rpLiveStreamBody');
+      if (liveBody && !liveBody.textContent.trim()) {
+        liveBody.innerHTML = '<span style="color:var(--muted);font-size:13px">' + stepLabel + '…</span>';
+      }
+    } catch (_) {}
+  });
+  source.addEventListener('step_finished', e => {
+    try {
+      const d = JSON.parse(e.data);
+      _rpCurrentStep = '';
+      if (d.token_usage) {
+        // 缓存逐步的 token 用量
+        if (!task._stepTokenUsage) task._stepTokenUsage = {prompt_tokens:0,completion_tokens:0,total_tokens:0};
+        task._stepTokenUsage.prompt_tokens += (d.token_usage.prompt_tokens || 0);
+        task._stepTokenUsage.completion_tokens += (d.token_usage.completion_tokens || 0);
+        task._stepTokenUsage.total_tokens += (d.token_usage.total_tokens || 0);
+        // ★ 实时更新 token 用量显示
+        if (typeof _syncCtxIndicator === 'function') {
+          _syncCtxIndicator({
+            input_tokens: task._stepTokenUsage.prompt_tokens,
+            output_tokens: task._stepTokenUsage.completion_tokens,
+          });
+        }
+      }
+      if (typeof setComposerStatus === 'function') setComposerStatus('');
     } catch (_) {}
   });
 
@@ -2192,14 +2369,25 @@ function showEmployeeSkillPanel(empId) {
 
   const bodyEl = $('rpSkillBody');
   if (bodyEl) {
+    const SRC_BADGE = {
+      custom: { label: '自定义', color: '#60a5fa' },
+      global: { label: 'Hermes', color: '#c084fc' },
+      preset: { label: '预设',   color: '#34d399' },
+      workspace: { label: '工作区', color: '#fbbf24' },
+    };
     let html = '<div class="rp-skill-list">';
     if (emp.skills.length) {
       for (const sk of emp.skills) {
         const name = sk.name || sk;
         const enabled = sk.enabled !== false;
+        const source = sk.source || '';
+        const badge = SRC_BADGE[source];
+        const badgeHtml = badge
+          ? `<span style="padding:1px 5px;border-radius:3px;font-size:10px;font-weight:500;color:${badge.color};background:${badge.color}22;margin-right:6px">${badge.label}</span>`
+          : '';
         html += `
           <div class="rp-skill-item">
-            <span class="rp-skill-item-name">${esc(name)}</span>
+            <span class="rp-skill-item-name">${badgeHtml}${esc(name)}</span>
             <div class="rp-skill-item-actions">
               <label class="rp-skill-toggle">
                 <input type="checkbox" ${enabled ? 'checked' : ''} onchange="toggleEmployeeSkill('${emp.id}','${esc(name)}',this.checked)">
@@ -2250,16 +2438,18 @@ function removeEmployeeSkill(empId, skillName) {
 // ── 技能快速添加 ─────────────────────────────────────────────────────────────
 /**
  * 弹出"添加技能"对话框。
- * ★ 2026-04-27 增强：输入框下方实时显示可添加技能的自动补全下拉，
- *   数据源 = `GET /api/skills`（缓存为 `window._allSkillsCache`），
- *   过滤规则 = （名称或描述含输入关键字）且 员工尚未拥有该技能。
+ * ★ 2026-04-29 增强：下拉合并三源技能（来源标签区分）：
+ *   - 用户自定义技能：`GET /api/skills`（本地积累 / 沉淀）
+ *   - 全局 Hermes 技能库：`GET /api/skills/global/list`（如 plan / systematic-debugging）
+ *   - 当前预设技能：从 AGENT_PRESETS 中读取该员工预设目录下的 skill 文件列表
+ *   三源合并后按"未拥有 + 关键字匹配"过滤，每项带来源 badge。
  *   支持键盘 ↑/↓/Enter/Esc 导航。允许输入自定义技能名（不在列表中也可添加）。
  */
 async function addSkillToEmployeeInline(empId) {
   const emp = getEmployee(empId);
   if (!emp) return;
 
-  // 1) 预取所有可用技能（带简单缓存，避免每次点击都请求）
+  // 1) 预取三源技能（带简单缓存）
   if (!window._allSkillsCache) {
     try {
       const data = await api('/api/skills');
@@ -2268,22 +2458,93 @@ async function addSkillToEmployeeInline(empId) {
       window._allSkillsCache = [];
     }
   }
+  if (!window._globalSkillsCache) {
+    try {
+      const data = await api('/api/skills/global/list');
+      window._globalSkillsCache = (data && Array.isArray(data.skills)) ? data.skills : [];
+    } catch (_) {
+      window._globalSkillsCache = [];
+    }
+  }
+
+  // 合并三源为统一结构 {name, description, source, path?}
+  const mergeSources = () => {
+    const out = [];
+    // 用户自定义
+    for (const sk of window._allSkillsCache || []) {
+      if (sk && sk.name) {
+        out.push({
+          name: sk.name,
+          description: sk.description || '',
+          source: 'custom',
+        });
+      }
+    }
+    // 全局 Hermes 库
+    for (const sk of window._globalSkillsCache || []) {
+      if (sk && sk.name) {
+        out.push({
+          name: sk.name,
+          description: sk.description || '',
+          source: 'global',
+          path: sk.path,
+          category: sk.category,
+        });
+      }
+    }
+    // 当前预设自带
+    if (emp.presetId && typeof AGENT_PRESETS !== 'undefined') {
+      const preset = AGENT_PRESETS.find(p => p.id === emp.presetId);
+      if (preset && Array.isArray(preset._skill_files)) {
+        for (const fname of preset._skill_files) {
+          const name = fname.replace(/\.md$/i, '');
+          out.push({
+            name,
+            description: `来自 ${preset.name || preset.id} 预设`,
+            source: 'preset',
+          });
+        }
+      }
+    }
+    // 去重（以 name + source 为 key）
+    const seen = new Set();
+    return out.filter(s => {
+      const k = (s.name + '|' + s.source).toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  };
+
+  const SOURCE_BADGE = {
+    custom: { label: '自定义', color: '#60a5fa' },
+    global: { label: 'Hermes', color: '#c084fc' },
+    preset: { label: '预设',   color: '#34d399' },
+  };
 
   // 弹出添加技能对话框
   const overlay = document.createElement('div');
   overlay.className = 'app-dialog-overlay';
   overlay.style.display = 'flex';
   overlay.innerHTML = `
-    <div class="app-dialog" style="max-width:380px">
+    <div class="app-dialog" style="max-width:480px">
       <div class="app-dialog-header">
         <div class="app-dialog-title">添加技能</div>
         <button class="app-dialog-close" id="addSkillClose"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
       <div style="padding:4px 20px 16px">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">为「${esc(emp.name)}」添加一项专业技能</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+          为「${esc(emp.name)}」添加一项专业技能（从三个来源检索：Hermes 技能库 / 预设自带 / 自定义积累）
+        </div>
+        <div class="skill-source-filter" style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="skill-filter-btn active" data-source="all" style="flex:1;padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;background:var(--bg-elevated);border:1px solid var(--border)">全部</button>
+          <button class="skill-filter-btn" data-source="global" style="flex:1;padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid var(--border);color:#c084fc">Hermes 官方</button>
+          <button class="skill-filter-btn" data-source="preset" style="flex:1;padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid var(--border);color:#34d399">预设自带</button>
+          <button class="skill-filter-btn" data-source="custom" style="flex:1;padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid var(--border);color:#60a5fa">自定义</button>
+        </div>
         <div class="skill-ac-wrap" style="position:relative">
-          <input class="emp-dialog-input" id="addSkillInput" placeholder="输入技能名称，如：Python、代码审查、架构设计" style="width:100%" maxlength="40" autocomplete="off">
-          <div class="skill-ac-dropdown" id="addSkillDropdown" style="display:none"></div>
+          <input class="emp-dialog-input" id="addSkillInput" placeholder="输入关键字检索技能，或输入自定义技能名后直接添加" style="width:100%" maxlength="60" autocomplete="off">
+          <div class="skill-ac-dropdown" id="addSkillDropdown" style="display:none;max-height:300px;overflow-y:auto"></div>
         </div>
       </div>
       <div class="app-dialog-actions">
@@ -2304,24 +2565,27 @@ async function addSkillToEmployeeInline(empId) {
   // 已拥有技能名集合（大小写不敏感）
   const ownedNames = new Set(emp.skills.map(s => ((s.name || s) + '').toLowerCase()));
 
-  // 当前下拉高亮项索引（-1 表示无高亮）
+  // 当前下拉状态
   let activeIdx = -1;
   let currentMatches = [];
+  let sourceFilter = 'all';
 
-  /** 渲染下拉列表（最多 8 条） */
+  const allSkills = mergeSources();
+
+  /** 渲染下拉列表（最多 20 条） */
   function renderDropdown(q) {
     const qLower = (q || '').trim().toLowerCase();
-    const skills = window._allSkillsCache || [];
-    // 过滤：未被该员工拥有 + 名称或描述包含关键字
-    currentMatches = skills
-      .filter(sk => sk && sk.name && !ownedNames.has(sk.name.toLowerCase()))
+    currentMatches = allSkills
+      .filter(sk => !ownedNames.has(sk.name.toLowerCase()))
+      .filter(sk => sourceFilter === 'all' || sk.source === sourceFilter)
       .filter(sk => {
         if (!qLower) return true;
         const n = (sk.name || '').toLowerCase();
         const d = (sk.description || '').toLowerCase();
-        return n.includes(qLower) || d.includes(qLower);
+        const c = (sk.category || '').toLowerCase();
+        return n.includes(qLower) || d.includes(qLower) || c.includes(qLower);
       })
-      .slice(0, 8);
+      .slice(0, 20);
 
     if (!currentMatches.length) {
       dd.style.display = 'none';
@@ -2330,19 +2594,29 @@ async function addSkillToEmployeeInline(empId) {
       return;
     }
     dd.style.display = 'block';
-    dd.innerHTML = currentMatches.map((sk, i) => `
-      <div class="skill-ac-item${i === activeIdx ? ' active' : ''}" data-idx="${i}">
-        <div class="skill-ac-name">${esc(sk.name)}</div>
-        ${sk.description ? `<div class="skill-ac-desc">${esc(sk.description)}</div>` : ''}
-      </div>
-    `).join('');
+    dd.innerHTML = currentMatches.map((sk, i) => {
+      const badge = SOURCE_BADGE[sk.source] || { label: sk.source, color: '#888' };
+      return `
+        <div class="skill-ac-item${i === activeIdx ? ' active' : ''}" data-idx="${i}" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:start;gap:8px">
+          <span style="padding:1px 5px;border-radius:3px;font-size:10px;font-weight:500;color:${badge.color};background:${badge.color}22;flex-shrink:0;line-height:1.6">${badge.label}</span>
+          <div style="flex:1;min-width:0">
+            <div class="skill-ac-name" style="font-size:13px;font-weight:500">${esc(sk.name)}</div>
+            ${sk.description ? `<div class="skill-ac-desc" style="font-size:11px;opacity:.6;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(sk.description)}</div>` : ''}
+            ${sk.category ? `<div style="font-size:10px;opacity:.4;margin-top:2px">📁 ${esc(sk.category)}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
 
     // 点击选中某项 → 填入输入框 + 自动提交
     dd.querySelectorAll('.skill-ac-item').forEach(el => {
       el.onclick = () => {
         const idx = parseInt(el.dataset.idx, 10);
         if (currentMatches[idx]) {
-          input.value = currentMatches[idx].name;
+          const sk = currentMatches[idx];
+          input.value = sk.name;
+          input.dataset.selectedSource = sk.source;
+          if (sk.path) input.dataset.selectedPath = sk.path;
           overlay.querySelector('#addSkillOk').click();
         }
       };
@@ -2356,19 +2630,36 @@ async function addSkillToEmployeeInline(empId) {
   function updateActiveHighlight() {
     dd.querySelectorAll('.skill-ac-item').forEach((el, i) => {
       el.classList.toggle('active', i === activeIdx);
+      el.style.background = i === activeIdx ? 'rgba(255,255,255,.06)' : '';
     });
-    // 滚动到可视区
     const activeEl = dd.querySelector('.skill-ac-item.active');
     if (activeEl && activeEl.scrollIntoView) {
       activeEl.scrollIntoView({ block: 'nearest' });
     }
   }
 
+  // 来源过滤按钮
+  overlay.querySelectorAll('.skill-filter-btn').forEach(btn => {
+    btn.onclick = () => {
+      overlay.querySelectorAll('.skill-filter-btn').forEach(b => {
+        b.classList.remove('active');
+        b.style.background = 'transparent';
+      });
+      btn.classList.add('active');
+      btn.style.background = 'var(--bg-elevated)';
+      sourceFilter = btn.dataset.source;
+      activeIdx = -1;
+      renderDropdown(input.value);
+    };
+  });
+
   // 初始显示（空关键字 → 全量候选）
   renderDropdown('');
 
   input.addEventListener('input', () => {
     activeIdx = -1;
+    delete input.dataset.selectedSource;
+    delete input.dataset.selectedPath;
     renderDropdown(input.value);
   });
 
@@ -2379,10 +2670,19 @@ async function addSkillToEmployeeInline(empId) {
       showToast('该技能已存在');
       return;
     }
-    emp.skills.push({ name, enabled: true });
+    // 构造 skill 对象：如果是从下拉选择的，保留 source/path 以供后端 skill_resolver 精确定位
+    const skillEntry = { name, enabled: true };
+    if (input.dataset.selectedSource) {
+      skillEntry.source = input.dataset.selectedSource;
+    }
+    if (input.dataset.selectedPath) {
+      skillEntry.path = input.dataset.selectedPath;
+    }
+    emp.skills.push(skillEntry);
     _saveEmployees();
     renderEmployeeCards();
     showEmployeeSkillPanel(empId);
+    if (typeof invalidatePromptCache === 'function') invalidatePromptCache(emp.id);
     _syncEmployeePromptToSession(emp);
     showToast(`已添加技能「${name}」`);
     close();
@@ -2401,9 +2701,11 @@ async function addSkillToEmployeeInline(empId) {
       updateActiveHighlight();
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      // 若下拉有高亮项，用高亮项填入后再添加；否则按当前输入值添加
       if (activeIdx >= 0 && currentMatches[activeIdx]) {
-        input.value = currentMatches[activeIdx].name;
+        const sk = currentMatches[activeIdx];
+        input.value = sk.name;
+        input.dataset.selectedSource = sk.source;
+        if (sk.path) input.dataset.selectedPath = sk.path;
       }
       overlay.querySelector('#addSkillOk').click();
     } else if (e.key === 'Escape') {
@@ -2419,6 +2721,274 @@ function showEmployeeSkillDialog() {
   showEmployeeSkillPanel(empId);
 }
 
+// ── 员工配置页面（从 chat header 调用）─────────────────────────────────────────
+// 配置页面面板的回退栈（用于撤销）
+let _cfgHtmlUndoStack = [];
+let _cfgHtmlCurrentEmpId = null;
+
+function openEmployeeConfigHtml() {
+  const empId = EMPLOYEE_STORE.selectedId;
+  if (!empId) { showToast('请先选择一个员工'); return; }
+  const emp = getEmployee(empId);
+  if (!emp) return;
+
+  // 切换到配置页面面板视图
+  _cfgHtmlCurrentEmpId = empId;
+  _cfgHtmlUndoStack = [];
+  _setRightPanelView('confightml');
+
+  // 更新面板标题
+  const titleEl = $('rpConfigHtmlTitle');
+  if (titleEl) titleEl.textContent = emp.name + ' · 配置页面';
+  const subtitleEl = $('rpConfigHtmlSubtitle');
+  if (subtitleEl) subtitleEl.textContent = '编辑员工的自定义 HTML 页面';
+
+  // 加载当前 HTML 到编辑器
+  const editor = $('cfgHtmlEditor');
+  if (editor) {
+    editor.value = emp.configHtml || '';
+    // 实时预览：编辑器输入时同步到输出区浏览器
+    editor.oninput = () => {
+      _cfgHtmlSyncPreview();
+    };
+  }
+
+  // 隐藏回退按钮（没有历史可回退）
+  const undoBtn = $('cfgUndoBtn');
+  if (undoBtn) undoBtn.style.display = 'none';
+
+  // 初始预览
+  _cfgHtmlSyncPreview();
+}
+
+/** 同步编辑器内容到输出区浏览器 */
+function _cfgHtmlSyncPreview() {
+  const editor = $('cfgHtmlEditor');
+  const frame = $('outBrowserFrame');
+  const empty = $('outBrowserEmpty');
+  if (!editor || !frame) return;
+
+  const html = editor.value;
+  if (html) {
+    // 使用 srcdoc 直接渲染 HTML（注入 sendToChat 桥接脚本）
+    frame.srcdoc = _injectSendToChatIntoHtml(html);
+    frame.src = '';  // 清除 src，避免与 srcdoc 冲突
+    frame.classList.add('loaded');
+    if (empty) empty.classList.add('hidden');
+    // 更新浏览器地址栏显示
+    const urlInput = $('outBrowserUrl');
+    if (urlInput) urlInput.value = 'config://' + (_cfgHtmlCurrentEmpId || 'unknown');
+  } else {
+    frame.srcdoc = '';
+    frame.src = 'about:blank';
+    frame.classList.remove('loaded');
+    if (empty) empty.classList.remove('hidden');
+  }
+}
+
+/** 保存配置页面 */
+async function saveConfigHtml() {
+  const emp = _cfgHtmlCurrentEmpId ? getEmployee(_cfgHtmlCurrentEmpId) : null;
+  if (!emp) { showToast('员工不存在'); return; }
+
+  const editor = $('cfgHtmlEditor');
+  const newHtml = editor ? editor.value : '';
+
+  emp.configHtml = newHtml;
+  try { _saveEmployees(); } catch (_) {}
+
+  // 尝试写入后端
+  try {
+    const ws = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '')
+            || (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '');
+    if (ws && emp._backendSynced) {
+      await api('/api/employee/update', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspace: ws,
+          id: emp.id,
+          configHtml: newHtml,
+        }),
+      });
+    }
+  } catch (_) {}
+
+  showToast('配置页面已保存');
+  // 回到聊天视图
+  if (EMPLOYEE_STORE.selectedId) {
+    _setRightPanelView('chat');
+  } else {
+    _setRightPanelView('empty');
+  }
+  _cfgHtmlCurrentEmpId = null;
+  _cfgHtmlUndoStack = [];
+  // ★ 恢复浏览器为该员工的 configHtml 预览（而非清空白屏）
+  const _savedEmp = emp;
+  const frame = $('outBrowserFrame');
+  if (frame) {
+    if (_savedEmp.configHtml) {
+      frame.srcdoc = _injectSendToChatIntoHtml(_savedEmp.configHtml);
+      frame.src = '';
+      frame.classList.add('loaded');
+      const emptyEl = $('outBrowserEmpty');
+      if (emptyEl) emptyEl.classList.add('hidden');
+      const urlInput = $('outBrowserUrl');
+      if (urlInput) urlInput.value = 'config://' + _savedEmp.id;
+    } else {
+      frame.srcdoc = '';
+      frame.src = 'about:blank';
+      frame.classList.remove('loaded');
+      const emptyEl = $('outBrowserEmpty');
+      if (emptyEl) emptyEl.classList.remove('hidden');
+      const urlInput = $('outBrowserUrl');
+      if (urlInput) urlInput.value = '';
+    }
+  }
+  if (typeof renderEmployeeCards === 'function') renderEmployeeCards();
+}
+
+/** 关闭配置页面编辑器（不保存） */
+function closeConfigHtmlEditor() {
+  const editor = $('cfgHtmlEditor');
+  const emp = _cfgHtmlCurrentEmpId ? getEmployee(_cfgHtmlCurrentEmpId) : null;
+  // 如果内容有变化，提示确认
+  if (emp && editor && editor.value !== (emp.configHtml || '')) {
+    if (!confirm('配置页面内容已修改但未保存，确定关闭？')) return;
+  }
+  // 回到聊天视图
+  if (EMPLOYEE_STORE.selectedId) {
+    _setRightPanelView('chat');
+  } else {
+    _setRightPanelView('empty');
+  }
+  _cfgHtmlCurrentEmpId = null;
+  _cfgHtmlUndoStack = [];
+  // ★ 恢复浏览器为该员工的 configHtml 预览（而非清空白屏）
+  const frame = $('outBrowserFrame');
+  if (frame) {
+    if (emp && emp.configHtml) {
+      frame.srcdoc = _injectSendToChatIntoHtml(emp.configHtml);
+      frame.src = '';
+      frame.classList.add('loaded');
+      const emptyEl = $('outBrowserEmpty');
+      if (emptyEl) emptyEl.classList.add('hidden');
+      const urlInput = $('outBrowserUrl');
+      if (urlInput) urlInput.value = 'config://' + emp.id;
+    } else {
+      frame.srcdoc = '';
+      frame.src = 'about:blank';
+      frame.classList.remove('loaded');
+      const emptyEl = $('outBrowserEmpty');
+      if (emptyEl) emptyEl.classList.remove('hidden');
+      const urlInput = $('outBrowserUrl');
+      if (urlInput) urlInput.value = '';
+    }
+  }
+}
+
+/** 回退到上一版本 */
+function configHtmlUndo() {
+  if (_cfgHtmlUndoStack.length === 0) return;
+  const prev = _cfgHtmlUndoStack.pop();
+  const editor = $('cfgHtmlEditor');
+  if (editor) {
+    editor.value = prev;
+    _cfgHtmlSyncPreview();
+  }
+  // 如果没有更多历史，隐藏回退按钮
+  const undoBtn = $('cfgUndoBtn');
+  if (undoBtn && _cfgHtmlUndoStack.length === 0) undoBtn.style.display = 'none';
+}
+
+/** AI 生成配置页面 HTML */
+async function configHtmlGenerate() {
+  const promptEl = $('cfgGenPrompt');
+  const statusEl = $('cfgGenStatus');
+  const genBtn = $('cfgGenBtn');
+  const editor = $('cfgHtmlEditor');
+  const emp = _cfgHtmlCurrentEmpId ? getEmployee(_cfgHtmlCurrentEmpId) : null;
+  if (!emp || !promptEl || !editor) return;
+
+  const prompt = promptEl.value.trim();
+  if (!prompt) { showToast('请描述想要的页面'); return; }
+
+  // 保存当前内容到回退栈
+  if (editor.value) {
+    _cfgHtmlUndoStack.push(editor.value);
+    const undoBtn = $('cfgUndoBtn');
+    if (undoBtn) undoBtn.style.display = '';
+  }
+
+  // 禁用按钮、显示状态
+  if (genBtn) { genBtn.disabled = true; genBtn.textContent = '生成中...'; }
+  if (statusEl) { statusEl.textContent = 'AI 正在生成...'; statusEl.style.color = 'var(--blue)'; }
+
+  try {
+    // 构造生成请求：让 AI 生成 HTML
+    const genPrompt = `你是一个前端工程师。请根据以下需求生成一个完整的 HTML 页面（单文件，包含内联 CSS 和 JS）。
+需求：${prompt}
+
+要求：
+1. 生成完整的 HTML 文档（<!DOCTYPE html> 开头）
+2. CSS 写在 <style> 标签中
+3. JS 写在 <script> 标签中
+4. 页面风格现代简洁
+5. 只输出 HTML 代码，不要其他说明文字`;
+
+    // 使用当前员工的 session 来生成
+    const sessionId = emp.sessionId;
+    if (!sessionId) {
+      if (statusEl) { statusEl.textContent = '该员工还没有会话，请先与员工对话'; statusEl.style.color = 'var(--accent)'; }
+      return;
+    }
+
+    const data = await api('/api/chat/start', {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: sessionId,
+        message: genPrompt,
+        stream: false,
+      }),
+    });
+
+    if (data.response) {
+      // 提取 HTML 代码块（如果被 markdown 包裹）
+      let html = data.response;
+      const codeBlockMatch = html.match(/```html?\n([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        html = codeBlockMatch[1].trim();
+      } else {
+        const htmlMatch = html.match(/(<!DOCTYPE html>[\s\S]*)/i);
+        if (htmlMatch) {
+          html = htmlMatch[1].trim();
+        }
+      }
+      editor.value = html;
+      _cfgHtmlSyncPreview();
+      if (statusEl) { statusEl.textContent = '生成完成'; statusEl.style.color = '#4ade80'; }
+      setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000);
+    } else {
+      if (statusEl) { statusEl.textContent = '生成失败：无响应'; statusEl.style.color = 'var(--accent)'; }
+    }
+  } catch (e) {
+    if (statusEl) { statusEl.textContent = '生成失败: ' + (e.message || '未知错误'); statusEl.style.color = 'var(--accent)'; }
+  } finally {
+    if (genBtn) { genBtn.disabled = false; genBtn.textContent = '生成'; }
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.openEmployeeConfigHtml = openEmployeeConfigHtml;
+  window.saveConfigHtml = saveConfigHtml;
+  window.closeConfigHtmlEditor = closeConfigHtmlEditor;
+  window.configHtmlUndo = configHtmlUndo;
+  window.configHtmlGenerate = configHtmlGenerate;
+  window._cfgHtmlSyncPreview = _cfgHtmlSyncPreview;
+}
+
+
+
+
 // ── 提示词编辑器 ──────────────────────────────────────────────────────────────
 function openEmployeePromptEditor() {
   const emp = getEmployee(EMPLOYEE_STORE.selectedId);
@@ -2429,10 +2999,22 @@ function openEmployeePromptEditor() {
   const titleEl = $('rpPromptTitle');
   if (titleEl) titleEl.textContent = emp.name + ' 的提示词';
 
-  // 直接在完整提示词区域编辑
-  const fullPrompt = buildEmployeeSystemPrompt(emp);
   const editorEl = $('rpPromptEditor');
-  if (editorEl) editorEl.value = fullPrompt || '';
+  if (!editorEl) return;
+
+  // 先用同步版本显示占位内容（避免等待）
+  try { editorEl.value = buildEmployeeSystemPrompt(emp) || ''; } catch(_) {}
+
+  // 若后端可用，异步更新为完整的后端渲染版本（含 skill.md 正文等）
+  if (typeof buildEmployeeSystemPromptAsync === 'function') {
+    buildEmployeeSystemPromptAsync(emp, { forceRefresh: true }).then(fullPrompt => {
+      // 用户可能在等待期间已经编辑；若未编辑则刷新为后端版本
+      if (editorEl && (editorEl.value === '' || editorEl.dataset._autoLoaded !== '1')) {
+        editorEl.value = fullPrompt || '';
+        editorEl.dataset._autoLoaded = '1';
+      }
+    }).catch(() => {});
+  }
 }
 
 function saveEmployeePrompt() {
@@ -2469,11 +3051,16 @@ function closePromptEditor() {
 // ── 即时同步提示词到 session ────────────────────────────────────────────────
 function _syncEmployeePromptToSession(emp) {
   if (!emp || !emp.sessionId) return;
-  const prompt = buildEmployeeSystemPrompt(emp);
-  // 更新后端 session 的 system_prompt
-  api('/api/session/update', {
-    method: 'POST',
-    body: JSON.stringify({ session_id: emp.sessionId, system_prompt: prompt }),
+  // 优先使用后端异步构建；失败降级到同步版本
+  const buildPromise = (typeof buildEmployeeSystemPromptAsync === 'function')
+    ? buildEmployeeSystemPromptAsync(emp)
+    : Promise.resolve(buildEmployeeSystemPrompt(emp));
+  buildPromise.then(prompt => {
+    // 更新后端 session 的 system_prompt
+    return api('/api/session/update', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: emp.sessionId, system_prompt: prompt }),
+    });
   }).catch(() => {}); // fire-and-forget
 }
 
@@ -2711,6 +3298,180 @@ async function _retryGhostTask(taskId) {
 }
 window._retryGhostTask = _retryGhostTask;
 
+// ── 配置页面 iframe ↔ 父页面消息桥接 ─────────────────────────────────────
+// 配置页面中的 sendToChat() 通过 postMessage 与父页面通信，
+// 父页面收到消息后填入输入框并触发发送。
+function _handleConfigHtmlMessage(e) {
+  // 只接受来自同源的消息
+  if (!e.data || e.data.type !== 'hermes-config-chat') return;
+  const text = (e.data.text || '').trim();
+  if (!text) return;
+  const msgEl = $('msg');
+  if (msgEl) {
+    msgEl.value = text;
+    if (typeof autoResize === 'function') autoResize();
+    if (typeof send === 'function') send();
+  }
+}
+
+/** 在 iframe 加载后注入 sendToChat 函数（通过 srcdoc 渲染的 iframe 无跨域限制） */
+function _injectSendToChat(frame) {
+  if (!frame) return;
+  try {
+    const doc = frame.contentDocument || frame.contentWindow?.document;
+    if (!doc) return;
+    const script = doc.createElement('script');
+    script.textContent = `
+      function sendToChat(text) {
+        window.parent.postMessage({ type: 'hermes-config-chat', text: text || '' }, '*');
+      }
+      function sendForm() {
+        var f = document.querySelector('form,textarea,input[type=text]');
+        var t = f ? (f.value || f.textContent || '') : '';
+        sendToChat(t);
+      }
+    `;
+    (doc.head || doc.documentElement).appendChild(script);
+  } catch (_) {
+    // 跨域 iframe 无法注入（srcdoc 场景不会出现此问题）
+  }
+}
+
+/** 在 HTML 末尾注入 sendToChat 桥接脚本（比 onload 更可靠） */
+function _injectSendToChatIntoHtml(html) {
+  if (!html) return html;
+  // 使用字符串拼接避免模板字符串中的 <\/script> 转义问题
+  const bridgeScript = '<script>' +
+    'function sendToChat(t){window.parent.postMessage({type:"hermes-config-chat",text:t||""},"*")}' +
+    'function _collectAllFormValues(){' +
+      'var parts=[];' +
+      // 1. Text inputs
+      'document.querySelectorAll(\'input[type="text"],input[type="password"],input[type="email"],input[type="number"],input[type="url"],input[type="tel"],input[type="date"],input[type="time"],input[type="search"],input:not([type])\').forEach(function(el){' +
+        'if(!el.id&&!el.name)return;' +
+        'var label=_findLabel(el);' +
+        'var val=el.value.trim();' +
+        'if(val)parts.push(label+": "+val);' +
+      '});' +
+      // 2. Textarea
+      'document.querySelectorAll("textarea").forEach(function(el){' +
+        'if(!el.id&&!el.name)return;' +
+        'var label=_findLabel(el);' +
+        'var val=el.value.trim();' +
+        'if(val)parts.push(label+": "+val);' +
+      '});' +
+      // 3. Select (dropdown)
+      'document.querySelectorAll("select").forEach(function(el){' +
+        'if(!el.id&&!el.name)return;' +
+        'var label=_findLabel(el);' +
+        'var val=el.options[el.selectedIndex]?el.options[el.selectedIndex].text:"";' +
+        'parts.push(label+": "+val);' +
+      '});' +
+      // 4. Checkbox / Toggle
+      'document.querySelectorAll(\'input[type="checkbox"]\').forEach(function(el){' +
+        'if(!el.id&&!el.name)return;' +
+        'var label=_findToggleLabel(el);' +
+        'parts.push(label+": "+(el.checked?"已启用":"已禁用"));' +
+      '});' +
+      // 5. Radio
+      'var radios={};' +
+      'document.querySelectorAll(\'input[type="radio"]:checked\').forEach(function(el){' +
+        'var name=el.name||el.id||"";' +
+        'if(!name)return;' +
+        'var label=_findRadioGroupLabel(el);' +
+        'if(!radios[name])radios[name]={label:label,val:el.value,text:el.parentElement?el.parentElement.textContent.trim():el.value};' +
+      '});' +
+      'for(var k in radios)parts.push(radios[k].label+": "+radios[k].text);' +
+      // 6. Range / Slider
+      'document.querySelectorAll(\'input[type="range"]\').forEach(function(el){' +
+        'if(!el.id&&!el.name)return;' +
+        'var label=_findSliderLabel(el);' +
+        'parts.push(label+": "+el.value);' +
+      '});' +
+      // 7. Color picker
+      'document.querySelectorAll(\'input[type="color"]\').forEach(function(el){' +
+        'if(!el.id&&!el.name)return;' +
+        'var label=_findLabel(el);' +
+        'parts.push(label+": "+el.value);' +
+      '});' +
+      // 8. Tags
+      'document.querySelectorAll(".tag-container,.tag-list,[data-tags]").forEach(function(el){' +
+        'var tags=[];' +
+        'el.querySelectorAll(".tag,.tag-item,.badge").forEach(function(t){' +
+          'var txt=t.textContent.replace(/\\s*[×✕xX]\\s*$/,"").trim();' +
+          'if(txt)tags.push(txt);' +
+        '});' +
+        'if(tags.length){' +
+          'var label=el.getAttribute("data-label")||"标签";' +
+          'parts.push(label+": "+tags.join(", "));' +
+        '}' +
+      '});' +
+      // 9. KB cards
+      'var selectedKBs=[];' +
+      'document.querySelectorAll(".kb-card.selected,[data-selected=true]").forEach(function(el){' +
+        'var name=el.getAttribute("data-name")||el.getAttribute("data-kb")||"";' +
+        'var h=el.querySelector(\'div[style*="font-weight"]\');' +
+        'if(h)name=h.textContent.trim()||name;' +
+        'if(name)selectedKBs.push(name);' +
+      '});' +
+      'if(selectedKBs.length)parts.push("知识库: "+selectedKBs.join(", "));' +
+      'return parts;' +
+    '}' +
+    'function _findLabel(el){' +
+      'var lbl=el.closest(".form-group, .form-field, .field");' +
+      'if(lbl){' +
+        'var l=lbl.querySelector(".form-label,label,.field-label");' +
+        'if(l)return l.textContent.replace(/[*\\s]+$/,"").trim();' +
+      '}' +
+      'if(el.id){' +
+        'var l2=document.querySelector(\'label[for="\'+el.id+\'"]\');' +
+        'if(l2)return l2.textContent.replace(/[*\\s]+$/,"").trim();' +
+      '}' +
+      'return el.getAttribute("placeholder")||el.id||el.name||"";' +
+    '}' +
+    'function _findToggleLabel(el){' +
+      'var row=el.closest(".toggle-row, .toggle-group, .switch-row");' +
+      'if(row){' +
+        'var n=row.querySelector(".toggle-name, .switch-label, .toggle-label");' +
+        'if(n)return n.textContent.trim();' +
+      '}' +
+      'return _findLabel(el);' +
+    '}' +
+    'function _findSliderLabel(el){' +
+      'var grp=el.closest(".slider-group, .slider-row");' +
+      'if(grp){' +
+        'var l=grp.querySelector(".slider-label, label");' +
+        'if(l)return l.textContent.trim();' +
+      '}' +
+      'return _findLabel(el);' +
+    '}' +
+    'function _findRadioGroupLabel(el){' +
+      'var grp=el.closest(".radio-group, [role=radiogroup]");' +
+      'if(grp){' +
+        'var l=grp.querySelector(".radio-group-label, label, legend");' +
+        'if(l)return l.textContent.trim();' +
+      '}' +
+      'return el.name||el.id||"";' +
+    '}' +
+    'function sendForm(){' +
+      'var custom=typeof collectFormData==="function"?collectFormData():null;' +
+      'if(custom&&Object.keys(custom).length){' +
+        'sendToChat(JSON.stringify(custom,null,2));' +
+      '}else{' +
+        'var parts=_collectAllFormValues();' +
+        'sendToChat(parts.length?parts.join("\\n"):"(空表单)");' +
+      '}' +
+    '}' +
+  '<\/script>';
+  // 在 </body> 或 </html> 前插入，如果没有则追加到末尾
+  if (html.includes('</body>')) {
+    return html.replace('</body>', bridgeScript + '</body>');
+  } else if (html.includes('</html>')) {
+    return html.replace('</html>', bridgeScript + '</html>');
+  } else {
+    return html + bridgeScript;
+  }
+}
+
 // ── 初始化 ─────────────────────────────────────────────────────────────────
 function initRightPanel() {
   // 强制确保右侧面板可见（移除所有可能的隐藏类和样式）
@@ -2720,12 +3481,16 @@ function initRightPanel() {
     panel.classList.remove('rp-collapsed');
     panel.style.display = 'flex';
     panel.style.width = '440px';
-    panel.style.minWidth = '340px';
+    panel.style.minWidth = '60px';
     panel.style.opacity = '1';
   }
   if (layout) {
     layout.classList.remove('workspace-panel-collapsed');
   }
+
+  // ★ 监听配置页面 iframe 的 postMessage（sendToChat → 父页面聊天框）
+  window.removeEventListener('message', _handleConfigHtmlMessage);
+  window.addEventListener('message', _handleConfigHtmlMessage);
 
   // 如果有员工，恢复上次选中的员工并打开聊天框
   if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.employees.length > 0) {
@@ -2739,11 +3504,15 @@ function initRightPanel() {
     // 更新头部信息
     const avatarEl = $('rpEmployeeAvatar');
     if (avatarEl) {
-      if (targetEmployee.characterImg) {
+      if (targetEmployee.avatarStyle || targetEmployee.avatar) {
+        const url = getEmployeeAvatarUrl(targetEmployee, { size: 128 });
+        const fallback = esc(targetEmployee.avatar || '🤖').replace(/'/g, "\\'");
+        avatarEl.innerHTML = `<div class="rp-employee-avatar rp-avatar-animated" data-status="${targetEmployee.status}"><img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit" onerror="this.parentElement.innerHTML='<span style=font-size:20px>${fallback}</span>'"></div>`;
+      } else if (targetEmployee.characterImg) {
         const fb2 = (targetEmployee.avatar||'').replace(/'/g, "\\'");
         avatarEl.innerHTML = `<div class="rp-employee-avatar-sprite" style="background-image:url('/static/img/characters/${targetEmployee.characterImg}_frame32x32.png');background-size:300% 400%;background-position:0 0;background-repeat:no-repeat" data-fallback="${fb2}" onerror="this.remove();this.parentElement.textContent='${fb2}'"></div>`;
       } else {
-        avatarEl.textContent = targetEmployee.avatar;
+        avatarEl.textContent = targetEmployee.avatar || '🤖';
       }
     }
     const nameEl = $('rpEmployeeName');
@@ -3210,4 +3979,222 @@ function downloadRpFile() {
   if (_rpFileCurrentPath && typeof downloadFile === 'function') {
     downloadFile(_rpFileCurrentPath);
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 参数配置编辑器（基于 preset.paramsSchema 自动渲染表单，无 schema 时回退到通用 key-value 编辑器）
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * HTML 转义辅助
+ */
+function _rpEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/**
+ * 打开员工参数配置面板
+ *
+ * 行为：
+ *   1. 若员工所属预设声明了 paramsSchema → 按 schema 自动渲染表单
+ *      （类型：string / number / boolean / enum / multiline）
+ *   2. 否则 → 渲染通用的 key-value 编辑器
+ *      （用户可自由添加 key/value 对，删除、修改）
+ */
+function openEmployeeParamsEditor() {
+  const emp = getEmployee(EMPLOYEE_STORE.selectedId);
+  if (!emp) { showToast('请先选择一个员工'); return; }
+
+  _setRightPanelView('params');
+
+  const titleEl = $('rpParamsTitle');
+  const subEl = $('rpParamsSubtitle');
+  if (titleEl) titleEl.textContent = emp.name + ' · 参数';
+
+  // 查预设（同步查本地 AGENT_PRESETS；若未加载则异步补查）
+  const contentEl = $('rpParamsContent');
+  if (!contentEl) return;
+
+  contentEl.innerHTML = '<div class="rp-params-loading" style="opacity:.6;padding:12px">加载中…</div>';
+
+  const preset = (emp.presetId && typeof AGENT_PRESETS !== 'undefined')
+    ? AGENT_PRESETS.find(p => p.id === emp.presetId)
+    : null;
+
+  const schema = (preset && Array.isArray(preset.paramsSchema) && preset.paramsSchema.length)
+    ? preset.paramsSchema
+    : null;
+
+  if (subEl) {
+    subEl.textContent = schema
+      ? `${preset.name || preset.id} 预设已定义 ${schema.length} 个参数`
+      : '自由编辑 key-value（会自动注入到提示词）';
+  }
+
+  if (schema) {
+    _renderParamsBySchema(contentEl, emp, schema);
+  } else {
+    _renderParamsKeyValue(contentEl, emp);
+  }
+}
+
+/** 基于 schema 渲染结构化表单 */
+function _renderParamsBySchema(contentEl, emp, schema) {
+  const params = emp.params || {};
+  const rows = schema.map((field, idx) => {
+    const key = field.key;
+    const label = _rpEsc(field.label || key);
+    const desc = field.description ? `<div class="rp-params-field-desc" style="font-size:11px;opacity:.6;margin-top:3px">${_rpEsc(field.description)}</div>` : '';
+    const curVal = (params[key] != null) ? params[key] : (field.default != null ? field.default : '');
+    const fieldId = `rpParamField_${idx}`;
+    let input = '';
+
+    switch (field.type) {
+      case 'number': {
+        const min = field.min != null ? ` min="${_rpEsc(field.min)}"` : '';
+        const max = field.max != null ? ` max="${_rpEsc(field.max)}"` : '';
+        input = `<input type="number" class="rp-params-input" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="number" value="${_rpEsc(curVal)}"${min}${max}/>`;
+        break;
+      }
+      case 'boolean': {
+        const checked = (curVal === true || curVal === 'true') ? ' checked' : '';
+        input = `<label class="rp-params-checkbox" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="boolean"${checked}/><span style="font-size:12px;opacity:.7">启用</span></label>`;
+        break;
+      }
+      case 'enum': {
+        const options = Array.isArray(field.options) ? field.options : [];
+        const opts = options.map(o => `<option value="${_rpEsc(o)}"${String(curVal) === String(o) ? ' selected' : ''}>${_rpEsc(o)}</option>`).join('');
+        input = `<select class="rp-params-input" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="enum">${opts}</select>`;
+        break;
+      }
+      case 'multiline':
+        input = `<textarea class="rp-params-input" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="multiline" rows="3" placeholder="${_rpEsc(field.placeholder || '')}">${_rpEsc(curVal)}</textarea>`;
+        break;
+      default: // string
+        input = `<input type="text" class="rp-params-input" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="string" value="${_rpEsc(curVal)}" placeholder="${_rpEsc(field.placeholder || '')}"/>`;
+    }
+
+    return `
+      <div class="rp-params-field" style="margin-bottom:14px">
+        <label for="${fieldId}" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px">${label}${field.required ? ' <span style="color:var(--red)">*</span>' : ''}</label>
+        ${input}
+        ${desc}
+      </div>`;
+  }).join('');
+
+  contentEl.innerHTML = `
+    <div class="rp-params-form" style="padding:12px">
+      ${rows}
+      <div class="rp-params-hint" style="font-size:11px;opacity:.5;margin-top:8px;padding:8px;background:rgba(255,255,255,.03);border-radius:4px">
+        💡 这些值会通过 <code>{{params.key}}</code> 注入到提示词模板。
+      </div>
+    </div>`;
+}
+
+/** 无 schema 时的通用 key-value 编辑器 */
+function _renderParamsKeyValue(contentEl, emp) {
+  const params = emp.params || {};
+  const keys = Object.keys(params);
+
+  const rows = keys.map((k, i) => `
+    <div class="rp-params-kv-row" data-idx="${i}" style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+      <input type="text" class="rp-params-kv-key" style="flex:1;min-width:0" value="${_rpEsc(k)}" placeholder="key"/>
+      <input type="text" class="rp-params-kv-val" style="flex:2;min-width:0" value="${_rpEsc(params[k])}" placeholder="value"/>
+      <button class="panel-icon-btn" onclick="this.parentElement.remove()" title="删除" style="flex-shrink:0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>`).join('');
+
+  contentEl.innerHTML = `
+    <div class="rp-params-kv" style="padding:12px">
+      <div id="rpParamsKvList">${rows}</div>
+      <button class="btn btn-secondary" onclick="_rpAddParamsRow()" style="margin-top:8px">
+        + 添加参数
+      </button>
+      <div class="rp-params-hint" style="font-size:11px;opacity:.5;margin-top:12px;padding:8px;background:rgba(255,255,255,.03);border-radius:4px">
+        💡 这些值会注入到提示词的"配置参数"段，也可通过 <code>{{params.key}}</code> 在自定义 prompt 中引用。
+      </div>
+    </div>`;
+}
+
+/** 给 key-value 编辑器添加一行 */
+function _rpAddParamsRow() {
+  const list = $('rpParamsKvList');
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'rp-params-kv-row';
+  row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
+  row.innerHTML = `
+    <input type="text" class="rp-params-kv-key" style="flex:1;min-width:0" placeholder="key"/>
+    <input type="text" class="rp-params-kv-val" style="flex:2;min-width:0" placeholder="value"/>
+    <button class="panel-icon-btn" onclick="this.parentElement.remove()" title="删除" style="flex-shrink:0">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>`;
+  list.appendChild(row);
+  row.querySelector('.rp-params-kv-key')?.focus();
+}
+
+/** 收集表单并保存 */
+function saveEmployeeParams() {
+  const emp = getEmployee(EMPLOYEE_STORE.selectedId);
+  if (!emp) return;
+
+  const newParams = {};
+
+  // 1. Schema-based fields
+  document.querySelectorAll('#rpParamsContent .rp-params-input').forEach(el => {
+    const key = el.dataset.key;
+    const type = el.dataset.type;
+    if (!key) return;
+    let val;
+    if (type === 'number') {
+      const n = Number(el.value);
+      val = isNaN(n) ? '' : n;
+    } else {
+      val = el.value;
+    }
+    if (val !== '' && val != null) newParams[key] = val;
+  });
+  document.querySelectorAll('#rpParamsContent input[data-type="boolean"]').forEach(el => {
+    const key = el.dataset.key;
+    if (key) newParams[key] = !!el.checked;
+  });
+
+  // 2. Key-value fields
+  document.querySelectorAll('#rpParamsContent .rp-params-kv-row').forEach(row => {
+    const k = row.querySelector('.rp-params-kv-key')?.value?.trim();
+    const v = row.querySelector('.rp-params-kv-val')?.value;
+    if (k) newParams[k] = v || '';
+  });
+
+  emp.params = newParams;
+  if (typeof _saveEmployees === 'function') _saveEmployees();
+  if (typeof invalidatePromptCache === 'function') invalidatePromptCache(emp.id);
+
+  // 同步到 session（如果已经建过 session）
+  if (typeof _syncEmployeePromptToSession === 'function') {
+    _syncEmployeePromptToSession(emp);
+  }
+
+  if (typeof showToast === 'function') showToast('参数已保存');
+  closeParamsEditor();
+}
+
+/** 关闭参数编辑器 → 回到聊天 */
+function closeParamsEditor() {
+  if (EMPLOYEE_STORE.selectedId) {
+    _setRightPanelView('chat');
+  } else {
+    _setRightPanelView('empty');
+  }
+}
+
+// 暴露到 window（供 onclick 调用）
+if (typeof window !== 'undefined') {
+  window.openEmployeeParamsEditor = openEmployeeParamsEditor;
+  window.saveEmployeeParams = saveEmployeeParams;
+  window.closeParamsEditor = closeParamsEditor;
+  window._rpAddParamsRow = _rpAddParamsRow;
 }

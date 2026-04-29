@@ -701,6 +701,19 @@ async function addWorkspace(){
     }else{
       showToast('Workspace added');
     }
+    // Show template init info if employees were created
+    if(data.template_init&&data.template_init.created>0){
+      showToast(`已自动创建 ${data.template_init.created} 个模板员工`);
+    }
+    // ★ 新工作区需要一个默认 PM 专员 — 切换到新工作区后由 ensurePMExists 兜底
+    if (typeof ensurePMExists === 'function') {
+      // 等切换完成后再创建 PM
+      setTimeout(() => { try { ensurePMExists(); } catch(_){} }, 300);
+    }
+    // Show workspace manager init info
+    if(data.ws_manager&&data.ws_manager.slug){
+      console.log('[addWorkspace] Centralized workspace created:', data.ws_manager.slug);
+    }
   }catch(e){setStatus('Add failed: '+e.message);}
 }
 
@@ -744,6 +757,9 @@ async function promptWorkspacePath(){
     if(!target) throw new Error('Workspace was not added');
     await switchToWorkspace(target.path,target.name);
     showToast('工作区已切换到 '+(data.resolved_path||path));
+    if(data.template_init&&data.template_init.created>0){
+      showToast(`已自动创建 ${data.template_init.created} 个模板员工`);
+    }
   }catch(e){
     if(String(e.message||'').includes('Workspace already in list')){
       // 已存在则刷新列表并直接切换
@@ -1200,10 +1216,10 @@ let _settingsThemeOnOpen = null; // track theme at open time for discard revert
 let _settingsSection = 'conversation';
 
 function switchSettingsSection(name){
-  const section=(name==='preferences'||name==='system'||name==='providers'||name==='cli')?name:'conversation';
+  const section=(name==='preferences'||name==='system'||name==='providers'||name==='cli'||name==='knot_agui')?name:'conversation';
   _settingsSection=section;
-  const map={conversation:'Conversation',preferences:'Preferences',providers:'Providers',cli:'Cli',system:'System'};
-  ['conversation','preferences','providers','cli','system'].forEach(key=>{
+  const map={conversation:'Conversation',preferences:'Preferences',providers:'Providers',cli:'Cli',knot_agui:'KnotAgui',system:'System'};
+  ['conversation','preferences','providers','cli','knot_agui','system'].forEach(key=>{
     const tab=$('settingsTab'+map[key]);
     const pane=$('settingsPane'+map[key]);
     const active=key===section;
@@ -1215,6 +1231,7 @@ function switchSettingsSection(name){
   });
   if(section==='providers') loadProvidersPanel();
   if(section==='cli') loadCliBackendsPanel();
+  if(section==='knot_agui') loadKnotAguiPanel();
 }
 
 function _syncHermesPanelSessionActions(){
@@ -1478,6 +1495,69 @@ async function disableAuth(){
     if(signOutBtn) signOutBtn.style.display='none';
   }catch(e){
     showToast('Failed to disable auth: '+e.message);
+  }
+}
+
+// ── Knot AG-UI panel ──────────────────────────────────────────────────────────
+async function loadKnotAguiPanel(){
+  try{
+    const settings=await api('/api/settings');
+    const tokenField=$('settingsKnotAguiToken');
+    const userField=$('settingsKnotAguiUser');
+    const agentsField=$('settingsKnotAguiAgents');
+    if(tokenField){
+      tokenField.value=(settings.knot_agui_token&&settings.knot_agui_token!=='●●●●')?settings.knot_agui_token:'';
+      tokenField.placeholder=settings.knot_agui_token==='●●●●'?'已配置（留空保持不变）':'粘贴你的 Knot API Token';
+      tokenField.addEventListener('input',_markSettingsDirty,{once:false});
+    }
+    if(userField){userField.value=settings.knot_agui_user||'';userField.addEventListener('input',_markSettingsDirty,{once:false});}
+    if(agentsField){agentsField.value=settings.knot_agui_agents||'';agentsField.addEventListener('input',_markSettingsDirty,{once:false});}
+  }catch(e){
+    showToast('加载 Knot AG-UI 配置失败: '+e.message);
+  }
+}
+
+async function saveKnotAguiSettings(){
+  const tokenField=$('settingsKnotAguiToken');
+  const userField=$('settingsKnotAguiUser');
+  const agentsField=$('settingsKnotAguiAgents');
+  const body={};
+  const tokenVal=(tokenField||{}).value||'';
+  const userVal=(userField||{}).value||'';
+  const agentsVal=(agentsField||{}).value||'';
+  // Validate agents JSON
+  if(agentsVal.trim()){
+    try{
+      const parsed=JSON.parse(agentsVal);
+      if(!Array.isArray(parsed)){
+        showToast('智能体列表必须是 JSON 数组格式');return;
+      }
+      for(const a of parsed){
+        if(!a.id){showToast('每个智能体必须包含 id 字段');return;}
+      }
+    }catch(e){
+      showToast('智能体列表 JSON 格式错误: '+e.message);return;
+    }
+  }
+  // Only send token if user typed something new (not placeholder)
+  if(tokenVal&&tokenVal!=='●●●●') body.knot_agui_token=tokenVal;
+  body.knot_agui_user=userVal;
+  body.knot_agui_agents=agentsVal;
+  try{
+    await api('/api/settings',{method:'POST',body:JSON.stringify(body)});
+    showToast('Knot AG-UI 配置已保存');
+    _settingsDirty=false;
+    const bar=$('settingsUnsavedBar');if(bar) bar.style.display='none';
+    // Reload panel to reflect masked token
+    loadKnotAguiPanel();
+    // ★ 刷新模型下拉框，使 Knot AG-UI 智能体立即出现在聊天框模型选择中
+    if(typeof populateModelDropdown==='function'){
+      try{ await populateModelDropdown(); }catch(_){}
+    }
+    // Also refresh the settings model dropdown
+    if(typeof loadSettingsPanel==='function') loadSettingsPanel();
+  }catch(e){
+    showToast('保存失败: '+e.message);
   }
 }
 

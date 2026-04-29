@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "unity-dots-specialist",
+  "name": "DOTS/ECS 专家",
+  "role": "Unity 专家",
+  "desc": "Unity DOTS、ECS 架构和数据导向设计",
+  "category": "engine_unity",
+  "model": "sonnet",
+  "skills": [
+    "dots-ecs"
+  ],
+  "characterImg": "character_9"
+}

@@ -1,0 +1,75 @@
+# Prompt 模板配置
+# 定义分段顺序、默认启用段、以及允许的 override 路径
+#
+# 使用说明：
+#   - segments 列表中的每一项对应 prompt_templates/<locale>/<name>.md 文件
+#   - order 字段决定渲染顺序（数字越小越靠前）
+#   - enabled 是默认开关，员工/团队可通过 info.json 的 promptSegments 覆盖
+#   - required 为 true 时不允许禁用（防止意外去掉关键规则）
+
+version: 1
+
+segments:
+  - name: role_definition
+    order: 10
+    enabled: true
+    required: true
+    description: 角色定义（name + desc + role），构建 prompt 的身份锚点
+
+  - name: config_params
+    order: 20
+    enabled: true
+    required: false
+    description: 用户在卡片中配置的 key-value 参数
+
+  - name: skills_context
+    order: 30
+    enabled: true
+    required: false
+    description: 启用技能的说明（含 SKILL.md 正文摘要）
+
+  - name: scripts_context
+    order: 35
+    enabled: true
+    required: false
+    description: 员工/工作区可调用的 Python 脚本清单（run_employee_script）
+
+  - name: workspace_context
+    order: 40
+    enabled: true
+    required: false
+    description: 当前工作区路径与探索指引
+
+  - name: behavior_rules
+    order: 50
+    enabled: true
+    required: true
+    description: 行动优先、合理假设、提问节制等行为规范
+
+  - name: tool_discipline
+    order: 60
+    enabled: true
+    required: true
+    description: 工具调用铁律（禁止伪装 tool_call）
+
+  - name: subagent_context
+    order: 70
+    enabled: true
+    required: false
+    description: 上下级关系（仅当 emp.subagentOf 有值时渲染）
+
+  - name: collab_rules
+    order: 80
+    enabled: true
+    required: false
+    description: PM 协作规则、群聊汇报机制
+
+# 支持的语言（需在 <locale>/ 子目录下存在对应 .md）
+supported_locales:
+  - zh
+  - en
+
+default_locale: zh
+
+# 如果某段在指定 locale 下不存在，回退到 default_locale
+fallback_to_default_locale: true

@@ -542,7 +542,7 @@
   .upload-bar-wrap{display:none;height:3px;background:var(--hover-bg);border-radius:0 0 16px 16px;overflow:hidden;}
   .upload-bar-wrap.active{display:block;}
   .upload-bar{height:100%;background:linear-gradient(90deg,var(--blue),#a0d0ff);width:0%;transition:width .3s ease;}
-  .rightpanel{width:440px;min-width:340px;background:var(--sidebar);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;opacity:1;transform:translateX(0);transform-origin:right center;transition:width .24s cubic-bezier(.22,1,.36,1),opacity .18s ease,transform .24s cubic-bezier(.22,1,.36,1),border-color .24s ease;}
+  .rightpanel{width:440px;min-width:60px;background:var(--sidebar);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;opacity:1;transform:translateX(0);transform-origin:right center;transition:width .24s cubic-bezier(.22,1,.36,1),opacity .18s ease,transform .24s cubic-bezier(.22,1,.36,1),border-color .24s ease;}
   .panel-header{padding:12px 16px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;display:flex;align-items:center;justify-content:space-between;}
   .git-badge{font-size:9px;font-weight:600;color:var(--muted);background:var(--hover-bg);padding:2px 7px;border-radius:4px;letter-spacing:.02em;margin-left:auto;margin-right:4px;white-space:nowrap;font-family:'SF Mono',ui-monospace,monospace;}
   .git-badge.dirty{color:var(--gold);background:rgba(201,168,76,.1);}
@@ -1155,6 +1155,21 @@ body.resizing{user-select:none;cursor:col-resize;}
 .thinking-card-body p{margin-bottom:6px;}.thinking-card-body p:last-child{margin-bottom:0;}
 .thinking-card-body code{font-family:'SF Mono',ui-monospace,monospace;font-size:11px;background:var(--code-inline-bg);padding:1px 3px;border-radius:3px;color:var(--code-text);}
 .thinking-card-body pre{font-family:'SF Mono',ui-monospace,monospace;font-size:11px;line-height:1.5;color:var(--muted);white-space:pre-wrap;word-break:break-word;margin:0;}
+
+/* ★ AG-UI thinking-active 动画：思考进行中时脉冲边框 + 图标闪烁 */
+.thinking-card.thinking-active{animation:thinking-pulse 1.5s ease-in-out infinite;border-color:rgba(201,168,76,.5);}
+.thinking-card.thinking-active .thinking-card-icon{animation:thinking-icon-blink 1.2s ease-in-out infinite;}
+@keyframes thinking-pulse{0%,100%{border-color:rgba(201,168,76,.2);}50%{border-color:rgba(201,168,76,.6);}}
+@keyframes thinking-icon-blink{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ★ AG-UI tool-card-result 结果区域 */
+.tool-card-result{font-size:12px;color:var(--muted);margin-top:4px;padding:4px 8px;background:rgba(255,255,255,.03);border-radius:4px;max-height:120px;overflow:auto;white-space:pre-wrap;word-break:break-word;}
+
+/* ★ AG-UI step 进度指示器 */
+.step-indicator{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.03);margin:2px 0;}
+.step-indicator .step-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:step-dot-pulse 1s ease-in-out infinite;}
+.step-indicator.step-done .step-dot{background:#4ade80;animation:none;}
+@keyframes step-dot-pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 
 .bg-error-banner{background:rgba(229,62,62,.15);border:1px solid rgba(229,62,62,.3);color:#fca5a5;padding:8px 16px;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-radius:0;}
 
@@ -2114,6 +2129,40 @@ body.resizing{user-select:none;cursor:col-resize;}
   image-rendering: pixelated;
   border-radius: 6px;
 }
+/* DiceBear 动画头像 */
+.emp-avatar-animated {
+  animation: empAvatarFloat 4s ease-in-out infinite;
+  will-change: transform;
+}
+.emp-avatar-animated[data-status="working"],
+.emp-avatar-animated[data-status="thinking"] {
+  animation: empAvatarPulse 2s ease-in-out infinite;
+}
+.emp-avatar-animated img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+  transition: transform .3s ease;
+}
+.emp-card:hover .emp-avatar-animated img {
+  transform: scale(1.08);
+}
+@keyframes empAvatarFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes empAvatarPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 4px 16px rgba(74,222,128,.35);
+  }
+}
 .emp-card-info { flex: 1; min-width: 0; }
 .emp-card-name {
   font-size: 14px;
@@ -2185,6 +2234,26 @@ body.resizing{user-select:none;cursor:col-resize;}
   white-space: nowrap;
   font-family: var(--mono, monospace);
   letter-spacing: 0.02em;
+}
+.emp-pm-badge {
+  display: inline-block;
+  font-size: 9px;
+  color: #fff;
+  background: linear-gradient(135deg, #4f8cff 0%, #7f5fff 100%);
+  padding: 1px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  vertical-align: middle;
+  margin-left: 4px;
+  box-shadow: 0 1px 3px rgba(79,140,255,.3);
+}
+.pm-manage-menu {
+  animation: pm-menu-fade .12s ease-out;
+}
+@keyframes pm-menu-fade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .emp-usage-badge {
   font-size: 9px;
@@ -2327,6 +2396,10 @@ body.resizing{user-select:none;cursor:col-resize;}
   align-items: center;
   justify-content: center;
   animation: emp-overlay-in .2s ease-out;
+}
+:root[data-theme="light"] .emp-dialog-overlay {
+  background: rgba(0,0,0,.3);
+}
 }
 @keyframes emp-overlay-in {
   from { opacity: 0; }
@@ -2471,6 +2544,164 @@ body.resizing{user-select:none;cursor:col-resize;}
   background: rgba(255,255,255,.01);
 }
 
+/* ── 员工参数配置对话框 ─────────────────────────────────────────────────── */
+.emp-params-dialog .emp-dialog-body { padding-bottom: 8px; }
+.emp-param-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.emp-param-hint code {
+  background: var(--hover-bg);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  color: var(--blue);
+}
+.emp-param-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.emp-param-key {
+  flex: 2;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s;
+}
+.emp-param-key:focus { border-color: rgba(124,185,255,.5); }
+.emp-param-val {
+  flex: 3;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s;
+}
+.emp-param-val:focus { border-color: rgba(124,185,255,.5); }
+.emp-param-del {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .12s, color .12s;
+}
+.emp-param-del:hover { background: rgba(233,69,96,.12); color: var(--accent); }
+.emp-param-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: border-color .15s, color .15s;
+}
+.emp-param-add-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+.emp-card-params-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(124,185,255,.08);
+  color: var(--blue);
+  font-size: 10.5px;
+  margin-top: 4px;
+  margin-left: 2px;
+}
+.emp-card-config-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(124,185,255,.08);
+  color: var(--blue);
+  font-size: 10.5px;
+  margin-top: 4px;
+  margin-left: 4px;
+}
+
+/* ── 配置页面编辑对话框 ─────────────────────────────────────────────────── */
+.emp-confightml-dialog {
+  width: min(680px, 92vw);
+}
+.emp-confightml-gen {
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--border2);
+}
+.emp-confightml-req {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: var(--code-bg);
+  color: var(--text);
+  font-size: 12px;
+  resize: vertical;
+  min-height: 36px;
+  font-family: system-ui, sans-serif;
+  outline: none;
+  transition: border-color .15s;
+}
+.emp-confightml-req:focus {
+  border-color: var(--blue);
+}
+.emp-confightml-gen-status {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.emp-confightml-editor {
+  width: 100%;
+  min-height: 260px;
+  padding: 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--pre-text);
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  tab-size: 2;
+  resize: vertical;
+  outline: none;
+  transition: border-color .15s;
+}
+.emp-confightml-editor:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--focus-glow);
+}
+
 /* ── 员工技能分配对话框 ─────────────────────────────────────────────────── */
 .emp-assign-row {
   display: flex;
@@ -2504,7 +2735,7 @@ body.resizing{user-select:none;cursor:col-resize;}
 
 .rightpanel {
   width: 440px;
-  min-width: 340px;
+  min-width: 200px;
   background: var(--sidebar);
   border-left: 1px solid var(--border);
   display: flex;
@@ -3170,6 +3401,46 @@ body.resizing{user-select:none;cursor:col-resize;}
   font-size: 12px; font-weight: 600; color: var(--muted);
   text-transform: uppercase; letter-spacing: .5px;
 }
+
+/* ── 配置页面编辑视图 ────────────────────────────────────────────────────────── */
+.rp-confightml-view {
+  display: flex; flex-direction: column; flex: 1;
+}
+.rp-confightml-content {
+  flex: 1; overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.rp-confightml-gen {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.emp-confightml-req {
+  padding: 8px 12px;
+  background: var(--input-bg, var(--code-bg));
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color .15s;
+}
+.emp-confightml-req:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--focus-glow);
+}
+.emp-confightml-gen-status {
+  font-size: 11px;
+  min-height: 16px;
+}
+.rp-confightml-editor-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.rp-confightml-editor-wrap .emp-confightml-editor {
+  flex: 1;
+  min-height: 200px;
+}
+}
 .rp-prompt-textarea {
   width: 100%; min-height: 320px; padding: 12px;
   font-size: 13px; line-height: 1.6;
@@ -3339,6 +3610,21 @@ body.resizing{user-select:none;cursor:col-resize;}
   display: flex; align-items: center; justify-content: center;
   font-size: 14px; font-weight: 600; color: var(--blue);
 }
+/* 预设卡片 DiceBear 头像动画 */
+.preset-avatar-animated {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: rgba(124,185,255,.1); flex-shrink: 0;
+  animation: empAvatarFloat 4s ease-in-out infinite;
+  will-change: transform;
+}
+.preset-avatar-animated img {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block; border-radius: inherit;
+  transition: transform .3s ease;
+}
+.preset-card:hover .preset-avatar-animated img {
+  transform: scale(1.1);
+}
 
 /* 预设卡片信息 */
 .preset-info { flex: 1; min-width: 0; }
@@ -3436,6 +3722,27 @@ body.resizing{user-select:none;cursor:col-resize;}
 .rp-employee-avatar-sprite {
   width: 100%; height: 100%;
   image-rendering: pixelated;
+  border-radius: inherit;
+}
+/* 右侧面板 DiceBear 头像动画 */
+.rp-avatar-animated {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  overflow: hidden;
+  animation: empAvatarFloat 4s ease-in-out infinite;
+  will-change: transform;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.rp-avatar-animated[data-status="working"],
+.rp-avatar-animated[data-status="thinking"] {
+  animation: empAvatarPulse 2s ease-in-out infinite;
+}
+.rp-avatar-animated img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
   border-radius: inherit;
 }
 
@@ -3709,6 +4016,14 @@ body.resizing{user-select:none;cursor:col-resize;}
   cursor: pointer;
   font-weight: 500;
   transition: background .15s;
+}
+/* ★ 群聊消息中员工头像/名字可点击样式 */
+.gc-msg-clickable {
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.gc-msg-clickable:hover {
+  opacity: .65;
 }
 .gc-mention:hover {
   background: rgba(124,185,255,.25);
@@ -4066,7 +4381,8 @@ body.resizing-v {
 /* chat-panel 内部 rp-* 视图与旧右栏等价：直接铺满 */
 .chat-panel .rp-chat-view,
 .chat-panel .rp-skill-view,
-.chat-panel .rp-prompt-view {
+.chat-panel .rp-prompt-view,
+.chat-panel .rp-confightml-view {
   width: 100%;
 }
 .chat-panel .rp-empty {
@@ -4085,8 +4401,7 @@ body.resizing-v {
 /* ── 右栏：改造为输出区（文件 / 变更 / 浏览器 / 日志） ── */
 .rightpanel {
   width: 460px;
-  min-width: 340px;
-  max-width: 900px;
+  min-width: 200px;
 }
 .output-tabs {
   display: flex;
@@ -4188,13 +4503,30 @@ body.resizing-v {
   font-size: 11px;
 }
 .output-changes-summary { flex: 1; }
+
+/* 左右分栏容器 */
+.output-changes-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 左侧：变更文件列表 */
+.output-changes-sidebar {
+  flex: 0 0 240px;
+  min-width: 180px;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--sidebar);
+  overflow: hidden;
+}
 .output-changes-list {
-  flex: 0 0 auto;
-  max-height: 40%;
+  flex: 1 1 auto;
   overflow-y: auto;
   padding: 6px 8px;
-  border-bottom: 1px solid var(--border);
-  min-height: 100px;
 }
 .output-changes-empty {
   display: flex;
@@ -4212,7 +4544,7 @@ body.resizing-v {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 10px;
+  padding: 6px 10px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
@@ -4249,7 +4581,100 @@ body.resizing-v {
   color: var(--muted);
   font-family: 'SF Mono', ui-monospace, monospace;
 }
+/* 增删行数统计条 */
+.output-change-bar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+  display: flex;
+}
+.output-change-bar-add {
+  height: 100%;
+  background: #4ade80;
+  border-radius: 2px 0 0 2px;
+}
+.output-change-bar-del {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
 
+/* 右侧：文件预览区 */
+.output-changes-preview {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--code-bg);
+}
+
+/* 预览头部 */
+.changes-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--sidebar);
+  flex-shrink: 0;
+}
+.changes-preview-file-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.changes-preview-filename {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.changes-preview-filepath {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'SF Mono', ui-monospace, monospace;
+}
+.changes-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.changes-preview-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.changes-preview-mode-btn:hover {
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+}
+.changes-preview-mode-btn.active {
+  background: rgba(124,185,255,.12);
+  color: var(--blue);
+  border-color: rgba(124,185,255,.25);
+}
+
+/* Diff 视图 */
 .output-changes-diff {
   flex: 1 1 auto;
   overflow: auto;
@@ -4266,6 +4691,67 @@ body.resizing-v {
 .output-changes-diff .diff-del { color: var(--accent); background: rgba(233,69,96,.06); display: block; }
 .output-changes-diff .diff-hunk { color: var(--blue); background: rgba(124,185,255,.06); display: block; font-weight: 600; }
 .output-changes-diff .diff-file { color: var(--gold); display: block; font-weight: 700; padding-top: 6px; }
+/* Diff 行号 */
+.output-changes-diff .diff-line {
+  display: flex;
+  min-height: 1.55em;
+}
+.output-changes-diff .diff-line-num {
+  flex-shrink: 0;
+  width: 48px;
+  text-align: right;
+  padding-right: 10px;
+  color: var(--muted);
+  opacity: .5;
+  user-select: none;
+  font-size: 11px;
+}
+.output-changes-diff .diff-line-content {
+  flex: 1;
+  min-width: 0;
+  white-space: pre;
+}
+
+/* 文件预览视图 */
+.changes-file-preview {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+}
+.changes-file-content {
+  padding: 0;
+  height: 100%;
+}
+.changes-file-content .cm-editor {
+  height: 100%;
+}
+.changes-file-content pre {
+  padding: 10px 14px;
+  font-family: 'SF Mono', 'Cascadia Code', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--pre-text);
+  margin: 0;
+  white-space: pre;
+}
+.changes-file-content .md-preview {
+  padding: 16px 20px;
+}
+
+/* 预览空状态 */
+.changes-preview-empty {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--muted);
+  opacity: .4;
+  text-align: center;
+  padding: 40px 20px;
+}
+.changes-preview-empty p { font-size: 13px; margin: 0; }
 
 /* 浏览器 tab */
 .output-browser-bar {

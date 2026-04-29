@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "ue-umg-specialist",
+  "name": "UMG/CommonUI 专家",
+  "role": "UE5 专家",
+  "desc": "UMG 界面、CommonUI 框架和 UI 优化",
+  "category": "engine_ue",
+  "model": "sonnet",
+  "skills": [
+    "umg"
+  ],
+  "characterImg": "character_17"
+}

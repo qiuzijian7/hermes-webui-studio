@@ -84,7 +84,13 @@ function connectLogsSSE() {
   );
 
   _logsSSE.addEventListener('token', (e) => {
-    try { console.log('[logs-panel] token event', e.data.slice(0,80)); _handleTokenEvent(JSON.parse(e.data)); } catch(err) { console.warn('[logs-panel] token parse error', err); }
+    try { _handleTokenEvent(JSON.parse(e.data)); } catch(err) { console.warn('[logs-panel] token parse error', err); }
+  });
+  // ★ 2026-04-28：添加 reasoning 事件监听，flush 当前 token group。
+  //   模型输出 reasoning（如 Claude extended thinking）时，token 流会被中断，
+  //   需要 flush 已累积的 token group，避免 reasoning 结束后的新 token 被错误合并。
+  _logsSSE.addEventListener('reasoning', (e) => {
+    try { _flushTokenGroup(); } catch(err) {}
   });
   _logsSSE.addEventListener('tool', (e) => {
     try { console.log('[logs-panel] tool event', e.data.slice(0,80)); _flushTokenGroup(); _appendLogEntry(JSON.parse(e.data), 'tool'); } catch(err) { console.warn('[logs-panel] tool parse error', err); }
@@ -166,11 +172,22 @@ function _handleTokenEvent(data) {
   if (_completedSessions.has(sid)) return;
 
   // If we have an active token group from the same session, append to it
+  // ★ 2026-04-28 修复：放宽合并条件，只要求 session_id 相同即可合并。
+  //   employee_name 可能因后端事件属性不一致导致同 session 的 token 被拆分，
+  //   产生"每个 token 一行"的错误换行问题。
   if (_activeTokenGroup &&
       _activeTokenGroup.session_id === sid &&
-      _activeTokenGroup.employee_name === empName &&
       _activeTokenGroup.text.length < _TOKEN_GROUP_MAX_LEN) {
     _activeTokenGroup.text += text;
+    // 如果 employee_name 不一致，取较长的那个（更可能是有值的）
+    if (empName && (!_activeTokenGroup.employee_name || empName.length > _activeTokenGroup.employee_name.length)) {
+      _activeTokenGroup.employee_name = empName;
+      // 同步更新 DOM 中的员工名显示
+      if (_activeTokenGroup._domEl) {
+        const empEl = _activeTokenGroup._domEl.querySelector('.log-employee');
+        if (empEl) empEl.textContent = empName;
+      }
+    }
     if (data._log_id) {
       _activeTokenGroup._log_ids = _activeTokenGroup._log_ids || [];
       _activeTokenGroup._log_ids.push(data._log_id);

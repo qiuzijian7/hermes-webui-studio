@@ -1,0 +1,14 @@
+{
+  "template_version": 1,
+  "id": "narrative-director",
+  "name": "叙事总监",
+  "role": "部门主管",
+  "desc": "故事愿景、世界观和叙事一致性管理",
+  "category": "leads",
+  "model": "sonnet",
+  "skills": [
+    "brainstorm",
+    "design-review"
+  ],
+  "characterImg": "character_8"
+}

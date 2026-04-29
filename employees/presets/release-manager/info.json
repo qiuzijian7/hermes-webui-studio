@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "release-manager",
+  "name": "发布经理",
+  "role": "部门主管",
+  "desc": "发布流程、版本管理和构建管线",
+  "category": "leads",
+  "model": "sonnet",
+  "skills": [
+    "release-checklist"
+  ],
+  "characterImg": "character_10"
+}

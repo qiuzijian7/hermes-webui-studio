@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "qa-tester",
+  "name": "QA 测试员",
+  "role": "QA/运维",
+  "desc": "功能测试、回归测试和缺陷报告",
+  "category": "qa_ops",
+  "model": "haiku",
+  "skills": [
+    "testing"
+  ],
+  "characterImg": "character_31"
+}

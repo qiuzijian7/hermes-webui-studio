@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "audio-director",
+  "name": "音频总监",
+  "role": "部门主管",
+  "desc": "音频愿景、风格指南和音频生产管线管理",
+  "category": "leads",
+  "model": "sonnet",
+  "skills": [
+    "design-review"
+  ],
+  "characterImg": "character_7"
+}

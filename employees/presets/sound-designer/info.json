@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "sound-designer",
+  "name": "音效设计师",
+  "role": "美术/音频",
+  "desc": "音效设计、音频实现和空间音频",
+  "category": "art_audio",
+  "model": "sonnet",
+  "skills": [
+    "sound-design"
+  ],
+  "characterImg": "character_22"
+}

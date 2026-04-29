@@ -1,0 +1,14 @@
+{
+  "template_version": 1,
+  "id": "game-designer",
+  "name": "游戏设计师",
+  "role": "部门主管",
+  "desc": "设计核心机制、系统和玩家体验，维护游戏设计文档",
+  "category": "leads",
+  "model": "sonnet",
+  "skills": [
+    "design-review",
+    "brainstorm"
+  ],
+  "characterImg": "character_4"
+}

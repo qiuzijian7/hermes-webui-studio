@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "security-engineer",
+  "name": "安全工程师",
+  "role": "QA/运维",
+  "desc": "安全审计、反作弊和漏洞修复",
+  "category": "qa_ops",
+  "model": "sonnet",
+  "skills": [
+    "security"
+  ],
+  "characterImg": "character_30"
+}

@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "gameplay-programmer",
+  "name": "游戏逻辑程序员",
+  "role": "程序员",
+  "desc": "实现游戏机制、玩家系统、战斗和交互功能",
+  "category": "programmers",
+  "model": "sonnet",
+  "skills": [
+    "gameplay-impl"
+  ],
+  "characterImg": "character_12"
+}

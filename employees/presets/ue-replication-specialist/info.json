@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "ue-replication-specialist",
+  "name": "Replication 专家",
+  "role": "UE5 专家",
+  "desc": "网络复制、多人同步和延迟补偿",
+  "category": "engine_ue",
+  "model": "sonnet",
+  "skills": [
+    "replication"
+  ],
+  "characterImg": "character_16"
+}

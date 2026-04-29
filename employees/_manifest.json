@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "auto_init_enabled": true,
+  "auto_init_templates": ["pm-specialist"],
+  "categories": [
+    { "id": "directors",    "label": "总监层",     "icon": "👑", "tier": 1 },
+    { "id": "leads",        "label": "部门主管",   "icon": "🎯", "tier": 2 },
+    { "id": "programmers",  "label": "程序员",     "icon": "💻", "tier": 3 },
+    { "id": "designers",    "label": "设计师",     "icon": "🎨", "tier": 3 },
+    { "id": "art_audio",    "label": "美术/音频",  "icon": "🎭", "tier": 3 },
+    { "id": "narrative",    "label": "叙事/内容",  "icon": "📝", "tier": 3 },
+    { "id": "qa_ops",       "label": "QA/运维",    "icon": "🔍", "tier": 3 },
+    { "id": "engine_godot", "label": "Godot 专家", "icon": "🎮", "tier": 3 },
+    { "id": "engine_unity", "label": "Unity 专家", "icon": "🕹️", "tier": 3 },
+    { "id": "engine_ue",    "label": "UE5 专家",   "icon": "🎬", "tier": 3 }
+  ],
+  "description": "控制哪些员工模板在新建 workspace 时自动初始化到工作区中"
+}

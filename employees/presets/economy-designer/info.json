@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "economy-designer",
+  "name": "经济系统设计师",
+  "role": "设计师",
+  "desc": "游戏内经济、货币系统和价值平衡",
+  "category": "designers",
+  "model": "sonnet",
+  "skills": [
+    "economy-design"
+  ],
+  "characterImg": "character_20"
+}

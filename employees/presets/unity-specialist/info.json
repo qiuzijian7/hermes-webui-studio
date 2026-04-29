@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "unity-specialist",
+  "name": "Unity 专家",
+  "role": "Unity 专家",
+  "desc": "Unity 引擎全局专家，协调 Unity 子专家",
+  "category": "engine_unity",
+  "model": "sonnet",
+  "skills": [
+    "unity-core"
+  ],
+  "characterImg": "character_8"
+}

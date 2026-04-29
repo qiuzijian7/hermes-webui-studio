@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "unreal-specialist",
+  "name": "UE5 专家",
+  "role": "UE5 专家",
+  "desc": "Unreal Engine 5 全局专家，协调 UE 子专家",
+  "category": "engine_ue",
+  "model": "sonnet",
+  "skills": [
+    "unreal-core"
+  ],
+  "characterImg": "character_13"
+}

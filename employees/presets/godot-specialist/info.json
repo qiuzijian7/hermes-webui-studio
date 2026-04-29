@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "godot-specialist",
+  "name": "Godot 专家",
+  "role": "Godot 专家",
+  "desc": "Godot 4 引擎全局专家，协调 Godot 子专家",
+  "category": "engine_godot",
+  "model": "sonnet",
+  "skills": [
+    "godot-core"
+  ],
+  "characterImg": "character_3"
+}

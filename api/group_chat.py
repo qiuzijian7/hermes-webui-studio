@@ -13,7 +13,7 @@ import time
 import uuid
 from pathlib import Path
 
-from api.config import SESSION_DIR, LOCK, DEFAULT_MODEL, STREAMS, STREAMS_LOCK
+from api.config import SESSION_DIR, LOCK, DEFAULT_MODEL, STREAMS, STREAMS_LOCK, PM_NAME
 from api.models import Session, get_session, new_session, _write_session_index
 
 
@@ -71,7 +71,7 @@ def get_or_create_group_chat(workspace: str) -> dict:
 
     # Create new group chat session (outside _GROUP_CHAT_MAP_LOCK to avoid deadlock with LOCK)
     ws_name = Path(ws).name or "workspace"
-    title = "PM专员"
+    title = PM_NAME
 
     try:
         from api.profiles import get_active_profile_name

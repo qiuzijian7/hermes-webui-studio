@@ -1,0 +1,22 @@
+<html><head><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;padding:16px}
+h2{font-size:16px;margin-bottom:12px;color:#7cb9ff}
+.card{background:#16213e;border-radius:8px;padding:14px;margin-bottom:12px;border:1px solid #2a3a5c}
+.card h3{font-size:13px;color:#7cb9ff;margin-bottom:10px}
+.btn{display:inline-block;padding:6px 14px;margin:3px;border-radius:6px;border:none;cursor:pointer;font-size:12px;transition:all .15s}
+.btn-blue{background:#2563eb;color:#fff}.btn-blue:hover{background:#1d4ed8}
+.btn-green{background:#059669;color:#fff}.btn-green:hover{background:#047857}
+.btn-orange{background:#d97706;color:#fff}.btn-orange:hover{background:#b45309}
+</style></head><body>
+<h2>📋 PM 专员控制台</h2>
+<div class="card"><h3>📊 任务管理</h3>
+<button class="btn btn-blue" onclick="sendToChat('请帮我分析当前工作区的项目结构，列出主要模块和文件')">分析项目结构</button>
+<button class="btn btn-green" onclick="sendToChat('请帮我将以下需求拆解为具体的开发任务：')">需求拆解</button>
+<button class="btn btn-orange" onclick="sendToChat('请查看当前各员工的工作状态，给出协调建议')">团队协调</button>
+</div>
+<div class="card"><h3>👥 委派任务</h3>
+<button class="btn btn-blue" onclick="sendToChat('请将以下任务委派给合适的团队成员：')">委派任务</button>
+<button class="btn btn-green" onclick="sendToChat('请整理各员工当前的任务进度')">进度汇总</button>
+</div>
+</body></html>

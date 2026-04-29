@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "engine-programmer",
+  "name": "引擎程序员",
+  "role": "程序员",
+  "desc": "核心引擎系统、渲染管线和底层架构",
+  "category": "programmers",
+  "model": "sonnet",
+  "skills": [
+    "engine-impl"
+  ],
+  "characterImg": "character_13"
+}

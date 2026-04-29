@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "ue-blueprint-specialist",
+  "name": "Blueprint 专家",
+  "role": "UE5 专家",
+  "desc": "蓝图可视化脚本、宏库和组件开发",
+  "category": "engine_ue",
+  "model": "sonnet",
+  "skills": [
+    "blueprint"
+  ],
+  "characterImg": "character_15"
+}

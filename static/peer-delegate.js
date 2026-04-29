@@ -68,8 +68,10 @@
       console.warn('[peer-delegate] 发起方无 sessionId，跳过回传', fromEmp.name);
       return;
     }
-    const sysPrompt = typeof buildEmployeeSystemPrompt === 'function'
-      ? buildEmployeeSystemPrompt(fromEmp) : '';
+    const sysPrompt = (typeof buildEmployeeSystemPromptAsync === 'function')
+      ? await buildEmployeeSystemPromptAsync(fromEmp).catch(() =>
+          (typeof buildEmployeeSystemPrompt === 'function' ? buildEmployeeSystemPrompt(fromEmp) : ''))
+      : (typeof buildEmployeeSystemPrompt === 'function' ? buildEmployeeSystemPrompt(fromEmp) : '');
     const model = fromEmp.model || ($('modelSelect') && $('modelSelect').value) || '';
     const workspace = (typeof S !== 'undefined' && S.session && S.session.workspace) || '';
 
@@ -170,6 +172,18 @@ ${result}
           setEmployeeStatus(fromEmp.id, 'working');
         }
       });
+      // AG-UI step events — update employee status indicator
+      src.addEventListener('step_started', (e) => {
+        try {
+          const d = JSON.parse(e.data);
+          if (d.step_name === 'call_llm' && typeof setEmployeeStatus === 'function' && fromEmp && fromEmp.id) {
+            setEmployeeStatus(fromEmp.id, 'thinking');
+          } else if (d.step_name === 'execute_tool' && typeof setEmployeeStatus === 'function' && fromEmp && fromEmp.id) {
+            setEmployeeStatus(fromEmp.id, 'working');
+          }
+        } catch(_) {}
+      });
+      src.addEventListener('step_finished', () => {});
       src.addEventListener('done', () => {
         try { src.close(); } catch(_){}
         if (typeof setEmployeeStatus === 'function' && fromEmp && fromEmp.id) {

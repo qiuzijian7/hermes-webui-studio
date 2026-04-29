@@ -66,6 +66,7 @@
       status: 'thinking',
       sessionId: null,
       customPrompt: '',
+      params: {},
     };
     try {
       EMPLOYEE_STORE.employees.push(newEmp);

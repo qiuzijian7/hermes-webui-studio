@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "analytics-engineer",
+  "name": "数据分析工程师",
+  "role": "QA/运维",
+  "desc": "遥测系统、数据管道和玩家行为分析",
+  "category": "qa_ops",
+  "model": "sonnet",
+  "skills": [
+    "analytics"
+  ],
+  "characterImg": "character_29"
+}

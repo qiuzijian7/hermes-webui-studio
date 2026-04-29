@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "ue-gas-specialist",
+  "name": "GAS 专家",
+  "role": "UE5 专家",
+  "desc": "Gameplay Ability System、能力系统和游戏玩法标签",
+  "category": "engine_ue",
+  "model": "sonnet",
+  "skills": [
+    "gas"
+  ],
+  "characterImg": "character_14"
+}

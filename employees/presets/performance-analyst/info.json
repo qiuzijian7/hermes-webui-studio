@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "performance-analyst",
+  "name": "性能分析师",
+  "role": "QA/运维",
+  "desc": "性能剖析、瓶颈定位和优化建议",
+  "category": "qa_ops",
+  "model": "sonnet",
+  "skills": [
+    "perf-analysis"
+  ],
+  "characterImg": "character_27"
+}

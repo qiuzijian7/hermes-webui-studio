@@ -462,7 +462,7 @@ window.addEventListener('resize',()=>{
 // ── Resizable panels ──────────────────────────────────────────────────────
 (function(){
   const SIDEBAR_MIN=180, SIDEBAR_MAX=420;
-  const PANEL_MIN=180,   PANEL_MAX=1200;
+  const PANEL_MIN=60,    PANEL_MAX=2000;
 
   function initResize(handleId, targetEl, edge, minW, maxW, storageKey){
     const handle = $(handleId);

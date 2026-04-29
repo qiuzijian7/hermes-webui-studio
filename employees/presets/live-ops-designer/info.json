@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "live-ops-designer",
+  "name": "运营设计师",
+  "role": "QA/运维",
+  "desc": "实时运营活动、赛季设计和玩家留存",
+  "category": "qa_ops",
+  "model": "sonnet",
+  "skills": [
+    "live-ops"
+  ],
+  "characterImg": "character_1"
+}

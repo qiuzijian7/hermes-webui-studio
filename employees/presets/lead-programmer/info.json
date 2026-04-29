@@ -1,0 +1,14 @@
+{
+  "template_version": 1,
+  "id": "lead-programmer",
+  "name": "主程序员",
+  "role": "部门主管",
+  "desc": "负责代码架构、编码标准、代码审查和编程任务分配",
+  "category": "leads",
+  "model": "sonnet",
+  "skills": [
+    "code-review",
+    "architecture-decision"
+  ],
+  "characterImg": "character_5"
+}

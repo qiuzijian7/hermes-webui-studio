@@ -26,6 +26,9 @@ HOME = Path.home()
 # REPO_ROOT is the directory that contains this file's parent (api/ -> repo root)
 REPO_ROOT = Path(__file__).parent.parent.resolve()
 
+# ── PM role name (single source of truth, avoids hardcoded 'PM专员') ──────────
+PM_NAME = 'PM专员'
+
 # ── Network config (env-overridable) ─────────────────────────────────────────
 HOST = os.getenv("HERMES_WEBUI_HOST", "127.0.0.1")
 PORT = int(os.getenv("HERMES_WEBUI_PORT", "18080"))
@@ -1355,6 +1358,45 @@ def get_available_models() -> dict:
     except Exception:
         pass  # 不影响正常 provider 列表
 
+    # ── Knot AG-UI agents: expose as "Knot AG-UI" group ──
+    # agents 格式: [{"id":"agent_id","name":"显示名","models":["deepseek-v3.1","glm-5.1"]}]
+    # 如果 agent 有 models 字段，展开为 knot-agui:<agent_id>/<model> 多个选项
+    # 如果没有 models 字段，显示一个默认选项 knot-agui:<agent_id>
+    try:
+        from api.knot_agui import get_knot_agents
+        _knot_agents = get_knot_agents()
+        if _knot_agents:
+            _knot_models = []
+            for _a in _knot_agents:
+                _aid = _a.get("id", "")
+                _aname = _a.get("name", _aid)
+                _amodels = _a.get("models", [])
+                if not _aid:
+                    continue
+                if _amodels and isinstance(_amodels, list):
+                    # 展开每个 model 为单独选项
+                    for _m in _amodels:
+                        _m = str(_m).strip()
+                        if not _m:
+                            continue
+                        _knot_models.append({
+                            "id": "knot-agui:" + _aid + "/" + _m,
+                            "label": _m,
+                        })
+                else:
+                    # 无 models 列表——显示 agent 默认项
+                    _knot_models.append({
+                        "id": "knot-agui:" + _aid,
+                        "label": _aname,
+                    })
+            if _knot_models:
+                groups.append({
+                    "provider": "Knot AG-UI",
+                    "models": _knot_models,
+                })
+    except Exception:
+        pass
+
     return {
         "active_provider": active_provider,
         "default_model": default_model,
@@ -1440,6 +1482,10 @@ _SETTINGS_DEFAULTS = {
     "sound_enabled": False,  # play notification sound when assistant finishes
     "notifications_enabled": False,  # browser notification when tab is in background
     "password_hash": None,  # PBKDF2-HMAC-SHA256 hash; None = auth disabled
+    # ── Knot AG-UI integration ──
+    "knot_agui_token": "",           # 个人/团队 API token
+    "knot_agui_user": "",            # 企微英文名（团队 token 时必填）
+    "knot_agui_agents": "",          # JSON 数组: [{"id":"agent_id","name":"显示名"},...]
 }
 
 
@@ -1457,6 +1503,7 @@ def load_settings() -> dict:
 
 
 _SETTINGS_ALLOWED_KEYS = set(_SETTINGS_DEFAULTS.keys()) - {"password_hash"}
+_SETTINGS_SENSITIVE_KEYS = {"knot_agui_token"}
 _SETTINGS_ENUM_VALUES = {
     "send_key": {"enter", "ctrl+enter"},
 }

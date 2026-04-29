@@ -385,6 +385,17 @@
   window.browserReload = browserReload;
 
   function browserOpenExternal() {
+    // ★ 优先检查 iframe 是否为 srcdoc 内容（如 configHtml）
+    const frame = document.getElementById('outBrowserFrame');
+    if (frame && frame.srcdoc) {
+      const w = window.open('', '_blank');
+      if (w) {
+        w.document.open();
+        w.document.write(frame.srcdoc);
+        w.document.close();
+      }
+      return;
+    }
     const input = document.getElementById('outBrowserUrl');
     if (!input) return;
     const url = _normalizeUrl(input.value);

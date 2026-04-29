@@ -29,6 +29,7 @@ import time
 from typing import Dict
 
 from api.event_bus import on
+from api.config import PM_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +161,7 @@ def on_agent_complete_heartbeat(payload: dict) -> None:
         return  # 无员工名 → 可能是 CLI/gateway 模式
 
     # ★ 过滤 PM专员 自己的完成事件（避免心跳→PM回复→心跳的无限循环）
-    if employee_name == "PM专员":
+    if employee_name == PM_NAME:
         return
 
     logger.info(

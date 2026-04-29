@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "godot-shader-specialist",
+  "name": "Godot Shader 专家",
+  "role": "Godot 专家",
+  "desc": "Godot 着色器编写、视觉特效和渲染管线",
+  "category": "engine_godot",
+  "model": "sonnet",
+  "skills": [
+    "godot-shader"
+  ],
+  "characterImg": "character_5"
+}

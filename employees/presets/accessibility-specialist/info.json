@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "accessibility-specialist",
+  "name": "无障碍专家",
+  "role": "QA/运维",
+  "desc": "无障碍标准、辅助功能和包容性设计",
+  "category": "qa_ops",
+  "model": "sonnet",
+  "skills": [
+    "a11y"
+  ],
+  "characterImg": "character_32"
+}

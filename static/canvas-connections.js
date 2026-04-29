@@ -31,7 +31,9 @@ function _connStorageKey() {
 function _saveConnections() {
   try {
     localStorage.setItem(_connStorageKey(), JSON.stringify(_connections));
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    console.error('[_saveConnections] localStorage 写入失败:', e);
+  }
 }
 
 function _loadConnections() {

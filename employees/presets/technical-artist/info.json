@@ -1,0 +1,14 @@
+{
+  "template_version": 1,
+  "id": "technical-artist",
+  "name": "技术美术",
+  "role": "美术/音频",
+  "desc": "着色器实现、VFX 创建和美术管线优化",
+  "category": "art_audio",
+  "model": "sonnet",
+  "skills": [
+    "shader-impl",
+    "vfx-impl"
+  ],
+  "characterImg": "character_21"
+}

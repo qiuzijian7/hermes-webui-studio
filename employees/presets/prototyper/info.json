@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "prototyper",
+  "name": "原型制作师",
+  "role": "设计师",
+  "desc": "快速原型验证概念和交互方案",
+  "category": "designers",
+  "model": "sonnet",
+  "skills": [
+    "prototype"
+  ],
+  "characterImg": "character_26"
+}

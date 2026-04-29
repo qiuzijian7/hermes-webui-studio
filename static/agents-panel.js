@@ -40,7 +40,7 @@
     const hintEl = document.getElementById('agentsHint');
 
     if (!sid) {
-      _renderEmpty(listEl, '未选择会话', '请先打开一个员工聊天或PM专员');
+      _renderEmpty(listEl, '未选择会话', `请先打开一个员工聊天或${typeof PM_NAME !== 'undefined' ? PM_NAME : 'PM专员'}`);
       if (badgeEl) badgeEl.style.display = 'none';
       if (hintEl) hintEl.textContent = '未选择会话';
       return;

@@ -5,6 +5,26 @@
  * 支持通过 @员工名 委派任务，员工执行结果回传到总群
  */
 
+// ── PM专员名称（全局常量，避免硬编码） ────────────────────────────────────────
+// 注意：PM_NAME 是兜底默认值，实际显示名由 pm-manager.js::getCurrentPMName() 动态提供。
+const PM_NAME = 'PM专员';
+
+// ★ 初始化：更新 HTML 中 PM专员 按钮的文本和 title（避免硬编码）
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('pmGroupChatBtn');
+  if (btn) {
+    btn.title = `打开${PM_NAME}`;
+    const labelEl = btn.querySelector('#pmGroupChatLabel');
+    if (labelEl) {
+      // 新版结构：仅更新 label，不破坏图标和下拉按钮
+      labelEl.textContent = PM_NAME;
+    } else {
+      // 兼容旧版无 label span
+      btn.textContent = `🏠 ${PM_NAME}`;
+    }
+  }
+});
+
 // ── 总群状态 ────────────────────────────────────────────────────────────────
 const GROUP_CHAT_STATE = {
   sessionId: null,       // 总群 session ID
@@ -66,7 +86,7 @@ function _refreshGroupMembers() {
 /** 获取总群标题 */
 function _groupChatTitle(wsPath) {
   const wsName = wsPath ? wsPath.split(/[\/\\]/).filter(Boolean).pop() : 'workspace';
-  return `PM专员`;
+  return PM_NAME;
 }
 
 /** 查找适合的"协调员"（用于自动协作模式）
@@ -203,13 +223,17 @@ async function openGroupChat() {
   const roleEl = $('rpEmployeeRole');
   if (roleEl) roleEl.textContent = '';
 
-  // 隐藏员工专用的头部按钮（编辑提示词、配置技能）
+  // 隐藏员工专用的头部按钮（编辑提示词、配置技能、配置页面）
   const btnEditPrompt = $('btnEditPrompt');
   if (btnEditPrompt) btnEditPrompt.style.display = 'none';
   const btnCondense = $('btnCondenseSkill');
   if (btnCondense) btnCondense.style.display = 'none';
   const btnSkills = $('btnEmployeeSkills');
   if (btnSkills) btnSkills.style.display = 'none';
+  const btnConfigHtml = $('btnEmployeeConfigHtml');
+  if (btnConfigHtml) btnConfigHtml.style.display = 'none';
+
+
 
   // ★ 关键：在 await 之前就更新委派栏，确保显示正确
   _updateGroupDelegationBar();
@@ -314,7 +338,7 @@ function _renderGroupMessages() {
     emptyDiv.className = 'gc-empty-state';
     emptyDiv.innerHTML = `
       <div class="gc-empty-icon">🏠</div>
-      <div class="gc-empty-title">PM专员</div>
+      <div class="gc-empty-title">${PM_NAME}</div>
       <div class="gc-empty-hint">直接发消息与PM对话，或 @员工名 来委派任务</div>
     `;
     inner.appendChild(emptyDiv);
@@ -345,10 +369,22 @@ function _renderGroupMessages() {
     }
 
     // 发送者信息
-    const senderName = m._sender || (m.role === 'user' ? '你' : m.role === 'system' ? '系统' : 'PM专员');
+    const senderName = m._sender || (m.role === 'user' ? '你' : m.role === 'system' ? '系统' : PM_NAME);
     const senderAvatar = _senderAvatar(m);
     const isUser = m.role === 'user';
     const isSystem = m.role === 'system';
+
+    // ★ 点击员工头像/名字 → 切换到该员工聊天框
+    //   查找发送者对应的员工对象，如果不是 user/PM，则头像和名字可点击
+    const _senderEmp = (!isUser && !isSystem && m._sender && typeof getEmployee === 'function')
+      ? EMPLOYEE_STORE.employees.find(e => e.name === m._sender)
+      : null;
+    const _clickAttr = _senderEmp
+      ? ` class="gc-msg-clickable" onclick="selectEmployee('${esc(_senderEmp.id)}', true)" title="点击与 ${esc(_senderEmp.name)} 对话"`
+      : '';
+    const _nameClickAttr = _senderEmp
+      ? ` class="rp-msg-name gc-msg-clickable" onclick="selectEmployee('${esc(_senderEmp.id)}', true)" title="点击与 ${esc(_senderEmp.name)} 对话"`
+      : '';
 
     // 消息正文渲染
     let bodyHtml;
@@ -371,10 +407,17 @@ function _renderGroupMessages() {
         </div>
       `;
     } else {
+      // ★ 如果发送者是员工，头像和名字可点击切换到该员工聊天
+      const _iconHtml = _senderEmp
+        ? `<span${_clickAttr}>${senderAvatar}</span>`
+        : `<span class="rp-msg-icon">${senderAvatar}</span>`;
+      const _nameHtml = _senderEmp
+        ? `<span${_nameClickAttr}>${esc(senderName)}</span>`
+        : `<span class="rp-msg-name">${esc(senderName)}</span>`;
       row.innerHTML = `
         <div class="rp-msg-role ${m.role}">
-          <span class="rp-msg-icon">${senderAvatar}</span>
-          <span class="rp-msg-name">${esc(senderName)}</span>${_fmtMsgTime(m)}
+          ${_iconHtml}
+          ${_nameHtml}${_fmtMsgTime(m)}
         </div>
         <div class="rp-msg-body">${bodyHtml}</div>
       `;
@@ -657,67 +700,59 @@ let _pmStreamBusy = false;
  */
 function _buildPMSystemPrompt(opts = {}) {
   const parts = [
-    '你是 PM专员（项目管理专员），你是用户的直属助手，负责协助用户进行项目管理、任务规划、沟通协调。',
+    `你是 ${PM_NAME}（项目管理专员），用户的直属助手。`,
     '',
-    '## 你的能力',
-    '- 与用户进行自然对话，回答问题、提供建议',
-    '- 帮助用户规划任务、拆解需求',
-    '- 提供项目管理、团队协作方面的专业建议',
-    '- 分析问题、提供解决方案',
-    '- 🔄 **心跳调度**：当员工完成任务时自动被唤醒，分析进度并决定后续行动',
+    '## ⚠️ 核心行为规则（最高优先级）',
+    '- **直接回应用户的消息内容**，不要自我介绍、不要列举能力、不要问候',
+    '- 用户问什么就答什么，保持简洁直接',
+    '- 除非用户主动询问你的能力，否则不要主动列出你能做什么',
+    '- 不要重复用户已知的信息（如工作区路径、团队成员等）',
+    '',
+    '## 唯一委派权限',
+    '你是工作区内唯一有权委派任务的角色。',
+    '- 通过 `@员工名 任务描述` 格式向员工分配任务',
+    '- 员工完成后自动汇报，你决定下一步行动',
+    '- 严禁将委派权限下放给员工',
     '',
     '## 团队成员',
   ];
   if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.employees.length) {
     for (const e of EMPLOYEE_STORE.employees) {
       const statusEmoji = { idle: '🟢', thinking: '🟡', working: '🟡', error: '🔴' }[e.status] || '⚪';
-      parts.push(`- ${statusEmoji} **${e.name}** (${e.role || '员工'}) — 状态: ${e.status || 'idle'}`);
+      parts.push(`- ${statusEmoji} **${e.name}** (${e.role || '员工'})`);
     }
     parts.push('');
-    parts.push('用户可以通过在消息中 @员工名 来委派任务给特定员工。当用户不 @任何人时，消息是与你（PM专员）的直接对话。');
+    parts.push(`用户可以通过 @员工名 来委派任务。不带 @ 的消息是与你（${PM_NAME}）的直接对话。`);
   } else {
     parts.push('- （当前无团队成员）');
   }
-  parts.push('');
-  parts.push('## 工作区');
-  const ws = GROUP_CHAT_STATE.workspace || '';
-  if (ws) parts.push(`当前工作区路径：${ws}`);
 
   // ★ 心跳模式附加指令
   if (opts.heartbeatMode) {
     parts.push('');
     parts.push('## 💓 心跳调度模式（当前处于此模式）');
     parts.push('');
-    parts.push('你正在被系统自动唤醒，因为有员工刚刚完成了任务。请执行以下步骤：');
+    parts.push('你被系统自动唤醒，有员工刚完成了任务。请：');
+    parts.push('1. 分析完成结果，判断是否达标');
+    parts.push('2. 评估整体进度，决定后续行动');
+    parts.push('3. 需要委派时用 `@员工名 任务描述`，无需行动时简短说明');
     parts.push('');
-    parts.push('1. **分析完成结果**：检查员工的任务输出，判断是否达标、是否需要修改或补充');
-    parts.push('2. **评估整体进度**：结合当前团队状态和项目目标，判断哪些后续工作需要启动');
-    parts.push('3. **决策并行动**：');
-    parts.push('   - 若需要委派新任务：在回复中使用 `@员工名 任务描述` 格式，系统会自动将任务分配给对应员工');
-    parts.push('   - 若某员工的结果需要返工：使用 `@员工名 请修改：...` 告知具体问题');
-    parts.push('   - 若所有工作已完成：简要总结进度，无需委派');
-    parts.push('   - 若出现错误：分析原因，决定是重试、更换员工还是调整方案');
-    parts.push('');
-    parts.push('**重要规则：**');
-    parts.push('- 回复要简洁，优先用行动（@委派）而非冗长分析');
-    parts.push('- 不要重复已完成的任务，聚焦"下一步"');
-    parts.push('- 如果没有需要做的事情，只说"当前进度正常，暂无后续任务"即可');
-    parts.push('- 每次心跳最多委派 3 个新任务，避免过载');
+    parts.push('规则：简洁行动优先，不做冗长分析；每次最多委派 3 个新任务');
   }
 
   parts.push('');
-  parts.push('请用简洁友好的语气与用户沟通。');
+  parts.push('用简洁专业的语气直接回应用户。');
   return parts.join('\n');
 }
 
 async function sendGroupMessage(text) {
-  console.log('[PM专员] sendGroupMessage called, text=', text);
+  console.log(`[${PM_NAME}] sendGroupMessage called, text=`, text);
   let ws = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : (S.session?.workspace || '');
   // 兼容 __default__：回退到 session 或默认工作区
   if (!ws || ws === '__default__') {
     ws = S.session?.workspace || GROUP_CHAT_STATE.workspace || '';
   }
-  console.log('[PM专员] sendGroupMessage, ws=', ws);
+  console.log(`[${PM_NAME}] sendGroupMessage, ws=`, ws);
   if (!ws) {
     showToast('请先选择工作区');
     return;
@@ -730,7 +765,7 @@ async function sendGroupMessage(text) {
 
   // ★ PM专员正在回复中且新消息不含 @ → 提示等待（防止消息丢失）
   if (_pmStreamBusy && !hasMention) {
-    showToast('PM专员正在回复中，请稍候...');
+    showToast(`${PM_NAME}正在回复中，请稍候...`);
     return;
   }
 
@@ -749,7 +784,7 @@ async function sendGroupMessage(text) {
 
   // ★ 路径 A：不含 @ 的普通消息 → PM专员直接AI对话
   if (!hasMention) {
-    console.log('[PM专员] 无 @mention，走PM专员AI对话路径');
+    console.log(`[${PM_NAME}] 无 @mention，走${PM_NAME}AI对话路径`);
     if(typeof UAL!=='undefined') UAL.log('group-chat','pm-direct-chat',{textLen:finalText.length});
 
     // 直接启动PM专员AI对话（/api/chat/start 会自动把 user message 加入 session）
@@ -759,7 +794,7 @@ async function sendGroupMessage(text) {
 
   // ★ 路径 B：含 @ 的消息 → 走委派任务流程
   try {
-    console.log('[PM专员] sendGroupMessage: calling /api/group-chat/send...');
+    console.log(`[${PM_NAME}] sendGroupMessage: calling /api/group-chat/send...`);
     const data = await api('/api/group-chat/send', {
       method: 'POST',
       body: JSON.stringify({
@@ -768,7 +803,7 @@ async function sendGroupMessage(text) {
         sender_name: '你',
       }),
     });
-    console.log('[PM专员] sendGroupMessage response:', JSON.stringify(data).slice(0, 200));
+    console.log(`[${PM_NAME}] sendGroupMessage response:`, JSON.stringify(data).slice(0, 200));
 
     if (data.ok) {
       // 用服务端数据刷新（替换本地临时消息）
@@ -777,21 +812,21 @@ async function sendGroupMessage(text) {
 
       // 如果有 @mention，委派任务给对应员工
       if (data.mentions && data.mentions.length) {
-        console.log('[PM专员] mentions:', data.mentions);
+        console.log(`[${PM_NAME}] mentions:`, data.mentions);
         for (const mention of data.mentions) {
           _dispatchTaskToEmployee(mention.name, finalText, mention.task_id);
         }
       } else {
-        console.log('[PM专员] 无 mentions');
+        console.log(`[${PM_NAME}] 无 mentions`);
       }
     } else {
       const errMsg = data.error || data.message || '未知错误';
       showToast(`发送失败: ${errMsg}`);
-      console.warn('[PM专员] send failed:', data);
+      console.warn(`[${PM_NAME}] send failed:`, data);
     }
   } catch(e) {
     showToast('发送失败: ' + e.message);
-    console.warn('[PM专员] send error:', e);
+    console.warn(`[${PM_NAME}] send error:`, e);
   }
 }
 
@@ -801,14 +836,14 @@ async function sendGroupMessage(text) {
  */
 async function _startPMDirectChat(userMessage, workspace) {
   if (_pmStreamBusy) {
-    showToast('PM专员正在回复中，请稍候...');
+    showToast(`${PM_NAME}正在回复中，请稍候...`);
     return;
   }
   _pmStreamBusy = true;
 
   const sessionId = GROUP_CHAT_STATE.sessionId;
   if (!sessionId) {
-    showToast('PM专员会话未初始化');
+    showToast(`${PM_NAME}会话未初始化`);
     _pmStreamBusy = false;
     return;
   }
@@ -826,7 +861,7 @@ async function _startPMDirectChat(userMessage, workspace) {
     thinkingEl.innerHTML = `
       <div class="rp-msg-role assistant">
         <span class="rp-msg-icon">🤖</span>
-        <span class="rp-msg-name">PM专员</span>
+        <span class="rp-msg-name">${PM_NAME}</span>
       </div>
       <div class="rp-msg-body"><span class="gc-pm-dots">思考中...</span></div>
     `;
@@ -835,7 +870,7 @@ async function _startPMDirectChat(userMessage, workspace) {
   }
 
   try {
-    console.log('[PM专员] 启动AI对话, session_id=', sessionId, 'model=', model);
+    console.log(`[${PM_NAME}] 启动AI对话, session_id=`, sessionId, 'model=', model);
     const startData = await api('/api/chat/start', {
       method: 'POST',
       body: JSON.stringify({
@@ -844,12 +879,12 @@ async function _startPMDirectChat(userMessage, workspace) {
         model: model,
         workspace: workspace || undefined,
         system_prompt: sysPrompt,
-        employee_name: 'PM专员',
+        employee_name: PM_NAME,
       }),
     });
 
     const streamId = startData.stream_id;
-    console.log('[PM专员] chat/start 返回, stream_id=', streamId);
+    console.log(`[${PM_NAME}] chat/start 返回, stream_id=`, streamId);
 
     if (!streamId) {
       if (thinkingEl) thinkingEl.remove();
@@ -863,8 +898,8 @@ async function _startPMDirectChat(userMessage, workspace) {
 
   } catch (e) {
     if (thinkingEl) thinkingEl.remove();
-    showToast('PM专员对话失败: ' + e.message);
-    console.error('[PM专员] 对话失败:', e);
+    showToast(`${PM_NAME}对话失败: ` + e.message);
+    console.error(`[${PM_NAME}] 对话失败:`, e);
     _pmStreamBusy = false;
   }
 }
@@ -899,7 +934,7 @@ function _streamPMReply(streamId, workspace, thinkingEl) {
       assistantRow.innerHTML = `
         <div class="rp-msg-role assistant">
           <span class="rp-msg-icon">🤖</span>
-          <span class="rp-msg-name">PM专员</span>
+          <span class="rp-msg-name">${PM_NAME}</span>
         </div>
         <div class="rp-msg-body"></div>
       `;
@@ -941,8 +976,25 @@ function _streamPMReply(streamId, workspace, thinkingEl) {
       } catch (_) {}
     });
 
+    // ── AG-UI 精细化事件（PM 回复流）───────────────────────────────
+    source.addEventListener('message_start', e => { try { scheduleRender(); } catch(_) {} });
+    source.addEventListener('message_end', e => { try { scheduleRender(); } catch(_) {} });
+    source.addEventListener('thinking_start', e => { try { scheduleRender(); } catch(_) {} });
+    source.addEventListener('thinking_end', e => { try { scheduleRender(); } catch(_) {} });
+    source.addEventListener('step_started', e => {
+      try {
+        const d = JSON.parse(e.data);
+        const stepName = d.step_name || '';
+        const stepLabel = stepName === 'call_llm' ? '🧠 调用模型' :
+                          stepName === 'execute_tool' ? '🔧 执行工具' : stepName;
+        if (typeof setComposerStatus === 'function') setComposerStatus(stepLabel);
+      } catch(_) {}
+    });
+    source.addEventListener('step_finished', e => {
+      try { if (typeof setComposerStatus === 'function') setComposerStatus(''); } catch(_) {}
+    });
+
     source.addEventListener('tool', e => {
-      // PM专员对话中的工具调用：显示工具状态
       try {
         const d = JSON.parse(e.data);
         ensureRow();
@@ -959,7 +1011,7 @@ function _streamPMReply(streamId, workspace, thinkingEl) {
 
     source.addEventListener('done', async () => {
       source.close();
-      console.log('[PM专员] SSE done, textLen=', accumulatedText.length);
+      console.log(`[${PM_NAME}] SSE done, textLen=`, accumulatedText.length);
 
       // 移除思考中占位（如果还存在）
       if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
@@ -983,7 +1035,7 @@ function _streamPMReply(streamId, workspace, thinkingEl) {
     source.addEventListener('error', () => {
       source.close();
       if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
-      console.warn('[PM专员] SSE error');
+      console.warn(`[${PM_NAME}] SSE error`);
 
       // 尝试从 session 获取结果
       _pmStreamBusy = false;
@@ -998,8 +1050,8 @@ function _streamPMReply(streamId, workspace, thinkingEl) {
       if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
       let errMsg = '未知错误';
       try { const d = JSON.parse(e.data); errMsg = d.message || d.hint || errMsg; } catch (_) {}
-      showToast(`PM专员回复出错: ${errMsg}`);
-      console.warn('[PM专员] SSE apperror:', errMsg);
+      showToast(`${PM_NAME}回复出错: ${errMsg}`);
+      console.warn(`[${PM_NAME}] SSE apperror:`, errMsg);
       _pmStreamBusy = false;
       resolve();
     });
@@ -1361,7 +1413,14 @@ async function _startDelegatedJob(emp, ctx, job) {
     return;
   }
 
-  const sysPrompt = typeof buildEmployeeSystemPrompt === 'function' ? buildEmployeeSystemPrompt(emp) : '';
+  // 优先使用后端异步构建（支持 Jinja2 + 多语言 + skill 内容），失败降级到同步本地
+  let sysPrompt = '';
+  if (typeof buildEmployeeSystemPromptAsync === 'function') {
+    try { sysPrompt = await buildEmployeeSystemPromptAsync(emp); }
+    catch (_) { sysPrompt = typeof buildEmployeeSystemPrompt === 'function' ? buildEmployeeSystemPrompt(emp) : ''; }
+  } else {
+    sysPrompt = typeof buildEmployeeSystemPrompt === 'function' ? buildEmployeeSystemPrompt(emp) : '';
+  }
   const model = emp.model || $('modelSelect')?.value || '';
 
   try {
@@ -1596,6 +1655,26 @@ function _watchEmployeeStream(task, job) {
     } catch(_) {}
   });
 
+  // ── AG-UI 精细化事件（员工流）─────────────────────────────────
+  source.addEventListener('message_start', e => {});
+  source.addEventListener('message_end', e => {});
+  source.addEventListener('thinking_start', e => {});
+  source.addEventListener('thinking_end', e => {});
+  source.addEventListener('step_started', e => {
+    try {
+      const d = JSON.parse(e.data);
+      const stepName = d.step_name || '';
+      if (typeof setComposerStatus === 'function') {
+        const stepLabel = stepName === 'call_llm' ? '🧠 调用模型' :
+                          stepName === 'execute_tool' ? '🔧 执行工具' : stepName;
+        setComposerStatus(stepLabel);
+      }
+    } catch(_) {}
+  });
+  source.addEventListener('step_finished', e => {
+    try { if (typeof setComposerStatus === 'function') setComposerStatus(''); } catch(_) {}
+  });
+
   // Listen for tool events — detect delegate_task calls to show progress
   source.addEventListener('tool', e => {
     try {
@@ -1775,7 +1854,7 @@ function _updateGroupDelegationBar() {
   if (!ws || ws === '__default__') ws = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '');
   if (!ws && typeof _currentCanvasWorkspace !== 'undefined') ws = _currentCanvasWorkspace;
   if (ws) {
-    parts.push(`<span class="rp-del-name gc-link" onclick="openGroupChat()" title="打开PM专员">PM专员</span>`);
+    parts.push(`<span class="rp-del-name gc-link" onclick="openGroupChat()" title="打开${PM_NAME}">${PM_NAME}</span>`);
   }
 
   // 成员（PM专员打开时显示：按钮 + 下拉面板，支持层级展示）
@@ -2355,7 +2434,7 @@ function _updateDelegationBarWithGroupChat(emp) {
   // 最终兜底：使用 _currentCanvasWorkspace 即使是 __default__（确保始终有PM专员名）
   if (!ws && typeof _currentCanvasWorkspace !== 'undefined') ws = _currentCanvasWorkspace;
   if (ws) {
-    parts.push(`<span class="rp-del-name gc-link" onclick="openGroupChat()" title="打开PM专员">PM专员</span>`);
+    parts.push(`<span class="rp-del-name gc-link" onclick="openGroupChat()" title="打开${PM_NAME}">${PM_NAME}</span>`);
   }
 
   // 上级
@@ -2457,12 +2536,12 @@ function _initHeartbeatListener() {
 async function _onHeartbeatReceived(data) {
   if (!HEARTBEAT_STATE.enabled) return;
   if (HEARTBEAT_STATE.busy) {
-    console.log('[心跳] PM专员正在处理中，跳过本次心跳');
+    console.log(`[心跳] ${PM_NAME}正在处理中，跳过本次心跳`);
     return;
   }
   // PM专员正在流式回复中（用户主动对话），跳过
   if (_pmStreamBusy) {
-    console.log('[心跳] PM专员正在与用户对话，跳过心跳');
+    console.log(`[心跳] ${PM_NAME}正在与用户对话，跳过心跳`);
     return;
   }
 
@@ -2581,7 +2660,7 @@ function _streamHeartbeatReply(streamId, workspace) {
       assistantRow.innerHTML = `
         <div class="rp-msg-role assistant">
           <span class="rp-msg-icon">💓</span>
-          <span class="rp-msg-name">PM专员 · 心跳调度</span>
+          <span class="rp-msg-name">${PM_NAME} · 心跳调度</span>
         </div>
         <div class="rp-msg-body"></div>
       `;
@@ -2615,6 +2694,24 @@ function _streamHeartbeatReply(streamId, workspace) {
           scheduleRender();
         }
       } catch (_) {}
+    });
+
+    // ── AG-UI 精细化事件（心跳流）─────────────────────────────
+    source.addEventListener('message_start', e => { try { scheduleRender(); } catch(_) {} });
+    source.addEventListener('message_end', e => { try { scheduleRender(); } catch(_) {} });
+    source.addEventListener('thinking_start', e => { try { scheduleRender(); } catch(_) {} });
+    source.addEventListener('thinking_end', e => { try { scheduleRender(); } catch(_) {} });
+    source.addEventListener('step_started', e => {
+      try {
+        const d = JSON.parse(e.data);
+        const stepName = d.step_name || '';
+        const stepLabel = stepName === 'call_llm' ? '🧠 调用模型' :
+                          stepName === 'execute_tool' ? '🔧 执行工具' : stepName;
+        if (typeof setComposerStatus === 'function') setComposerStatus(stepLabel);
+      } catch(_) {}
+    });
+    source.addEventListener('step_finished', e => {
+      try { if (typeof setComposerStatus === 'function') setComposerStatus(''); } catch(_) {}
     });
 
     source.addEventListener('done', async () => {
@@ -2651,7 +2748,7 @@ function _streamHeartbeatReply(streamId, workspace) {
         // 尝试从最后的 assistant 消息中提取 @mention
         const msgs = GROUP_CHAT_STATE.messages || [];
         for (let i = msgs.length - 1; i >= 0; i--) {
-          if (msgs[i].role === 'assistant' && msgs[i]._sender === 'PM专员') {
+          if (msgs[i].role === 'assistant' && msgs[i]._sender === PM_NAME) {
             const content = String(msgs[i].content || '');
             if (content.includes('心跳') || msgs[i]._ts > HEARTBEAT_STATE.lastTriggerTs / 1000 - 10) {
               await _processHeartbeatMentions(content, workspace);
@@ -2689,7 +2786,7 @@ async function _processHeartbeatMentions(pmReply, workspace) {
 
   // 过滤掉不存在的员工 + PM专员自身
   const validMentions = mentions.filter(name => {
-    if (name === 'PM专员') return false;
+    if (name === PM_NAME) return false;
     if (typeof EMPLOYEE_STORE === 'undefined') return false;
     return EMPLOYEE_STORE.employees.some(e => e.name === name);
   });
@@ -2754,7 +2851,7 @@ async function _processHeartbeatMentions(pmReply, workspace) {
       method: 'POST',
       body: JSON.stringify({
         workspace,
-        message: `💓 心跳调度：PM专员已自动委派任务给 ${dispatchNames}`,
+        message: `💓 心跳调度：${PM_NAME}已自动委派任务给 ${dispatchNames}`,
         sender_name: '系统',
       }),
     });

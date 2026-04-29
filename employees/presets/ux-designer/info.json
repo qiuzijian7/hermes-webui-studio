@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "ux-designer",
+  "name": "UX 设计师",
+  "role": "设计师",
+  "desc": "交互设计、用户流程和可用性测试",
+  "category": "designers",
+  "model": "sonnet",
+  "skills": [
+    "ux-design"
+  ],
+  "characterImg": "character_25"
+}

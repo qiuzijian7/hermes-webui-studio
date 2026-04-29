@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "unity-ui-specialist",
+  "name": "UI Toolkit 专家",
+  "role": "Unity 专家",
+  "desc": "UI Toolkit、USS 样式和自定义控件",
+  "category": "engine_unity",
+  "model": "sonnet",
+  "skills": [
+    "ui-toolkit"
+  ],
+  "characterImg": "character_12"
+}

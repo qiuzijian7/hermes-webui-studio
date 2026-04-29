@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "tools-programmer",
+  "name": "工具程序员",
+  "role": "程序员",
+  "desc": "开发工具、编辑器扩展和自动化脚本",
+  "category": "programmers",
+  "model": "sonnet",
+  "skills": [
+    "tools-impl"
+  ],
+  "characterImg": "character_16"
+}

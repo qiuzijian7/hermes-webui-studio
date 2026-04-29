@@ -226,7 +226,7 @@ def list_dir(workspace: Path, rel: str='.'):
     for item in sorted(target.iterdir(), key=lambda p: (p.is_file(), p.name.lower())):
         entries.append({
             'name': item.name,
-            'path': str(item.relative_to(workspace)),
+            'path': str(item.relative_to(workspace)).replace('\\', '/'),
             'type': 'dir' if item.is_dir() else 'file',
             'size': item.stat().st_size if item.is_file() else None,
         })

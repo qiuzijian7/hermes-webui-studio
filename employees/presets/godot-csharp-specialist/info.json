@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "godot-csharp-specialist",
+  "name": "Godot C# 专家",
+  "role": "Godot 专家",
+  "desc": "Godot C# 脚本开发、.NET 集成和类型安全架构",
+  "category": "engine_godot",
+  "model": "sonnet",
+  "skills": [
+    "godot-csharp"
+  ],
+  "characterImg": "character_7"
+}

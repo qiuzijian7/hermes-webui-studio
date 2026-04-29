@@ -1,0 +1,125 @@
+{
+  "template_version": 1,
+  "id": "godot-game-team",
+  "name": "Godot 游戏团队",
+  "icon": "🎮",
+  "desc": "基于 Godot 4 引擎的完整游戏开发团队，覆盖策划、程序、美术、QA 全流程",
+  "color": "#478CBF",
+  "members": [
+    {
+      "name": "制作人",
+      "presetId": "producer"
+    },
+    {
+      "name": "技术总监",
+      "presetId": "technical-director"
+    },
+    {
+      "name": "游戏设计师",
+      "presetId": "game-designer"
+    },
+    {
+      "name": "主程序员",
+      "presetId": "lead-programmer"
+    },
+    {
+      "name": "艺术总监",
+      "presetId": "art-director"
+    },
+    {
+      "name": "QA 负责人",
+      "presetId": "qa-lead"
+    },
+    {
+      "name": "Godot 专家",
+      "presetId": "godot-specialist"
+    },
+    {
+      "name": "GDScript 专家",
+      "presetId": "godot-gdscript-specialist"
+    },
+    {
+      "name": "Godot Shader 专家",
+      "presetId": "godot-shader-specialist"
+    },
+    {
+      "name": "GDExtension 专家",
+      "presetId": "godot-gdextension-specialist"
+    },
+    {
+      "name": "Godot C# 专家",
+      "presetId": "godot-csharp-specialist"
+    },
+    {
+      "name": "游戏逻辑程序员",
+      "presetId": "gameplay-programmer"
+    },
+    {
+      "name": "AI 程序员",
+      "presetId": "ai-programmer"
+    },
+    {
+      "name": "UI 程序员",
+      "presetId": "ui-programmer"
+    },
+    {
+      "name": "网络程序员",
+      "presetId": "network-programmer"
+    },
+    {
+      "name": "关卡设计师",
+      "presetId": "level-designer"
+    },
+    {
+      "name": "系统设计师",
+      "presetId": "systems-designer"
+    },
+    {
+      "name": "技术美术",
+      "presetId": "technical-artist"
+    },
+    {
+      "name": "音效设计师",
+      "presetId": "sound-designer"
+    },
+    {
+      "name": "QA 测试员",
+      "presetId": "qa-tester"
+    }
+  ],
+  "manages": {
+    "制作人": [
+      "技术总监",
+      "游戏设计师",
+      "艺术总监",
+      "QA 负责人"
+    ],
+    "技术总监": [
+      "主程序员",
+      "Godot 专家"
+    ],
+    "主程序员": [
+      "游戏逻辑程序员",
+      "AI 程序员",
+      "UI 程序员",
+      "网络程序员"
+    ],
+    "Godot 专家": [
+      "GDScript 专家",
+      "Godot Shader 专家",
+      "GDExtension 专家",
+      "Godot C# 专家"
+    ],
+    "游戏设计师": [
+      "关卡设计师",
+      "系统设计师"
+    ],
+    "艺术总监": [
+      "技术美术",
+      "音效设计师"
+    ],
+    "QA 负责人": [
+      "QA 测试员"
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "unity-shader-specialist",
+  "name": "Unity Shader 专家",
+  "role": "Unity 专家",
+  "desc": "Shader Graph、URP/HDRP 和视觉特效",
+  "category": "engine_unity",
+  "model": "sonnet",
+  "skills": [
+    "unity-shader"
+  ],
+  "characterImg": "character_10"
+}

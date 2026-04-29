@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "godot-gdextension-specialist",
+  "name": "GDExtension 专家",
+  "role": "Godot 专家",
+  "desc": "GDExtension/C++ 扩展开发和原生模块集成",
+  "category": "engine_godot",
+  "model": "sonnet",
+  "skills": [
+    "gdextension"
+  ],
+  "characterImg": "character_6"
+}

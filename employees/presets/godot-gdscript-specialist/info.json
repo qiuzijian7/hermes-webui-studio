@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "godot-gdscript-specialist",
+  "name": "GDScript 专家",
+  "role": "Godot 专家",
+  "desc": "GDScript 脚本编写、最佳实践和性能优化",
+  "category": "engine_godot",
+  "model": "sonnet",
+  "skills": [
+    "gdscript"
+  ],
+  "characterImg": "character_4"
+}

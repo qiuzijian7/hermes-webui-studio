@@ -1,0 +1,14 @@
+{
+  "template_version": 1,
+  "id": "technical-director",
+  "name": "技术总监",
+  "role": "总监层",
+  "desc": "负责技术架构、技术选型、性能策略和技术风险管理",
+  "category": "directors",
+  "model": "opus",
+  "skills": [
+    "architecture-decision",
+    "tech-debt"
+  ],
+  "characterImg": "character_2"
+}

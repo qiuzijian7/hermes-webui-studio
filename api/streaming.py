@@ -137,7 +137,7 @@ def _sse(handler, event, data):
     handler.wfile.flush()
 
 
-def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, attachments=None, system_prompt="", employee_name=""):
+def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, attachments=None, system_prompt="", employee_name="", disable_tools=False):
     """Run agent in background thread, writing SSE events to STREAMS[stream_id]."""
     q = STREAMS.get(stream_id)
     if q is None:
@@ -173,7 +173,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             hist.append((event, data))
             if len(hist) > STREAM_HISTORY_MAX:
                 # 超出上限时保留最新 N 条 + 结构事件（tool/done/approval/clarify 等）
-                keep = [e for e in hist if e[0] in ('tool', 'tool_result', 'done', 'error', 'cancel', 'approval', 'clarify', 'apperror')]
+                keep = [e for e in hist if e[0] in ('tool', 'tool_result', 'tool_end', 'tool_args', 'done', 'error', 'cancel', 'approval', 'clarify', 'apperror', 'message_start', 'message_end', 'thinking_start', 'thinking_end', 'step_started', 'step_finished')]
                 tail = hist[-(STREAM_HISTORY_MAX - len(keep)):] if len(keep) < STREAM_HISTORY_MAX else []
                 STREAM_HISTORY[stream_id] = keep + tail
         except Exception:
@@ -195,8 +195,10 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 else:
                     _LOG_HISTORY.append(log_entry)
             with LOG_SUBSCRIBERS_LOCK:
+                # ★ 2026-04-28 移除高频 print：token/reasoning 事件每秒数十次，
+                #   print 到 stdout 会产生大量 I/O 瓶颈。仅保留非 token 事件的日志。
                 sub_count = len(LOG_SUBSCRIBERS)
-                if sub_count:
+                if sub_count and event not in ('token', 'reasoning'):
                     print(f'[logs-put] Broadcasting {event} to {sub_count} subscriber(s)', flush=True)
                 for sub_q in list(LOG_SUBSCRIBERS):
                     try:
@@ -217,6 +219,25 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
         if isinstance(model, str) and model.startswith('cli:'):
             try:
                 _run_cli_backend_streaming(s, msg_text, model, put, cancel_event, attachments, system_prompt)
+            finally:
+                with STREAMS_LOCK:
+                    AGENT_INSTANCES.pop(stream_id, None)
+                    CANCEL_FLAGS.pop(stream_id, None)
+            return
+
+        # ── Knot AG-UI protocol path ──
+        # model 形如 "knot-agui:<agent_id>" 或 "knot-agui:<agent_id>/<knot_model>" 时，
+        # 绕过 AIAgent，通过 Knot AG-UI HTTPS API 代理对话，翻译 AG-UI SSE 事件。
+        if isinstance(model, str) and model.startswith('knot-agui:'):
+            try:
+                from api.knot_agui import run_knot_agui_streaming
+                run_knot_agui_streaming(
+                    session_id, msg_text, model, stream_id, put,
+                    cancel_event, system_prompt=system_prompt,
+                    employee_name=employee_name,
+                )
+            except Exception as _e:
+                put('apperror', {'type': 'knot_agui_import_error', 'message': str(_e)[:300]})
             finally:
                 with STREAMS_LOCK:
                     AGENT_INSTANCES.pop(stream_id, None)
@@ -497,6 +518,15 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             _pt = _cfg.get('platform_toolsets', {})
             _toolsets = _pt.get('cli', CLI_TOOLSETS) if isinstance(_pt, dict) else CLI_TOOLSETS
 
+            # ★ 只有 PM专员 拥有委派权限（delegation 工具集），
+            #   普通员工不允许使用 delegate_task，任务委派统一由 PM专员 处理
+            if employee_name and employee_name != PM_NAME:
+                _toolsets = [ts for ts in _toolsets if ts != 'delegation']
+
+            # ★ 禁用工具模式（如生成 configHtml 时不需要任何工具）
+            if disable_tools:
+                _toolsets = []
+
             # Fallback model from profile config (e.g. for rate-limit recovery)
             _fallback = _cfg.get('fallback_model') or None
             if _fallback:
@@ -599,10 +629,17 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             except Exception:
                 pass
 
+            # ★ 总群 session 过滤：系统消息是显示元数据（"已委派给@xxx"等），
+            #   对 AI 无意义且会污染上下文导致模型重复问候语模式。
+            #   仅在 is_group_chat session 时过滤。
+            _history = _sanitize_messages_for_api(s.messages)
+            if getattr(s, 'is_group_chat', False):
+                _history = [m for m in _history if m.get('role') != 'system']
+
             result = agent.run_conversation(
                 user_message=workspace_ctx + msg_text,
                 system_message=workspace_system_msg,
-                conversation_history=_sanitize_messages_for_api(s.messages),
+                conversation_history=_history,
                 task_id=session_id,
                 persist_user_message=msg_text,
             )
@@ -706,7 +743,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                           flush=True)
                     _result2 = agent.run_conversation(
                         user_message=_correction,
-                        conversation_history=_sanitize_messages_for_api(s.messages),
+                        conversation_history=_history,
                         task_id=session_id,
                         persist_user_message=_correction,
                     )
@@ -1239,6 +1276,14 @@ def _run_cli_backend_streaming(sess, msg_text, model, put, cancel_event, attachm
 
     # 记录用户消息到 session
     sess.messages.append({'role': 'user', 'content': msg_text, '_ts': time.time()})
+
+    # ★ 记录 CLI 启动信息到日志面板（便于排查"模型没有返回"问题）
+    _argv_preview = ' '.join(argv[:6]) + ('...' if len(argv) > 6 else '')
+    put('tool', {
+        'name': f'cli:{backend_name}',
+        'preview': f'[启动] {_argv_preview}',
+        'args': {'command': resolved_cmd, 'model': model, 'session_id': sess.session_id},
+    })
 
     # ★ Windows shell 包装：某些 CLI (如 knot-cli) 会检测父进程/argv[0]，
     #   直接 CreateProcess + 绝对路径启动 → knot-cli 判定为"被包装"并吐

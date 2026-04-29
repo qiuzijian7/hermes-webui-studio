@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "systems-designer",
+  "name": "系统设计师",
+  "role": "设计师",
+  "desc": "设计游戏系统、经济模型和进度机制",
+  "category": "designers",
+  "model": "sonnet",
+  "skills": [
+    "systems-design"
+  ],
+  "characterImg": "character_18"
+}

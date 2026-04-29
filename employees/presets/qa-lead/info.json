@@ -1,0 +1,14 @@
+{
+  "template_version": 1,
+  "id": "qa-lead",
+  "name": "QA 负责人",
+  "role": "部门主管",
+  "desc": "测试策略、质量标准和缺陷分级管理",
+  "category": "leads",
+  "model": "sonnet",
+  "skills": [
+    "test-plan",
+    "bug-triage"
+  ],
+  "characterImg": "character_9"
+}

@@ -37,6 +37,7 @@ from api.config import (
     CHAT_LOCK,
     load_settings,
     save_settings,
+    PM_NAME,
 )
 from api.helpers import (
     require,
@@ -303,8 +304,15 @@ def handle_get(handler, parsed) -> bool:
 
     if parsed.path == "/api/settings":
         settings = load_settings()
-        # Never expose the stored password hash to clients
+        # Never expose the stored password hash or sensitive tokens to clients
         settings.pop("password_hash", None)
+        try:
+            from api.config import _SETTINGS_SENSITIVE_KEYS
+            for _sk in _SETTINGS_SENSITIVE_KEYS:
+                if _sk in settings and settings[_sk]:
+                    settings[_sk] = "●●●●"  # mask value, frontend uses placeholder
+        except ImportError:
+            pass
         return j(handler, settings)
 
     # ── Local CLI backends (OpenClaw-style): wrap local AI CLIs as providers ──
@@ -433,12 +441,52 @@ def handle_get(handler, parsed) -> bool:
             handler, {"workspaces": load_workspaces(), "last": get_last_workspace()}
         )
 
+    # ── Employee filesystem API (GET) ──
+    if parsed.path == "/api/employees":
+        return _handle_employees_list(handler, parsed)
+
+    if parsed.path == "/api/employee":
+        return _handle_employee_get(handler, parsed)
+
+    if parsed.path == "/api/employee/files":
+        return _handle_employee_files(handler, parsed)
+
+    # ── Employee templates API (GET) ──
+    if parsed.path == "/api/employee-templates":
+        return _handle_employee_templates_list(handler, parsed)
+
+    if parsed.path == "/api/employee-templates/manifest":
+        return _handle_employee_templates_manifest(handler, parsed)
+
+    # ── Team templates API (GET) ──
+    if parsed.path == "/api/team-templates":
+        return _handle_team_templates_list(handler, parsed)
+
+    if parsed.path == "/api/team-templates/manifest":
+        return _handle_team_templates_manifest(handler, parsed)
+
     if parsed.path == "/api/sessions/search":
         return _handle_sessions_search(handler, parsed)
 
     # ── Group chat (总群) ──
     if parsed.path == "/api/group-chat":
         return _handle_group_chat_get(handler, parsed)
+
+    # ── Workspace Manager (集中化工作区管理) GET ──
+    if parsed.path == "/api/ws-manager/list":
+        return _handle_ws_manager_list(handler, parsed)
+
+    if parsed.path == "/api/ws-manager/get":
+        return _handle_ws_manager_get(handler, parsed)
+
+    if parsed.path == "/api/ws-manager/employees":
+        return _handle_ws_manager_employees(handler, parsed)
+
+    if parsed.path == "/api/ws-manager/connections":
+        return _handle_ws_manager_connections_get(handler, parsed)
+
+    if parsed.path == "/api/ws-manager/files":
+        return _handle_ws_manager_files(handler, parsed)
 
     # ── Workflow templates (多 agent 协同) ──
     if parsed.path == "/api/workflows":
@@ -448,6 +496,26 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/workflow":
         from api.workflow import handle_detail as _wf_detail
         return _wf_detail(handler, parsed)
+
+    # ── Prompt builder config (分段模板配置，供前端展示) ──
+    if parsed.path == "/api/prompt/config":
+        from api.prompt_builder import handle_config as _pb_config
+        return _pb_config(handler, parsed)
+
+    # ── Skill resolver (员工技能三源解析) ──
+    if parsed.path == "/api/employee/skills/resolve":
+        from api.skill_resolver import handle_resolve as _sr_resolve
+        return _sr_resolve(handler, parsed)
+
+    # ── Global skills library listing ──
+    if parsed.path == "/api/skills/global/list":
+        from api.skill_resolver import handle_list_global as _sr_list
+        return _sr_list(handler, parsed)
+
+    # ── Employee / Workspace scripts 列表 ──
+    if parsed.path == "/api/script/list":
+        from api.employee_scripts import handle_script_list as _es_list
+        return _es_list(handler, parsed)
 
     # ── Async subagent status (由 spawn_agent 产生的子 agent 控制面板) ──
     if parsed.path == "/api/agents":
@@ -886,6 +954,61 @@ def handle_post(handler, parsed) -> bool:
     if parsed.path == "/api/chat":
         return _handle_chat_sync(handler, body)
 
+    # ── Employee filesystem API (POST) ──
+    if parsed.path == "/api/employee/create":
+        return _handle_employee_create(handler, body)
+
+    if parsed.path == "/api/employee/update":
+        return _handle_employee_update(handler, body)
+
+    if parsed.path == "/api/employee/delete":
+        return _handle_employee_delete(handler, body)
+
+    if parsed.path == "/api/employees/save":
+        return _handle_employees_save(handler, body)
+
+    if parsed.path == "/api/employee/experience":
+        return _handle_employee_experience(handler, body)
+
+    if parsed.path == "/api/employees/export":
+        return _handle_employees_export(handler, body)
+
+    if parsed.path == "/api/employees/import":
+        return _handle_employees_import(handler, body)
+
+    # ── Employee templates API (POST) ──
+    if parsed.path == "/api/employee-templates/init":
+        return _handle_employee_templates_init(handler, body)
+
+    if parsed.path == "/api/employee-templates/install":
+        return _handle_employee_templates_install(handler, body)
+
+    if parsed.path == "/api/employee-templates/uninstall":
+        return _handle_employee_templates_uninstall(handler, body)
+
+    if parsed.path == "/api/employee-templates/manifest":
+        return _handle_employee_templates_manifest_update(handler, body)
+
+    # ── Prompt builder (统一 system_prompt 构建) ──
+    if parsed.path == "/api/prompt/build":
+        from api.prompt_builder import handle_build as _pb_build
+        return _pb_build(handler, body)
+
+    # ── Employee / Workspace scripts 执行 ──
+    if parsed.path == "/api/script/execute":
+        from api.employee_scripts import handle_script_execute as _es_exec
+        return _es_exec(handler, body)
+
+    # ── Team templates API (POST) ──
+    if parsed.path == "/api/team-templates/install":
+        return _handle_team_templates_install(handler, body)
+
+    if parsed.path == "/api/team-templates/uninstall":
+        return _handle_team_templates_uninstall(handler, body)
+
+    if parsed.path == "/api/team-templates/manifest":
+        return _handle_team_templates_manifest_update(handler, body)
+
     # ── Group chat (总群) POST ──
     if parsed.path == "/api/group-chat/send":
         return _handle_group_chat_send(handler, body)
@@ -956,6 +1079,34 @@ def handle_post(handler, parsed) -> bool:
 
     if parsed.path == "/api/workspaces/rename":
         return _handle_workspace_rename(handler, body)
+
+    # ── Workspace Manager (集中化工作区管理) POST ──
+    if parsed.path == "/api/ws-manager/create":
+        return _handle_ws_manager_create(handler, body)
+
+    if parsed.path == "/api/ws-manager/update":
+        return _handle_ws_manager_update(handler, body)
+
+    if parsed.path == "/api/ws-manager/delete":
+        return _handle_ws_manager_delete(handler, body)
+
+    if parsed.path == "/api/ws-manager/init-employees":
+        return _handle_ws_manager_init_employees(handler, body)
+
+    if parsed.path == "/api/ws-manager/connections":
+        return _handle_ws_manager_connections_save(handler, body)
+
+    if parsed.path == "/api/ws-manager/export":
+        return _handle_ws_manager_export(handler, body)
+
+    if parsed.path == "/api/ws-manager/import":
+        return _handle_ws_manager_import(handler, body)
+
+    if parsed.path == "/api/ws-manager/file/save":
+        return _handle_ws_manager_file_save(handler, body)
+
+    if parsed.path == "/api/ws-manager/file/delete":
+        return _handle_ws_manager_file_delete(handler, body)
 
     # ── Approval (POST) ──
     if parsed.path == "/api/approval/respond":
@@ -1053,8 +1204,25 @@ def handle_post(handler, parsed) -> bool:
     if parsed.path == "/api/settings":
         if "bot_name" in body:
             body["bot_name"] = (str(body["bot_name"]) or "").strip() or "Hermes"
+        # Sensitive tokens: don't overwrite with blank (frontend sends blank when masked ●●●●)
+        try:
+            from api.config import _SETTINGS_SENSITIVE_KEYS
+            current = load_settings()
+            for _sk in _SETTINGS_SENSITIVE_KEYS:
+                if _sk in body and not body[_sk]:
+                    body.pop(_sk, None)  # keep existing value
+        except ImportError:
+            pass
         saved = save_settings(body)
         saved.pop("password_hash", None)  # never expose hash to client
+        # Mask sensitive keys in response
+        try:
+            from api.config import _SETTINGS_SENSITIVE_KEYS
+            for _sk in _SETTINGS_SENSITIVE_KEYS:
+                if _sk in saved and saved[_sk]:
+                    saved[_sk] = "●●●●"
+        except ImportError:
+            pass
         return j(handler, saved)
 
     # ── Local CLI backends (POST save/delete) ──
@@ -2049,7 +2217,10 @@ def _handle_logs_sse_stream(handler):
                     _live_seen_ids.add(log_id)
                 # Make a copy without 'event' key for SSE data payload
                 data_for_sse = {k: v for k, v in entry.items() if k != 'event'}
-                print(f'[logs-sse] Sending event={event_name} sid={data_for_sse.get("session_id","")[:8]}', flush=True)
+                # ★ 2026-04-28 移除高频 print：token/reasoning 事件每秒数十次，
+                #   print 到 stdout 会产生大量 I/O 瓶颈。仅保留非 token 事件的日志。
+                if event_name not in ('token', 'reasoning'):
+                    print(f'[logs-sse] Sending event={event_name} sid={data_for_sse.get("session_id","")[:8]}', flush=True)
                 _sse(handler, event_name, data_for_sse)
             except (TypeError, ValueError) as e:
                 # Serialization error — skip this entry but keep the stream alive
@@ -2295,6 +2466,8 @@ def _handle_chat_start(handler, body):
         s.system_prompt = system_prompt
     s.save()
     set_last_workspace(workspace)
+    # ★ disable_tools: 用于 configHtml 生成等不需要工具的场景
+    disable_tools = bool(body.get("disable_tools", False))
     # ★ Log user input to the unified log panel
     _broadcast_log_event('user_input', {
         'text': msg[:500] + ('...' if len(msg) > 500 else ''),
@@ -2307,7 +2480,7 @@ def _handle_chat_start(handler, body):
         STREAMS[stream_id] = q
     thr = threading.Thread(
         target=_run_agent_streaming,
-        args=(s.session_id, msg, model, workspace, stream_id, attachments, system_prompt, employee_name),
+        args=(s.session_id, msg, model, workspace, stream_id, attachments, system_prompt, employee_name, disable_tools),
         daemon=True,
     )
     thr.start()
@@ -2772,7 +2945,33 @@ def _handle_workspace_add(handler, body):
         return bad(handler, "Workspace already in list")
     wss.append({"path": str(p), "name": name or p.name})
     save_workspaces(wss)
-    return j(handler, {"ok": True, "workspaces": wss, "resolved_path": str(p)})
+
+    # Auto-initialize template employees into the new workspace (legacy)
+    try:
+        from api.employee_templates import initialize_workspace_employees
+        init_result = initialize_workspace_employees(str(p))
+    except Exception as e:
+        init_result = {"created": 0, "skipped": 0, "errors": [str(e)]}
+
+    # Create centralized workspace structure in workspaces/ directory
+    ws_manager_result = None
+    try:
+        from api.workspace_manager import create_workspace as _wm_create, initialize_from_templates
+        ws_name = name or p.name
+        ws_info = _wm_create(name=ws_name, path=str(p))
+        tmpl_result = initialize_from_templates(ws_info["slug"])
+        ws_manager_result = {
+            "slug": ws_info["slug"],
+            "created_employees": tmpl_result.get("created", 0),
+        }
+    except Exception as e:
+        ws_manager_result = {"error": str(e)}
+
+    return j(handler, {
+        "ok": True, "workspaces": wss, "resolved_path": str(p),
+        "template_init": init_result,
+        "ws_manager": ws_manager_result
+    })
 
 
 def _handle_workspace_remove(handler, body):
@@ -3074,7 +3273,384 @@ def _handle_skill_delete(handler, body):
     return j(handler, {"ok": True, "name": body["name"]})
 
 
-def _handle_memory_write(handler, body):
+# ── Employee Templates Handlers ──────────────────────────────────────────────
+
+
+def _handle_employee_templates_list(handler, parsed):
+    """GET /api/employee-templates — List all available templates."""
+    from api.employee_templates import list_all_templates
+    qs = parse_qs(parsed.query)
+    source = (qs.get("source", [None])[0] or "").strip()
+
+    if source == "preset":
+        from api.employee_templates import list_preset_templates
+        templates = list_preset_templates()
+    elif source == "marketplace":
+        from api.employee_templates import list_marketplace_templates
+        templates = list_marketplace_templates()
+    else:
+        templates = list_all_templates()
+
+    # Strip internal fields for API response
+    cleaned = []
+    for tmpl in templates:
+        t_copy = {k: v for k, v in tmpl.items() if not k.startswith("_")}
+        t_copy["source"] = tmpl.get("_source", "unknown")
+        cleaned.append(t_copy)
+
+    return j(handler, {"templates": cleaned})
+
+
+def _handle_employee_templates_manifest(handler, parsed):
+    """GET /api/employee-templates/manifest — Get the template manifest."""
+    from api.employee_templates import load_manifest
+    return j(handler, load_manifest())
+
+
+def _handle_employee_templates_init(handler, body):
+    """POST /api/employee-templates/init — Manually trigger template initialization."""
+    workspace = (body.get("workspace") or "").strip()
+    if not workspace:
+        return bad(handler, "workspace is required")
+    force = bool(body.get("force", False))
+
+    from api.employee_templates import initialize_workspace_employees
+    try:
+        result = initialize_workspace_employees(workspace, force=force)
+    except Exception as e:
+        return bad(handler, f"Initialization failed: {e}", 500)
+    return j(handler, {"ok": True, **result})
+
+
+def _handle_employee_templates_install(handler, body):
+    """POST /api/employee-templates/install — Install a marketplace template."""
+    template_data = body.get("template")
+    if not template_data or not isinstance(template_data, dict):
+        return bad(handler, "template (object with id and name) is required")
+
+    from api.employee_templates import install_marketplace_template
+    result = install_marketplace_template(template_data)
+    if result is None:
+        return bad(handler, "Template must have 'id' and 'name' fields")
+    return j(handler, {"ok": True, "template": result})
+
+
+def _handle_employee_templates_uninstall(handler, body):
+    """POST /api/employee-templates/uninstall — Remove a marketplace template."""
+    template_id = (body.get("id") or body.get("template_id") or "").strip()
+    if not template_id:
+        return bad(handler, "id is required")
+
+    from api.employee_templates import uninstall_marketplace_template
+    removed = uninstall_marketplace_template(template_id)
+    if not removed:
+        return bad(handler, f"Template '{template_id}' not found", 404)
+    return j(handler, {"ok": True, "removed": template_id})
+
+
+def _handle_employee_templates_manifest_update(handler, body):
+    """POST /api/employee-templates/manifest — Update the template manifest."""
+    from api.employee_templates import load_manifest, save_manifest
+
+    manifest = load_manifest()
+
+    # Merge provided fields into current manifest
+    if "auto_init_enabled" in body:
+        manifest["auto_init_enabled"] = bool(body["auto_init_enabled"])
+    if "auto_init_templates" in body:
+        templates_list = body["auto_init_templates"]
+        if isinstance(templates_list, list):
+            manifest["auto_init_templates"] = templates_list
+
+    save_manifest(manifest)
+    return j(handler, {"ok": True, "manifest": manifest})
+
+
+# ── Team Template Handlers ──────────────────────────────────────────────────
+
+
+def _handle_team_templates_list(handler, parsed):
+    """GET /api/team-templates — List all available team templates."""
+    from api.team_templates import list_all_templates
+    qs = parse_qs(parsed.query)
+    source = (qs.get("source", [None])[0] or "").strip()
+
+    if source == "preset":
+        from api.team_templates import list_preset_templates
+        templates = list_preset_templates()
+    elif source == "marketplace":
+        from api.team_templates import list_marketplace_templates
+        templates = list_marketplace_templates()
+    else:
+        templates = list_all_templates()
+
+    # Strip internal fields (prefixed with _)
+    public = []
+    for t in templates:
+        public.append({k: v for k, v in t.items() if not k.startswith("_")})
+    return j(handler, {"templates": public})
+
+
+def _handle_team_templates_manifest(handler, parsed):
+    """GET /api/team-templates/manifest — Get the team template manifest."""
+    from api.team_templates import load_manifest
+    return j(handler, load_manifest())
+
+
+def _handle_team_templates_install(handler, body):
+    """POST /api/team-templates/install — Install a marketplace team template."""
+    template_data = body.get("template")
+    if not template_data or not isinstance(template_data, dict):
+        return bad(handler, "template (object with id and name) is required")
+
+    from api.team_templates import install_marketplace_template
+    result = install_marketplace_template(template_data)
+    if not result:
+        return bad(handler, "Template must have 'id' and 'name' fields")
+    # Strip internal fields
+    public = {k: v for k, v in result.items() if not k.startswith("_")}
+    return j(handler, {"ok": True, "template": public})
+
+
+def _handle_team_templates_uninstall(handler, body):
+    """POST /api/team-templates/uninstall — Remove a marketplace team template."""
+    template_id = (body.get("id") or body.get("template_id") or "").strip()
+    if not template_id:
+        return bad(handler, "id is required")
+
+    from api.team_templates import uninstall_marketplace_template
+    removed = uninstall_marketplace_template(template_id)
+    if not removed:
+        return bad(handler, f"Team template '{template_id}' not found", 404)
+    return j(handler, {"ok": True, "removed": template_id})
+
+
+def _handle_team_templates_manifest_update(handler, body):
+    """POST /api/team-templates/manifest — Update the team template manifest."""
+    from api.team_templates import load_manifest, save_manifest
+
+    manifest = load_manifest()
+
+    # Merge provided fields into current manifest
+    if isinstance(body, dict):
+        for key in body:
+            if not key.startswith("_"):
+                manifest[key] = body[key]
+
+    save_manifest(manifest)
+    return j(handler, {"ok": True, "manifest": manifest})
+
+
+# ── Workspace Manager Handlers ───────────────────────────────────────────────
+
+
+def _handle_ws_manager_list(handler, parsed):
+    """GET /api/ws-manager/list — List all centralized workspaces."""
+    from api.workspace_manager import list_workspaces as wm_list
+    workspaces = wm_list()
+    # Strip internal fields
+    cleaned = [{k: v for k, v in ws.items() if not k.startswith("_")}
+               for ws in workspaces]
+    return j(handler, {"workspaces": cleaned})
+
+
+def _handle_ws_manager_get(handler, parsed):
+    """GET /api/ws-manager/get?slug=... — Get workspace details."""
+    qs = parse_qs(parsed.query)
+    slug = (qs.get("slug", [None])[0] or "").strip()
+    if not slug:
+        return bad(handler, "slug is required")
+    from api.workspace_manager import get_workspace as wm_get
+    ws = wm_get(slug)
+    if not ws:
+        return bad(handler, "Workspace not found", 404)
+    return j(handler, ws)
+
+
+def _handle_ws_manager_employees(handler, parsed):
+    """GET /api/ws-manager/employees?slug=... — List employees in workspace."""
+    qs = parse_qs(parsed.query)
+    slug = (qs.get("slug", [None])[0] or "").strip()
+    if not slug:
+        return bad(handler, "slug is required")
+    from api.workspace_manager import list_employee_instances
+    employees = list_employee_instances(slug)
+    # Strip internal fields
+    cleaned = [{k: v for k, v in emp.items() if not k.startswith("_")}
+               for emp in employees]
+    return j(handler, {"employees": cleaned})
+
+
+def _handle_ws_manager_connections_get(handler, parsed):
+    """GET /api/ws-manager/connections?slug=... — Get connections."""
+    qs = parse_qs(parsed.query)
+    slug = (qs.get("slug", [None])[0] or "").strip()
+    if not slug:
+        return bad(handler, "slug is required")
+    from api.workspace_manager import get_connections
+    return j(handler, {"connections": get_connections(slug)})
+
+
+def _handle_ws_manager_files(handler, parsed):
+    """GET /api/ws-manager/files?slug=...&subdir=scripts|experience|skills"""
+    qs = parse_qs(parsed.query)
+    slug = (qs.get("slug", [None])[0] or "").strip()
+    subdir = (qs.get("subdir", [None])[0] or "").strip()
+    if not slug:
+        return bad(handler, "slug is required")
+    if not subdir:
+        return bad(handler, "subdir is required (scripts, experience, skills)")
+    from api.workspace_manager import list_scripts, list_experience, list_skills
+    if subdir == "scripts":
+        files = list_scripts(slug)
+    elif subdir == "experience":
+        files = list_experience(slug)
+    elif subdir == "skills":
+        files = list_skills(slug)
+    else:
+        return bad(handler, f"Invalid subdir: {subdir}")
+    return j(handler, {"files": files, "subdir": subdir})
+
+
+def _handle_ws_manager_create(handler, body):
+    """POST /api/ws-manager/create — Create a new centralized workspace."""
+    name = (body.get("name") or "").strip()
+    if not name:
+        return bad(handler, "name is required")
+    path = (body.get("path") or "").strip()
+    description = (body.get("description") or "").strip()
+    team_name = (body.get("team_name") or "").strip()
+    auto_init = body.get("auto_init", True)
+
+    from api.workspace_manager import create_workspace as wm_create, initialize_from_templates
+    try:
+        ws = wm_create(name=name, path=path, description=description,
+                       team_name=team_name)
+    except ValueError as e:
+        return bad(handler, str(e))
+
+    # Auto-initialize employees from templates
+    init_result = None
+    if auto_init:
+        try:
+            init_result = initialize_from_templates(ws["slug"])
+        except Exception as e:
+            init_result = {"error": str(e)}
+
+    return j(handler, {"ok": True, "workspace": ws, "template_init": init_result})
+
+
+def _handle_ws_manager_update(handler, body):
+    """POST /api/ws-manager/update — Update workspace metadata."""
+    slug = (body.get("slug") or "").strip()
+    if not slug:
+        return bad(handler, "slug is required")
+    from api.workspace_manager import update_workspace as wm_update
+    try:
+        ws = wm_update(slug, body)
+    except ValueError as e:
+        return bad(handler, str(e))
+    if not ws:
+        return bad(handler, "Workspace not found", 404)
+    return j(handler, {"ok": True, "workspace": ws})
+
+
+def _handle_ws_manager_delete(handler, body):
+    """POST /api/ws-manager/delete — Delete a workspace and all its data."""
+    slug = (body.get("slug") or "").strip()
+    if not slug:
+        return bad(handler, "slug is required")
+    from api.workspace_manager import delete_workspace as wm_delete
+    removed = wm_delete(slug)
+    if not removed:
+        return bad(handler, "Workspace not found", 404)
+    return j(handler, {"ok": True, "deleted": slug})
+
+
+def _handle_ws_manager_init_employees(handler, body):
+    """POST /api/ws-manager/init-employees — Initialize employees from templates."""
+    slug = (body.get("slug") or "").strip()
+    if not slug:
+        return bad(handler, "slug is required")
+    force = bool(body.get("force", False))
+    from api.workspace_manager import initialize_from_templates
+    try:
+        result = initialize_from_templates(slug, force=force)
+    except Exception as e:
+        return bad(handler, f"Initialization failed: {e}", 500)
+    return j(handler, {"ok": True, **result})
+
+
+def _handle_ws_manager_connections_save(handler, body):
+    """POST /api/ws-manager/connections — Save employee connections."""
+    slug = (body.get("slug") or "").strip()
+    if not slug:
+        return bad(handler, "slug is required")
+    connections = body.get("connections", [])
+    if not isinstance(connections, list):
+        return bad(handler, "connections must be an array")
+    from api.workspace_manager import save_connections
+    save_connections(slug, connections)
+    return j(handler, {"ok": True})
+
+
+def _handle_ws_manager_export(handler, body):
+    """POST /api/ws-manager/export — Export workspace as team package."""
+    slug = (body.get("slug") or "").strip()
+    if not slug:
+        return bad(handler, "slug is required")
+    from api.workspace_manager import export_workspace as wm_export
+    data = wm_export(slug)
+    if not data:
+        return bad(handler, "Workspace not found", 404)
+    return j(handler, {"ok": True, "data": data})
+
+
+def _handle_ws_manager_import(handler, body):
+    """POST /api/ws-manager/import — Import a team package as workspace."""
+    team_data = body.get("data") or body.get("team")
+    if not team_data or not isinstance(team_data, dict):
+        return bad(handler, "data (team package object) is required")
+    name_override = (body.get("name") or "").strip()
+    from api.workspace_manager import import_workspace as wm_import
+    try:
+        result = wm_import(team_data, name_override=name_override)
+    except Exception as e:
+        return bad(handler, f"Import failed: {e}", 500)
+    return j(handler, result)
+
+
+def _handle_ws_manager_file_save(handler, body):
+    """POST /api/ws-manager/file/save — Save a file to workspace subdir."""
+    slug = (body.get("slug") or "").strip()
+    subdir = (body.get("subdir") or "").strip()
+    filename = (body.get("filename") or "").strip()
+    content = body.get("content", "")
+    if not slug or not subdir or not filename:
+        return bad(handler, "slug, subdir, and filename are required")
+    from api.workspace_manager import save_file_to_subdir
+    try:
+        result = save_file_to_subdir(slug, subdir, filename, content)
+    except ValueError as e:
+        return bad(handler, str(e))
+    return j(handler, {"ok": True, **result})
+
+
+def _handle_ws_manager_file_delete(handler, body):
+    """POST /api/ws-manager/file/delete — Delete a file from workspace subdir."""
+    slug = (body.get("slug") or "").strip()
+    subdir = (body.get("subdir") or "").strip()
+    filename = (body.get("filename") or "").strip()
+    if not slug or not subdir or not filename:
+        return bad(handler, "slug, subdir, and filename are required")
+    from api.workspace_manager import delete_file_from_subdir
+    removed = delete_file_from_subdir(slug, subdir, filename)
+    if not removed:
+        return bad(handler, "File not found", 404)
+    return j(handler, {"ok": True})
+
+
+
     try:
         require(body, "section", "content")
     except ValueError as e:
@@ -3223,6 +3799,250 @@ def _handle_delegation_history(handler, parsed):
         return j(handler, {"tree": tree})
     except Exception as e:
         return j(handler, {"tree": None, "error": str(e)})
+
+
+# ── Employee filesystem endpoints ──────────────────────────────────────────────
+
+def _handle_employees_list(handler, parsed):
+    """GET /api/employees?workspace=...
+
+    List all employees for a workspace from the filesystem.
+    """
+    from api.employee_fs import list_employees
+    qs = parse_qs(parsed.query)
+    workspace = (qs.get("workspace", [""])[0] or "").strip()
+    if not workspace:
+        return bad(handler, "workspace query parameter is required")
+    try:
+        employees = list_employees(workspace)
+        from api.employee_fs import get_next_id_value
+        next_id = get_next_id_value(workspace)
+        return j(handler, {"employees": employees, "next_id": next_id})
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)
+
+
+def _handle_employee_get(handler, parsed):
+    """GET /api/employee?workspace=...&id=...
+
+    Get a single employee by ID.
+    """
+    from api.employee_fs import get_employee_by_id
+    qs = parse_qs(parsed.query)
+    workspace = (qs.get("workspace", [""])[0] or "").strip()
+    emp_id = (qs.get("id", [""])[0] or "").strip()
+    if not workspace or not emp_id:
+        return bad(handler, "workspace and id query parameters are required")
+    emp = get_employee_by_id(workspace, emp_id)
+    if not emp:
+        return bad(handler, "Employee not found", 404)
+    return j(handler, {"employee": emp})
+
+
+def _handle_employee_files(handler, parsed):
+    """GET /api/employee/files?workspace=...&id=...&subdir=...
+
+    List files in an employee subdirectory (scripts, output, experience, etc.)
+    """
+    from api.employee_fs import list_employee_subdir
+    qs = parse_qs(parsed.query)
+    workspace = (qs.get("workspace", [""])[0] or "").strip()
+    emp_id = (qs.get("id", [""])[0] or "").strip()
+    subdir = (qs.get("subdir", [""])[0] or "").strip()
+    if not workspace or not emp_id or not subdir:
+        return bad(handler, "workspace, id, and subdir query parameters are required")
+    files = list_employee_subdir(workspace, emp_id, subdir)
+    return j(handler, {"files": files})
+
+
+def _handle_employee_create(handler, body):
+    """POST /api/employee/create
+
+    Create a new employee with filesystem directory structure.
+    Body: { workspace, name, role, avatar, skills, model, ... }
+    If the employee already exists (by name), fall back to update.
+    """
+    from api.employee_fs import create_employee, update_employee, get_employee_by_id
+    workspace = (body.get("workspace") or "").strip()
+    if not workspace:
+        return bad(handler, "workspace is required")
+    try:
+        emp = create_employee(workspace, body)
+        return j(handler, {"ok": True, "employee": emp})
+    except ValueError as e:
+        # If employee already exists, try to update instead (race condition with debounced save)
+        err_msg = str(e)
+        emp_id = (body.get("id") or "").strip()
+        if "already exists" in err_msg and emp_id:
+            try:
+                emp = update_employee(workspace, emp_id, body)
+                if emp:
+                    return j(handler, {"ok": True, "employee": emp, "fallback": "update"})
+            except Exception:
+                pass
+        return bad(handler, err_msg)
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)
+
+
+def _handle_employee_update(handler, body):
+    """POST /api/employee/update
+
+    Update an existing employee.
+    Body: { workspace, id, ...updates }
+    """
+    from api.employee_fs import update_employee
+    workspace = (body.get("workspace") or "").strip()
+    emp_id = (body.get("id") or "").strip()
+    if not workspace or not emp_id:
+        return bad(handler, "workspace and id are required")
+    try:
+        emp = update_employee(workspace, emp_id, body)
+        if not emp:
+            return bad(handler, "Employee not found", 404)
+        return j(handler, {"ok": True, "employee": emp})
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)
+
+
+def _handle_employee_delete(handler, body):
+    """POST /api/employee/delete
+
+    Delete an employee and their directory.
+    Body: { workspace, id }
+    """
+    from api.employee_fs import delete_employee
+    workspace = (body.get("workspace") or "").strip()
+    emp_id = (body.get("id") or "").strip()
+    if not workspace or not emp_id:
+        return bad(handler, "workspace and id are required")
+    ok = delete_employee(workspace, emp_id)
+    if not ok:
+        return bad(handler, "Employee not found", 404)
+    return j(handler, {"ok": True})
+
+
+def _handle_employees_save(handler, body):
+    """POST /api/employees/save
+
+    Batch save employees (used for migration from localStorage).
+    Body: { workspace, employees: [...], next_id: N }
+    """
+    from api.employee_fs import save_all_employees, set_next_id_value
+    workspace = (body.get("workspace") or "").strip()
+    if not workspace:
+        return bad(handler, "workspace is required")
+    employees = body.get("employees", [])
+    if not isinstance(employees, list):
+        return bad(handler, "employees must be a list")
+    try:
+        result = save_all_employees(workspace, employees)
+        # Sync next_id counter
+        next_id = body.get("next_id")
+        if next_id and isinstance(next_id, int):
+            set_next_id_value(workspace, next_id)
+        return j(handler, {"ok": True, **result})
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)
+
+
+def _handle_employee_experience(handler, body):
+    """POST /api/employee/experience
+
+    Read or write an experience file.
+    Body: { workspace, id, filename, content (optional for write), action: 'read'|'write' }
+    """
+    from api.employee_fs import read_experience_file, write_experience_file, list_experience_files
+    workspace = (body.get("workspace") or "").strip()
+    emp_id = (body.get("id") or "").strip()
+    action = (body.get("action") or "list").strip()
+
+    if not workspace or not emp_id:
+        return bad(handler, "workspace and id are required")
+
+    if action == "list":
+        files = list_experience_files(workspace, emp_id)
+        return j(handler, {"files": files})
+    elif action == "read":
+        filename = (body.get("filename") or "").strip()
+        if not filename:
+            return bad(handler, "filename is required for read")
+        content = read_experience_file(workspace, emp_id, filename)
+        if content is None:
+            return bad(handler, "File not found", 404)
+        return j(handler, {"filename": filename, "content": content})
+    elif action == "write":
+        filename = (body.get("filename") or "").strip()
+        content = body.get("content", "")
+        if not filename:
+            return bad(handler, "filename is required for write")
+        ok = write_experience_file(workspace, emp_id, filename, content)
+        if not ok:
+            return bad(handler, "Failed to write file")
+        return j(handler, {"ok": True, "filename": filename})
+    else:
+        return bad(handler, f"Unknown action: {action}")
+
+
+def _handle_employees_export(handler, body):
+    """POST /api/employees/export
+
+    Export employees with all subdirectory files for cross-machine portability.
+    Body: { workspace, employee_ids: [...] (optional, omit for all) }
+    Returns: { ok: true, data: { version, exportedAt, workspace, employees: [...] } }
+    """
+    from api.employee_fs import export_employee, export_all_employees
+    workspace = (body.get("workspace") or "").strip()
+    if not workspace:
+        return bad(handler, "workspace is required")
+    try:
+        emp_ids = body.get("employee_ids")
+        if emp_ids and isinstance(emp_ids, list):
+            # Export specific employees
+            employees = []
+            for eid in emp_ids:
+                exported = export_employee(workspace, eid)
+                if exported:
+                    employees.append(exported)
+        else:
+            # Export all
+            employees = export_all_employees(workspace)
+
+        export_data = {
+            "version": 2,
+            "exportedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "workspace": workspace,
+            "employees": employees,
+        }
+        return j(handler, {"ok": True, "data": export_data})
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)
+
+
+def _handle_employees_import(handler, body):
+    """POST /api/employees/import
+
+    Import employees from export data, restoring all files.
+    Body: { workspace, employees: [...], force: false }
+    Returns: { ok: true, imported, skipped, errors, id_map }
+    """
+    from api.employee_fs import import_employees, list_employees
+    workspace = (body.get("workspace") or "").strip()
+    if not workspace:
+        return bad(handler, "workspace is required")
+    employees_data = body.get("employees", [])
+    if not isinstance(employees_data, list) or not employees_data:
+        return bad(handler, "employees list is required and must be non-empty")
+    force = bool(body.get("force", False))
+    try:
+        result = import_employees(workspace, employees_data, force=force)
+        # Also return the full updated employee list so frontend can refresh
+        updated_list = list_employees(workspace)
+        result["ok"] = True
+        result["employees"] = updated_list
+        return j(handler, result)
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)
 
 
 # ── Group chat (总群) endpoints ────────────────────────────────────────────────
@@ -3536,7 +4356,7 @@ def _handle_pm_heartbeat_trigger(handler, body):
 
     thr = threading.Thread(
         target=_run_agent_streaming,
-        args=(gc_session_id, heartbeat_msg, model, workspace, stream_id, None, system_prompt, "PM专员"),
+        args=(gc_session_id, heartbeat_msg, model, workspace, stream_id, None, system_prompt, PM_NAME),
         daemon=True,
     )
     thr.start()

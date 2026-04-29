@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "level-designer",
+  "name": "关卡设计师",
+  "role": "设计师",
+  "desc": "关卡布局、节奏和玩家引导设计",
+  "category": "designers",
+  "model": "sonnet",
+  "skills": [
+    "level-design"
+  ],
+  "characterImg": "character_19"
+}

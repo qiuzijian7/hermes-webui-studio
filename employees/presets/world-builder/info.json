@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "world-builder",
+  "name": "世界构建师",
+  "role": "叙事/内容",
+  "desc": "世界观设定、背景故事和环境叙事",
+  "category": "narrative",
+  "model": "sonnet",
+  "skills": [
+    "worldbuilding"
+  ],
+  "characterImg": "character_24"
+}

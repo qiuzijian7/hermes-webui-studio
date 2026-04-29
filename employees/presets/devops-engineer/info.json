@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "devops-engineer",
+  "name": "运维工程师",
+  "role": "QA/运维",
+  "desc": "CI/CD 管线、基础设施和部署自动化",
+  "category": "qa_ops",
+  "model": "sonnet",
+  "skills": [
+    "devops"
+  ],
+  "characterImg": "character_28"
+}

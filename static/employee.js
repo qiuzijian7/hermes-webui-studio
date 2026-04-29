@@ -3,6 +3,15 @@
  * 参考 OpenOffice 的 office-store 架构
  */
 
+// esc fallback（ui.js 在部分加载场景可能晚于 employee.js）
+if (typeof esc === 'undefined') {
+  window.esc = function(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  };
+}
+
 // ── 员工数据模型 ────────────────────────────────────────────────────────────
 const EMPLOYEE_STORE = {
   employees: [],
@@ -10,10 +19,67 @@ const EMPLOYEE_STORE = {
   _nextId: 1,
 };
 
+// ── 头像风格配置（DiceBear）────────────────────────────────────────────────
+const EMPLOYEE_AVATAR_STYLES = [
+  { id: 'bottts',      label: '机器人', icon: '🤖', color: 'b6e3f4' },
+  { id: 'pixel-art',   label: '像素',   icon: '👾', color: 'c0aede' },
+  { id: 'avataaars',   label: '人物',   icon: '🧑', color: 'd1d4f9' },
+  { id: 'shapes',      label: '几何',   icon: '🔷', color: 'ffd5dc' },
+  { id: 'identicon',   label: '标识',   icon: '🔮', color: 'ffdfbf' },
+  { id: 'notionists',  label: '简笔',   icon: '✏️', color: 'c0aede' },
+  { id: 'fun-emoji',   label: '趣味',   icon: '😊', color: 'ffdfbf' },
+  { id: 'rings',       label: '环形',   icon: '⭕', color: 'b6e3f4' },
+  { id: 'thumbs',      label: '手势',   icon: '👍', color: 'ffd5dc' },
+  { id: 'lorelei',     label: '插画',   icon: '🎨', color: 'd1d4f9' },
+];
+
+// 保留旧版 emoji 作为加载失败/离线 fallback
 const EMPLOYEE_AVATARS = [
   '🤖', '👩‍💻', '🧑‍🔬', '👨‍🎨', '👩‍🔧', '🧙‍♂️', '🦊', '🐱', '🐶', '🦁',
   '🐼', '🦄', '🐸', '🦉', '🐝', '🧑‍🚀', '🥷', '🧑‍🍳', '👨‍⚕️', '👩‍🏫'
 ];
+
+/** 字符串哈希，用于确定性分配风格 */
+function hashString(str) {
+  let h = 0;
+  for (let i = 0; i < (str || '').length; i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+/** 根据员工数据生成 DiceBear 头像 URL */
+function getEmployeeAvatarUrl(emp, opts = {}) {
+  if (!emp) return '';
+  const size = opts.size || 128;
+  // 若 avatar 已是完整 URL，直接复用
+  if (emp.avatar && /^https?:\/\//.test(emp.avatar)) {
+    return emp.avatar;
+  }
+  // 确定风格（兼容旧版：emoji 不是风格 id，则哈希分配）
+  let style = emp.avatarStyle || emp.avatar;
+  const validStyles = EMPLOYEE_AVATAR_STYLES.map(s => s.id);
+  if (!style || !validStyles.includes(style)) {
+    style = validStyles[hashString(emp.id || emp.name || 'emp') % validStyles.length];
+  }
+  const seed = emp.avatarSeed || emp.name || emp.id || 'employee';
+  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}&size=${size}`;
+}
+
+/** 获取员工头像的 HTML（含动画状态与 fallback） */
+function getEmployeeAvatarHtml(emp, opts = {}) {
+  if (!emp) return '';
+  const size = opts.size || 128;
+  const cls = opts.className || 'emp-avatar';
+  const url = getEmployeeAvatarUrl(emp, { size });
+  const st = opts.statusStyle || STATUS_MAP[emp.status] || STATUS_MAP.idle;
+  const fallback = esc(emp.avatar || '🤖').replace(/'/g, "\\'");
+  // 用 onerror 将 img 替换为 fallback emoji
+  return `<div class="${cls}${opts.animated !== false ? ' emp-avatar-animated' : ''}" style="background:${st.bg};padding:0;overflow:hidden" data-status="${emp.status}">
+    <img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit" onerror="this.parentElement.innerHTML='<span style=font-size:22px>${fallback}</span>'">
+  </div>`;
+}
 
 const EMPLOYEE_ROLES = [
   '通用助手', '代码工程师', '数据分析师', '内容创作者',
@@ -227,11 +293,14 @@ function createEmployee(opts = {}) {
   }
   const id = 'emp-' + EMPLOYEE_STORE._nextId++;
   const avatarIdx = (EMPLOYEE_STORE.employees.length) % EMPLOYEE_AVATARS.length;
+  const styleIdx = hashString(id) % EMPLOYEE_AVATAR_STYLES.length;
   const emp = {
     id,
     name,
     role: opts.role || EMPLOYEE_ROLES[0],
     avatar: opts.avatar || EMPLOYEE_AVATARS[avatarIdx],
+    avatarStyle: opts.avatarStyle || EMPLOYEE_AVATAR_STYLES[styleIdx].id,
+    avatarSeed: opts.avatarSeed || name,
     status: 'idle',
     skills: opts.skills || [],
     sessionId: null,  // 绑定的会话 ID
@@ -245,6 +314,10 @@ function createEmployee(opts = {}) {
     customPrompt: opts.customPrompt || '', // 用户自定义提示词
     subagentOf: opts.subagentOf || null,   // 该员工是谁的下属（manager empId）
     _pos: opts._pos || null,               // 画布位置
+    // 扩展字段
+    isPM: opts.isPM === true,              // ★ 是否为 PM 专员（工作区中最多一个）
+    params: opts.params || {},             // 配置参数
+    configHtml: opts.configHtml || '',     // 配置页面 HTML
   };
   EMPLOYEE_STORE.employees.push(emp);
   _saveEmployees();
@@ -410,12 +483,149 @@ function buildEmployeeSystemPrompt(emp) {
   return parts.join('\n\n') + relationCtx + groupChatCtx;
 }
 
+// ─── 异步 Prompt 构建（走后端 /api/prompt/build，Jinja2 + 多语言 + skill 注入） ───
+// 旧的同步 buildEmployeeSystemPrompt() 保留作为本地 fallback，与后端不可达时的安全网。
+//
+// 使用示例：
+//   const prompt = await buildEmployeeSystemPromptAsync(emp);          // 默认当前 locale
+//   const prompt = await buildEmployeeSystemPromptAsync(emp, {locale: 'en'});
+//   const prompt = await buildEmployeeSystemPromptAsync(emp, {forceRefresh: true});
+//
+// 返回值与同步版一致：一个完整的 system prompt 字符串。
+
+const _PROMPT_CACHE = new Map();      // cacheKey → prompt string
+const _PROMPT_CACHE_MAX = 100;
+
+function _promptCacheKey(emp, locale, skillsHash) {
+  if (!emp) return '';
+  const fingerprint = JSON.stringify({
+    id: emp.id,
+    name: emp.name,
+    role: emp.role,
+    presetId: emp.presetId,
+    subagentOf: emp.subagentOf,
+    customPrompt: emp.customPrompt || '',
+    params: emp.params || {},
+    skills: (emp.skills || []).map(s => ({ name: s.name || s, enabled: s.enabled !== false })),
+    promptSegments: emp.promptSegments || null,
+  });
+  return locale + '|' + (skillsHash || '') + '|' + fingerprint;
+}
+
+function _currentPromptLocale() {
+  try {
+    if (typeof window !== 'undefined' && window._locale && window._locale._lang) {
+      const lang = String(window._locale._lang).toLowerCase();
+      if (lang.startsWith('zh')) return 'zh';
+      if (lang.startsWith('en')) return 'en';
+      return lang;
+    }
+  } catch (_) {}
+  return 'zh';
+}
+
+async function buildEmployeeSystemPromptAsync(emp, opts) {
+  opts = opts || {};
+  if (!emp) return '';
+
+  const locale = opts.locale || _currentPromptLocale();
+
+  // 始终预先计算同步 fallback（作为最终保底）
+  let syncFallback = '';
+  try { syncFallback = buildEmployeeSystemPrompt(emp); } catch (_) {}
+
+  // 组装后端请求参数
+  let workspace = opts.workspace;
+  if (!workspace) {
+    try {
+      workspace = (typeof _currentCanvasWorkspace !== 'undefined' && _currentCanvasWorkspace && _currentCanvasWorkspace !== '__default__')
+        ? _currentCanvasWorkspace
+        : ((typeof S !== 'undefined' && S.session && S.session.workspace) || '');
+    } catch (_) { workspace = ''; }
+  }
+
+  let preset = opts.preset || null;
+  if (!preset && emp.presetId && typeof AGENT_PRESETS !== 'undefined') {
+    preset = AGENT_PRESETS.find(p => p.id === emp.presetId) || null;
+  }
+
+  let manager = opts.manager || null;
+  if (!manager && emp.subagentOf && typeof getEmployee === 'function') {
+    manager = getEmployee(emp.subagentOf) || null;
+  }
+
+  const skills = opts.skills !== undefined
+    ? opts.skills
+    : (emp.skills || []).filter(s => s.enabled !== false).map(s => ({
+        name: s.name || s,
+        enabled: true,
+      }));
+
+  // 缓存查询（仅在无 override 时生效）
+  const useCache = opts.skills === undefined && !opts.forceRefresh;
+  const cacheKey = useCache ? _promptCacheKey(emp, locale, JSON.stringify(skills)) : null;
+  if (cacheKey && _PROMPT_CACHE.has(cacheKey)) {
+    return _PROMPT_CACHE.get(cacheKey);
+  }
+
+  try {
+    const resp = await api('/api/prompt/build', {
+      method: 'POST',
+      body: JSON.stringify({
+        emp: emp,
+        locale: locale,
+        preset: preset,
+        skills: skills,
+        workspace: workspace,
+        manager: manager,
+        pm_name: (typeof PM_NAME !== 'undefined') ? PM_NAME : 'PM专员',
+      }),
+    });
+    if (resp && resp.ok && typeof resp.prompt === 'string' && resp.prompt.length > 0) {
+      if (cacheKey) {
+        if (_PROMPT_CACHE.size >= _PROMPT_CACHE_MAX) {
+          const firstKey = _PROMPT_CACHE.keys().next().value;
+          _PROMPT_CACHE.delete(firstKey);
+        }
+        _PROMPT_CACHE.set(cacheKey, resp.prompt);
+      }
+      return resp.prompt;
+    }
+    console.warn('[prompt] backend returned bad response, using local fallback', resp);
+    return syncFallback;
+  } catch (err) {
+    console.warn('[prompt] backend call failed, using local fallback:', err && err.message);
+    return syncFallback;
+  }
+}
+
+function invalidatePromptCache(empId) {
+  if (!empId) {
+    _PROMPT_CACHE.clear();
+    return;
+  }
+  const needle = '"id":"' + empId + '"';
+  const keys = Array.from(_PROMPT_CACHE.keys());
+  for (let i = 0; i < keys.length; i++) {
+    if (keys[i].indexOf(needle) !== -1) {
+      _PROMPT_CACHE.delete(keys[i]);
+    }
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.buildEmployeeSystemPromptAsync = buildEmployeeSystemPromptAsync;
+  window.invalidatePromptCache = invalidatePromptCache;
+}
+
 function updateEmployee(id, updates) {
   const emp = getEmployee(id);
   if (!emp) return;
   Object.assign(emp, updates);
   _saveEmployees();
   renderEmployeeCards();
+  // 使该员工的 prompt 缓存失效（updates 可能改变了影响 prompt 的字段）
+  try { invalidatePromptCache(id); } catch (_) {}
 }
 
 function deleteEmployee(id) {
@@ -598,11 +808,16 @@ function _buildCard(emp) {
     ? `<span class="emp-usage-badge">${_fmtEmpTokens(totalTokens)}</span>`
     : '';
 
-  // 头像：如果有 characterImg 则显示精灵图（3×4 sprite sheet 裁剪首帧），否则显示 emoji
-  const avatarFallback = esc(emp.avatar).replace(/'/g, "\\'");
-  const avatarHtml = emp.characterImg
-    ? `<div class="emp-avatar emp-avatar-sprite" style="background-color:${st.bg};background-image:url('/static/img/characters/${emp.characterImg}_frame32x32.png');background-size:300% 400%;background-position:0 0;background-repeat:no-repeat" data-fallback="${avatarFallback}" onerror="this.style.backgroundImage='none';this.textContent=this.dataset.fallback"></div>`
-    : `<div class="emp-avatar" style="background:${st.bg}">${emp.avatar}</div>`;
+  // 头像：优先 DiceBear SVG 动画头像 → characterImg 精灵图 → emoji fallback
+  let avatarHtml = '';
+  if (emp.avatarStyle || emp.avatar) {
+    avatarHtml = getEmployeeAvatarHtml(emp, { size: 128, statusStyle: st, className: 'emp-avatar', animated: true });
+  } else if (emp.characterImg) {
+    const avatarFallback = esc(emp.avatar).replace(/'/g, "\\'");
+    avatarHtml = `<div class="emp-avatar emp-avatar-sprite" style="background-color:${st.bg};background-image:url('/static/img/characters/${emp.characterImg}_frame32x32.png');background-size:300% 400%;background-position:0 0;background-repeat:no-repeat" data-fallback="${avatarFallback}" onerror="this.style.backgroundImage='none';this.textContent=this.dataset.fallback"></div>`;
+  } else {
+    avatarHtml = `<div class="emp-avatar" style="background:${st.bg}">${esc(emp.avatar || '🤖')}</div>`;
+  }
 
   card.innerHTML = `
     <div class="emp-card-status-bar" data-status="${emp.status}"></div>
@@ -610,7 +825,7 @@ function _buildCard(emp) {
       <div class="emp-card-header">
         ${avatarHtml}
         <div class="emp-card-info">
-          <div class="emp-card-name" ondblclick="event.stopPropagation();_startRenameEmployee('${emp.id}')">${esc(emp.name)}</div>
+          <div class="emp-card-name" ondblclick="event.stopPropagation();_startRenameEmployee('${emp.id}')">${esc(emp.name)}${emp.isPM ? ' <span class="emp-pm-badge" title="PM 专员">PM</span>' : ''}</div>
           <div class="emp-card-role">${esc(emp.role)}</div>
         </div>
         <button class="emp-card-menu-btn" onclick="event.stopPropagation();_showCardMenu(event,'${emp.id}')">⋯</button>
@@ -665,7 +880,10 @@ function _updateCardStatus(card, emp) {
     label.textContent = st.label + extra;
   }
   const avatar = card.querySelector('.emp-avatar');
-  if (avatar) avatar.style.background = st.bg;
+  if (avatar) {
+    avatar.style.background = st.bg;
+    avatar.dataset.status = emp.status;
+  }
 }
 
 /** 增量更新卡片上的 token 使用量和模型标签 */
@@ -863,9 +1081,17 @@ function _showEmployeeFormDialog(existing) {
   const overlay = document.createElement('div');
   overlay.className = 'emp-dialog-overlay';
 
-  const avatarOptions = EMPLOYEE_AVATARS.map(a =>
-    `<button type="button" class="emp-avatar-opt${existing && existing.avatar === a ? ' emp-avatar-selected' : (!existing && a === EMPLOYEE_AVATARS[0] ? ' emp-avatar-selected' : '')}" data-avatar="${a}">${a}</button>`
-  ).join('');
+  // DiceBear 风格选择器
+  const currentStyle = existing && (existing.avatarStyle || existing.avatar);
+  const avatarOptions = EMPLOYEE_AVATAR_STYLES.map((s, idx) => {
+    const isSelected = existing
+      ? (currentStyle === s.id)
+      : idx === 0;
+    const previewUrl = `https://api.dicebear.com/9.x/${s.id}/svg?seed=preview&size=64`;
+    return `<button type="button" class="emp-avatar-opt${isSelected ? ' emp-avatar-selected' : ''}" data-style="${s.id}" title="${s.label}" style="padding:2px">
+      <img src="${previewUrl}" alt="${s.label}" style="width:28px;height:28px;border-radius:6px;object-fit:cover" loading="lazy">
+    </button>`;
+  }).join('');
 
   const roleOptions = EMPLOYEE_ROLES.map(r =>
     `<option value="${esc(r)}"${existing && existing.role === r ? ' selected' : ''}>${esc(r)}</option>`
@@ -894,7 +1120,7 @@ function _showEmployeeFormDialog(existing) {
 
   document.body.appendChild(overlay);
 
-  // 头像选择
+  // 头像风格选择
   overlay.querySelectorAll('.emp-avatar-opt').forEach(btn => {
     btn.onclick = () => {
       overlay.querySelectorAll('.emp-avatar-opt').forEach(b => b.classList.remove('emp-avatar-selected'));
@@ -918,12 +1144,12 @@ function _showEmployeeFormDialog(existing) {
     nameInput.title = '';
     const role = overlay.querySelector('#empFormRole').value;
     const avatarEl = overlay.querySelector('.emp-avatar-selected');
-    const avatar = avatarEl ? avatarEl.dataset.avatar : EMPLOYEE_AVATARS[0];
+    const avatarStyle = avatarEl ? avatarEl.dataset.style : EMPLOYEE_AVATAR_STYLES[0].id;
 
     if (existing) {
-      updateEmployee(existing.id, { name, role, avatar });
+      updateEmployee(existing.id, { name, role, avatarStyle, avatarSeed: name });
     } else {
-      const emp = createEmployee({ name, role, avatar });
+      const emp = createEmployee({ name, role, avatarStyle, avatarSeed: name });
       selectEmployee(emp.id);
     }
     overlay.remove();
@@ -1175,7 +1401,10 @@ function createTeamFromJSON(teamData) {
       // 从预设填充配置
       if (preset) {
         empOpts.presetId = preset.id;
-        empOpts.characterImg = preset.characterImg;
+        // 为预设员工分配确定性 DiceBear 风格
+        const styleIdx = hashString(preset.id) % EMPLOYEE_AVATAR_STYLES.length;
+        empOpts.avatarStyle = preset.avatarStyle || EMPLOYEE_AVATAR_STYLES[styleIdx].id;
+        empOpts.avatarSeed = preset.avatarSeed || preset.name || preset.id;
         // 将预设的 skills 字符串数组转为 createEmployee 期望的对象数组格式
         if (preset.skills && Array.isArray(preset.skills)) {
           empOpts.skills = preset.skills.map(s =>

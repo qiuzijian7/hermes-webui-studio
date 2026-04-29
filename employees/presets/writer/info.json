@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "writer",
+  "name": "编剧",
+  "role": "叙事/内容",
+  "desc": "对话文本、剧情脚本和叙事内容创作",
+  "category": "narrative",
+  "model": "sonnet",
+  "skills": [
+    "writing"
+  ],
+  "characterImg": "character_23"
+}

@@ -1,0 +1,13 @@
+{
+  "template_version": 1,
+  "id": "ui-programmer",
+  "name": "UI 程序员",
+  "role": "程序员",
+  "desc": "用户界面系统、HUD 和交互反馈",
+  "category": "programmers",
+  "model": "sonnet",
+  "skills": [
+    "ui-impl"
+  ],
+  "characterImg": "character_17"
+}
