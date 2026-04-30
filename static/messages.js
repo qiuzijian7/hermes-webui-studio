@@ -272,6 +272,7 @@ async function send(){
       attachments:uploaded.length?uploaded:undefined,
       system_prompt:_empSysPrompt||undefined,
       employee_name:(_emp&&_emp.name)||'',
+      enable_web_search:window._webSearchEnabled||false,
     })});
     streamId=startData.stream_id;
     S.activeStreamId = streamId;

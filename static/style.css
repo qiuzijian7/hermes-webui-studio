@@ -2886,8 +2886,7 @@ body.resizing{user-select:none;cursor:col-resize;}
   border-color: rgba(239, 68, 68, 0.6);
 }
 
-/* ★ 员工 Provider / Model 选择器（composer-footer 内） */
-.emp-selectors-divider { }
+/* ★ Provider / Model 选择器（composer-footer 内） */
 .emp-provider-wrap,
 .emp-model-wrap {
   position: relative;
@@ -2900,6 +2899,40 @@ body.resizing{user-select:none;cursor:col-resize;}
   background: rgba(124,185,255,.12);
   border-color: rgba(124,185,255,.28);
 }
+
+/* ── 联网搜索开关 ────────────────────────────────────── */
+.web-search-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color .15s, background-color .15s, border-color .15s;
+  white-space: nowrap;
+  line-height: 1;
+}
+.web-search-toggle:hover {
+  color: var(--text);
+  background: var(--hover-bg);
+}
+.web-search-toggle.active {
+  color: var(--blue);
+  background: rgba(124,185,255,.12);
+  border-color: rgba(124,185,255,.28);
+}
+.web-search-toggle .web-search-icon {
+  flex-shrink: 0;
+}
+.web-search-toggle .web-search-label {
+  font-size: 12px;
+}
+
 .emp-provider-dropdown {
   display: none;
   position: absolute;

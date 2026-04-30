@@ -888,6 +888,7 @@ async function _startPMDirectChat(userMessage, workspace) {
         workspace: workspace || undefined,
         system_prompt: sysPrompt,
         employee_name: PM_NAME,
+        enable_web_search: window._webSearchEnabled || false,
       }),
     });
 
@@ -1442,6 +1443,7 @@ async function _startDelegatedJob(emp, ctx, job) {
         workspace: ws || undefined,
         system_prompt: sysPrompt || undefined,
         employee_name: emp.name || '',
+        enable_web_search: window._webSearchEnabled || false,
       }),
     });
 
@@ -3136,7 +3138,7 @@ function initGroupChat() {
 
 // ── 员工模型选择器（provider + model 联动） ──────────────────────────────────
 
-/** 同步员工模型 chip 显示 */
+/** 同步模型 chip 显示 */
 function syncEmpModelChip() {
   const emp = (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId)
     ? (typeof getEmployee === 'function' ? getEmployee(EMPLOYEE_STORE.selectedId) : null)
@@ -3144,25 +3146,36 @@ function syncEmpModelChip() {
   const label = document.getElementById('rpEmpModelLabel');
   const chip = document.getElementById('rpEmpModelChip');
   if (!label || !chip) return;
+  // 有选中员工且员工有 model → 显示员工模型短名
+  // 否则显示全局 modelSelect 当前选中的模型短名
   if (emp && emp.model) {
     const shortName = emp.model.split('/').pop();
     label.textContent = shortName;
     chip.title = emp.model;
   } else {
-    label.textContent = 'Model';
-    chip.title = '选择模型';
+    // 从全局 modelSelect 获取当前模型
+    const sel = document.getElementById('modelSelect');
+    const modelVal = sel ? sel.value : '';
+    if (modelVal) {
+      label.textContent = modelVal.split('/').pop();
+      chip.title = modelVal;
+    } else {
+      label.textContent = 'Model';
+      chip.title = '选择模型';
+    }
   }
   // 同步 provider chip
   syncEmpProviderChip();
-  // 显示/隐藏选择器（仅员工聊天模式显示，总群隐藏）
+  // Provider / Model 选择器始终显示（替代旧的全局模型选择器）
+  // 总群模式时隐藏（总群消息走委派流程，不直接选模型）
   const isOpen = typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen;
-  const show = !isOpen && emp;
-  const divider = document.getElementById('empSelectorsDivider');
   const pWrap = document.getElementById('empProviderWrap');
   const mWrap = document.getElementById('empModelWrap');
-  if (divider) divider.style.display = show ? '' : 'none';
-  if (pWrap) pWrap.style.display = show ? '' : 'none';
-  if (mWrap) mWrap.style.display = show ? '' : 'none';
+  const hideStyle = isOpen ? 'none' : '';
+  if (pWrap) pWrap.style.display = hideStyle;
+  if (mWrap) mWrap.style.display = hideStyle;
+  // ★ 联网搜索开关可见性联动
+  if (typeof syncWebSearchToggle === 'function') syncWebSearchToggle();
 }
 
 /** 同步 provider chip 显示 */
@@ -3175,7 +3188,11 @@ function syncEmpProviderChip() {
   if (!label || !chip) return;
   const sel = $('modelSelect');
   if (!sel) { label.textContent = 'Provider'; chip.title = '选择 Provider'; return; }
-  const currentProvider = emp ? _getModelProvider(emp.model, sel) : '';
+  // 有选中员工 → 从员工模型推断 provider；否则从全局 modelSelect 当前值推断
+  const modelValue = (emp && emp.model) ? emp.model : (sel.value || '');
+  const currentProvider = modelValue ? _getModelProvider(modelValue, sel) : '';
+  // 同步 window._empSelectedProvider（如果有推断结果）
+  if (currentProvider) window._empSelectedProvider = currentProvider;
   if (currentProvider) {
     // 查找 provider 友好名
     let friendlyName = currentProvider;
@@ -3250,7 +3267,8 @@ function renderEmpProviderDropdown() {
   const emp = (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId)
     ? (typeof getEmployee === 'function' ? getEmployee(EMPLOYEE_STORE.selectedId) : null)
     : null;
-  const currentProvider = emp ? _getModelProvider(emp.model, sel) : '';
+  const modelValue = emp ? emp.model : (sel.value || '');
+  const currentProvider = modelValue ? _getModelProvider(modelValue, sel) : (window._empSelectedProvider || '');
 
   // 收集 provider 列表（含模型数量）
   const providers = [];
@@ -3382,7 +3400,7 @@ function renderEmpModelDropdown() {
   const emp = (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId)
     ? (typeof getEmployee === 'function' ? getEmployee(EMPLOYEE_STORE.selectedId) : null)
     : null;
-  const currentModel = emp ? emp.model : '';
+  const currentModel = emp ? emp.model : (sel.value || '');
 
   // 获取当前选中的 provider（由 provider chip 设置）
   const activeProvider = window._empSelectedProvider || _getModelProvider(currentModel, sel);
@@ -3517,15 +3535,17 @@ function _filterEmpModelDropdown(query) {
   });
 }
 
-/** 选择模型并更新员工 */
+/** 选择模型并更新（员工模式更新员工 model，否则更新全局 modelSelect） */
 function _selectEmpModel(modelId) {
   const emp = (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId)
     ? (typeof getEmployee === 'function' ? getEmployee(EMPLOYEE_STORE.selectedId) : null)
     : null;
-  if (!emp) { closeEmpModelDropdown(); return; }
 
-  emp.model = modelId;
-  if (typeof _saveEmployees === 'function') _saveEmployees();
+  // 员工模式：更新员工 model
+  if (emp) {
+    emp.model = modelId;
+    if (typeof _saveEmployees === 'function') _saveEmployees();
+  }
 
   // 同步 chip 显示
   syncEmpModelChip();
@@ -3551,8 +3571,11 @@ function _selectEmpModel(modelId) {
 
   if (typeof showToast === 'function') {
     const shortName = modelId.split('/').pop();
-    showToast(`✅ ${emp.name} 模型已切换为 ${shortName}`);
+    const name = emp ? emp.name : '';
+    showToast(name ? `✅ ${name} 模型已切换为 ${shortName}` : `✅ 模型已切换为 ${shortName}`);
   }
+  // ★ 联网搜索开关可见性联动
+  if (typeof syncWebSearchToggle === 'function') syncWebSearchToggle();
 }
 
 /** 定位员工下拉面板（对齐对应 chip 的左侧） */
@@ -3570,3 +3593,50 @@ window.toggleEmpProviderDropdown = toggleEmpProviderDropdown;
 window.closeEmpProviderDropdown = closeEmpProviderDropdown;
 window.toggleEmpModelDropdown = toggleEmpModelDropdown;
 window.closeEmpModelDropdown = closeEmpModelDropdown;
+
+// ── 联网搜索开关 ─────────────────────────────────────────────────────
+
+/** 全局状态：是否启用联网搜索 */
+window._webSearchEnabled = false;
+
+/** 切换联网搜索开关 */
+function toggleWebSearch() {
+  window._webSearchEnabled = !window._webSearchEnabled;
+  const btn = document.getElementById('webSearchToggle');
+  if (btn) {
+    btn.classList.toggle('active', window._webSearchEnabled);
+    btn.title = window._webSearchEnabled ? '联网搜索：已开启' : '联网搜索';
+  }
+  if (typeof showToast === 'function') {
+    showToast(window._webSearchEnabled ? '🌐 联网搜索已开启' : '联网搜索已关闭', 1500);
+  }
+}
+
+/**
+ * 根据当前模型更新联网搜索开关的可见性。
+ * 仅在 knot-agui 模型时显示。
+ */
+function syncWebSearchToggle() {
+  const btn = document.getElementById('webSearchToggle');
+  if (!btn) return;
+  // 获取当前模型（优先员工模型，否则全局模型选择器）
+  let currentModel = '';
+  if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId && typeof getEmployee === 'function') {
+    const emp = getEmployee(EMPLOYEE_STORE.selectedId);
+    if (emp) currentModel = emp.model || '';
+  }
+  if (!currentModel) {
+    const sel = document.getElementById('modelSelect');
+    if (sel) currentModel = sel.value || '';
+  }
+  const isKnotAgui = currentModel.startsWith('knot-agui:');
+  btn.style.display = isKnotAgui ? '' : 'none';
+  // 如果切换到非 knot-agui 模型，自动关闭联网搜索
+  if (!isKnotAgui && window._webSearchEnabled) {
+    window._webSearchEnabled = false;
+    btn.classList.remove('active');
+  }
+}
+
+window.toggleWebSearch = toggleWebSearch;
+window.syncWebSearchToggle = syncWebSearchToggle;

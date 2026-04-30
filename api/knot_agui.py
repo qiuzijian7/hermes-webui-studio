@@ -45,7 +45,7 @@ def get_knot_agents():
 
 
 def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
-                             cancel_event, system_prompt="", employee_name=""):
+                             cancel_event, system_prompt="", employee_name="", enable_web_search=False):
     """Run a Knot AG-UI agent conversation and translate events to Hermes SSE.
 
     model format: "knot-agui:<agent_id>" or "knot-agui:<agent_id>/<knot_model>"
@@ -110,7 +110,7 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
             "message": msg_text,
             "conversation_id": conversation_id,
             "stream": True,
-            "enable_web_search": False,
+            "enable_web_search": enable_web_search,
             "chat_extra": {},
         }
     }

@@ -2539,6 +2539,8 @@ def _handle_chat_start(handler, body):
     set_last_workspace(workspace)
     # ★ disable_tools: 用于 configHtml 生成等不需要工具的场景
     disable_tools = bool(body.get("disable_tools", False))
+    # ★ enable_web_search: 联网搜索开关（Knot AG-UI 协议参数）
+    enable_web_search = bool(body.get("enable_web_search", False))
     # ★ Log user input to the unified log panel
     _broadcast_log_event('user_input', {
         'text': msg[:500] + ('...' if len(msg) > 500 else ''),
@@ -2551,7 +2553,7 @@ def _handle_chat_start(handler, body):
         STREAMS[stream_id] = q
     thr = threading.Thread(
         target=_run_agent_streaming,
-        args=(s.session_id, msg, model, workspace, stream_id, attachments, system_prompt, employee_name, disable_tools),
+        args=(s.session_id, msg, model, workspace, stream_id, attachments, system_prompt, employee_name, disable_tools, enable_web_search),
         daemon=True,
     )
     thr.start()

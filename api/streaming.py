@@ -137,7 +137,7 @@ def _sse(handler, event, data):
     handler.wfile.flush()
 
 
-def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, attachments=None, system_prompt="", employee_name="", disable_tools=False):
+def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, attachments=None, system_prompt="", employee_name="", disable_tools=False, enable_web_search=False):
     """Run agent in background thread, writing SSE events to STREAMS[stream_id]."""
     q = STREAMS.get(stream_id)
     if q is None:
@@ -235,6 +235,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                     session_id, msg_text, model, stream_id, put,
                     cancel_event, system_prompt=system_prompt,
                     employee_name=employee_name,
+                    enable_web_search=enable_web_search,
                 )
             except Exception as _e:
                 put('apperror', {'type': 'knot_agui_import_error', 'message': str(_e)[:300]})

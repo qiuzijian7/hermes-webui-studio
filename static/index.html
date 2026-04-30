@@ -401,33 +401,25 @@
               <input type="file" id="fileInput" multiple accept="image/*,text/*,application/pdf,application/json,.md,.py,.js,.ts,.yaml,.yml,.toml,.csv,.sh,.txt,.log,.env" style="display:none">
               <button class="icon-btn" id="btnAttach" title="Attach files"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
               <button class="icon-btn mic-btn" id="btnMic" title="Voice input" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="1" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+              <!-- ★ 联网搜索开关（仅 knot-agui 模型时显示） -->
+              <button class="web-search-toggle" id="webSearchToggle" type="button" onclick="toggleWebSearch()" title="联网搜索" style="display:none">
+                <svg class="web-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <span class="web-search-label">联网</span>
+              </button>
               <div class="composer-divider" aria-hidden="true"></div>
-              <div class="composer-model-wrap">
-                <button class="composer-model-chip" id="composerModelChip" type="button" onclick="toggleModelDropdown()" title="Conversation model">
-                  <span class="composer-model-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg></span>
-                  <span class="composer-model-label" id="composerModelLabel">Model</span>
-                  <span class="composer-model-chevron" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
-                </button>
-                <select id="modelSelect" class="composer-model-select" title="Conversation model" aria-hidden="true" tabindex="-1">
-                <!-- ★ 2026-04-27 Bug 修复：原本硬编码了 OpenAI / Anthropic / Other 三个 optgroup，
-                     即使用户没有配置这些 provider，模型选择 UI 也始终显示它们（"GPT-5.4 Mini" 等
-                     这种假/错误的模型名）。同时，ollama 等真实配置的本地 provider 反而不出现。
-                     真正的模型列表由 populateModelDropdown() 通过 /api/models 动态填充，后端已经
-                     正确地只返回检测到 API key / custom_providers / CLI backends 的 provider。
-                     这里留一个占位 option，表明加载中；API 返回后会被整个替换。 -->
-                <option value="" disabled selected>Loading models…</option>
-                </select>
-              </div>
-              <!-- ★ 员工 Provider / Model 选择器（composer-footer 内） -->
-              <div class="composer-divider emp-selectors-divider" aria-hidden="true" id="empSelectorsDivider" style="display:none"></div>
-              <div class="emp-provider-wrap" id="empProviderWrap" style="display:none">
+              <!-- ★ modelSelect 隐藏数据源（保留，被大量 JS 引用；UI 由 Provider + Model chip 替代） -->
+              <select id="modelSelect" class="composer-model-select" title="Conversation model" aria-hidden="true" tabindex="-1" style="display:none">
+              <option value="" disabled selected>Loading models…</option>
+              </select>
+              <!-- ★ Provider / Model 选择器（替代旧的 composerModelChip） -->
+              <div class="emp-provider-wrap" id="empProviderWrap">
                 <button class="composer-model-chip emp-provider-chip" id="rpEmpProviderChip" type="button" onclick="toggleEmpProviderDropdown()" title="选择 Provider">
                   <span class="composer-model-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>
                   <span class="composer-model-label" id="rpEmpProviderLabel">Provider</span>
                   <span class="composer-model-chevron" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
                 </button>
               </div>
-              <div class="emp-model-wrap" id="empModelWrap" style="display:none">
+              <div class="emp-model-wrap" id="empModelWrap">
                 <button class="composer-model-chip emp-model-chip" id="rpEmpModelChip" type="button" onclick="toggleEmpModelDropdown()" title="选择模型">
                   <span class="composer-model-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
                   <span class="composer-model-label" id="rpEmpModelLabel">Model</span>
@@ -448,7 +440,6 @@
             </div>
             <div class="profile-dropdown" id="profileDropdown"></div>
             <div class="ws-dropdown ws-dropdown-footer" id="composerWsDropdown"></div>
-            <div class="model-dropdown" id="composerModelDropdown"></div>
             <div class="emp-provider-dropdown" id="rpEmpProviderDropdown"></div>
             <div class="emp-model-dropdown" id="rpEmpModelDropdown"></div>
           </div>

@@ -351,6 +351,10 @@ $('modelSelect').onchange=async()=>{
     }
   }
   if(typeof syncModelChip==='function') syncModelChip();
+  // ★ 同步 Provider/Model chip 显示（替代旧的全局模型选择器 UI）
+  if(typeof syncEmpModelChip==='function') syncEmpModelChip();
+  // ★ 联网搜索开关可见性联动
+  if(typeof syncWebSearchToggle==='function') syncWebSearchToggle();
   syncTopbar();
   // Warn if selected model belongs to a different provider than what Hermes is configured for
   if(typeof _checkProviderMismatch==='function'){
@@ -538,6 +542,8 @@ function applyBotName(){
   if(profileLabel) profileLabel.textContent=S.activeProfile||'default';
   // Fetch available models from server and populate dropdown dynamically
   await populateModelDropdown();
+  // ★ 同步 Provider/Model chip 显示（模型列表加载完成后）
+  if(typeof syncEmpModelChip==='function') syncEmpModelChip();
   // Restore last-used model preference
   const savedModel=localStorage.getItem('hermes-webui-model');
   if(savedModel && $('modelSelect')){
