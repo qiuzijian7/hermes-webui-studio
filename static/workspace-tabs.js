@@ -1077,6 +1077,8 @@ function renderEmployeeCards() {
   const canvas = $('canvasZoomLayer') || $('employeeCanvas');
   const empty = $('employeeEmptyState');
   if (!canvas) return;
+  // ★ 如果正在内联重命名，跳过重渲（防止 input 被销毁）
+  if (canvas.querySelector('[data-editing="1"]')) return;
 
   // 清除旧卡片
   canvas.querySelectorAll('.emp-card').forEach(c => c.remove());
@@ -1237,6 +1239,8 @@ function _applyDisplayMode() {
 function renderEmployeeList() {
   const container = $('empListItems');
   if (!container) return;
+  // ★ 如果正在内联重命名，跳过重渲（防止 input 被销毁）
+  if (container.querySelector('[data-editing="1"]')) return;
   container.innerHTML = '';
 
   const filtered = _getFilteredEmployees();
@@ -1252,16 +1256,10 @@ function renderEmployeeList() {
     return;
   }
 
-  // 排序辅助函数：PM(2) > 自动协作(1) > 普通(0)
-  const sortScore = (emp) => {
-    const pm = emp.isPM ? 2 : 0;
-    const auto = (typeof isEmpAutoCollabActive === 'function' && isEmpAutoCollabActive(emp.id)) ? 1 : 0;
-    return pm + auto;
-  };
-
   // 分离 PM 区和员工区
-  const pmList = filtered.filter(e => e.isPM).sort((a, b) => sortScore(b) - sortScore(a));
-  const empList = filtered.filter(e => !e.isPM).sort((a, b) => sortScore(b) - sortScore(a));
+  // ★ 开启自动协作 = isPM=true，PM 专区即自动协作员工
+  const pmList = filtered.filter(e => e.isPM);
+  const empList = filtered.filter(e => !e.isPM);
 
   // 渲染分区
   const appendSection = (title, list) => {
@@ -1291,15 +1289,13 @@ function _buildListItem(emp) {
     ? getEmployeeAvatarHtml(emp, { size: 64, statusStyle: st, className: 'emp-list-avatar', animated: false })
     : `<div class="emp-list-avatar" style="background:${st.bg}"><span style="font-size:16px">${esc(emp.avatar || '🤖')}</span></div>`;
 
-  const isAutoCollab = (typeof isEmpAutoCollabActive === 'function') && isEmpAutoCollabActive(emp.id);
-
   item.innerHTML = `
     <div class="emp-list-drag-handle" title="拖拽排序">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg>
     </div>
     ${avatarHtml}
     <div class="emp-list-info">
-      <div class="emp-list-name">${esc(emp.name)}${emp.isPM ? ' <span class="emp-pm-badge" title="PM 专员">PM</span>' : ''}${isAutoCollab ? ' <span class="emp-autocollab-badge" title="自动协作">🤖💓</span>' : ''}</div>
+      <div class="emp-list-name">${esc(emp.name)}${emp.isPM ? ' <span class="emp-pm-badge" title="PM 专员（自动协作已开启）">PM</span>' : ''}</div>
       <div class="emp-list-role">${esc(emp.role)}</div>
     </div>
     <div class="emp-list-status">
@@ -1385,13 +1381,8 @@ function _initListItemDrag(item, emp) {
     const targetEmp = EMPLOYEE_STORE.employees.find(em => em.id === emp.id);
     if (!sourceEmp || !targetEmp) return;
 
-    // 分区保护：非 PM 不能进入 PM 专区（PM 始终在 PM 专区顶部）
+    // 分区保护：非 PM（普通员工）不能进入 PM 专区
     if (!sourceEmp.isPM && targetEmp.isPM) return;
-
-    // 自动协作保护：普通员工不能拖到开启自动协作的员工上方
-    const isTargetAuto = typeof isEmpAutoCollabActive === 'function' && isEmpAutoCollabActive(targetEmp.id);
-    const isSourceAuto = typeof isEmpAutoCollabActive === 'function' && isEmpAutoCollabActive(sourceEmp.id);
-    if (!sourceEmp.isPM && !isSourceAuto && isTargetAuto) return;
 
     // 在 EMPLOYEE_STORE.employees 数组中重排
     const srcIdx = EMPLOYEE_STORE.employees.findIndex(em => em.id === sourceId);

@@ -2195,6 +2195,10 @@ body.resizing{user-select:none;cursor:col-resize;}
   box-shadow: 0 0 0 2px var(--focus-glow);
   box-sizing: border-box;
   flex-shrink: 0;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+  pointer-events: auto;
 }
 .emp-card-role {
   font-size: 11px;
@@ -3977,6 +3981,11 @@ body.resizing{user-select:none;cursor:col-resize;}
 .gc-link:hover {
   background: rgba(124,185,255,.2);
   text-decoration: none !important;
+}
+
+/* ★ 协调员链接（委派栏中固定显示） */
+.rp-coordinator-link {
+  cursor: pointer;
 }
 
 /* 总群消息行 */

@@ -841,7 +841,7 @@ function _buildCard(emp) {
       <div class="emp-card-header">
         ${avatarHtml}
         <div class="emp-card-info">
-          <div class="emp-card-name" ondblclick="event.stopPropagation();_startRenameEmployee('${emp.id}')">${esc(emp.name)}${emp.isPM ? ' <span class="emp-pm-badge" title="PM 专员">PM</span>' : ''}${(typeof isEmpAutoCollabActive === 'function' && isEmpAutoCollabActive(emp.id)) ? ' <span class="emp-auto-collab-indicator" title="自动协作+心跳已开启">🤖💓</span>' : ''}</div>
+          <div class="emp-card-name" ondblclick="event.stopPropagation();_startRenameEmployee('${emp.id}')">${esc(emp.name)}${emp.isPM ? ' <span class="emp-pm-badge" title="PM 专员（自动协作已开启）">PM</span>' : ''}</div>
           <div class="emp-card-role">${esc(emp.role)}</div>
         </div>
         <button class="emp-card-menu-btn" onclick="event.stopPropagation();_showCardMenu(event,'${emp.id}')">⋯</button>
@@ -1072,7 +1072,13 @@ function _hideCardMenu() {
 // ── 内联重命名 ──────────────────────────────────────────────────────────────
 function _startRenameEmployee(empId) {
   // 兼容画布模式(.emp-card)和列表模式(.emp-list-item)
-  const card = document.querySelector(`.emp-card[data-id="${empId}"]`) || document.querySelector(`.emp-list-item[data-id="${empId}"]`);
+  // ★ 优先查找可见的元素：列表模式下 .emp-card 虽存在但被隐藏（display:none 父级），
+  //   若不检查可见性会在隐藏的卡片上创建 input，用户完全看不到
+  const listItem = document.querySelector(`.emp-list-item[data-id="${empId}"]`);
+  const canvasCard = document.querySelector(`.emp-card[data-id="${empId}"]`);
+  const card = (listItem && listItem.offsetParent !== null) ? listItem
+             : (canvasCard && canvasCard.offsetParent !== null) ? canvasCard
+             : listItem || canvasCard;
   if (!card) return;
   const emp = getEmployee(empId);
   if (!emp) return;
@@ -1082,6 +1088,11 @@ function _startRenameEmployee(empId) {
 
   nameEl.dataset.editing = '1';
   const oldName = emp.name;
+
+  // ★ 列表模式下，暂时禁用拖拽（draggable=true 会拦截 input 的 mousedown/focus）
+  const wasDraggable = card.draggable;
+  if (wasDraggable) card.draggable = false;
+
   nameEl.innerHTML = `<input class="emp-rename-input" type="text" value="${esc(oldName)}" maxlength="32">`;
   const input = nameEl.querySelector('.emp-rename-input');
   // 延迟 focus，确保 DOM 渲染完成且菜单关闭的焦点抖动已结束
@@ -1094,6 +1105,8 @@ function _startRenameEmployee(empId) {
   const finish = (save) => {
     if (nameEl.dataset.editing !== '1') return;
     nameEl.dataset.editing = '';
+    // ★ 恢复拖拽
+    if (wasDraggable) card.draggable = true;
     const newName = save ? input.value.trim() : null;
     if (newName && newName !== oldName) {
       if (!isEmployeeNameUnique(newName, empId)) {
@@ -1113,19 +1126,20 @@ function _startRenameEmployee(empId) {
   input.addEventListener('blur', () => { if (_renameReady) finish(true); });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); if (_renameReady) input.blur(); }
-    if (e.key === 'Escape') { nameEl.dataset.editing = ''; _renameReady = false; _restoreNameWithBadges(nameEl, oldName, emp); }
+    if (e.key === 'Escape') { nameEl.dataset.editing = ''; _renameReady = false; if (wasDraggable) card.draggable = true; _restoreNameWithBadges(nameEl, oldName, emp); }
     e.stopPropagation();
   });
+  // ★ 阻止 input 上的 click / mousedown / dragstart 冒泡到列表项（防止触发 selectEmployee 或拖拽）
   input.addEventListener('click', (e) => e.stopPropagation());
+  input.addEventListener('mousedown', (e) => e.stopPropagation());
+  input.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
 }
 
 /** 恢复名称元素的完整 innerHTML（含徽章），用于重命名取消/还原 */
 function _restoreNameWithBadges(nameEl, name, emp) {
-  const isAuto = typeof isEmpAutoCollabActive === 'function' && isEmpAutoCollabActive(emp.id);
-  const pmBadge = emp.isPM ? ' <span class="emp-pm-badge" title="PM 专员">PM</span>' : '';
-  const autoBadge = isAuto ? ' <span class="emp-autocollab-badge" title="自动协作">🤖💓</span>' : '';
+  const pmBadge = emp.isPM ? ' <span class="emp-pm-badge" title="PM 专员（自动协作已开启）">PM</span>' : '';
   nameEl.textContent = '';
-  nameEl.innerHTML = esc(name) + pmBadge + autoBadge;
+  nameEl.innerHTML = esc(name) + pmBadge;
 }
 
 // ── 员工创建对话框 ────────────────────────────────────────────────────────

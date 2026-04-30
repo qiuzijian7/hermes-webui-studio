@@ -371,13 +371,13 @@ async function openEmployeeChat(empId, taskId) {
   }
   const nameEl = $('rpEmployeeName');
   if (nameEl) {
-    // ★ 在员工名称旁添加"自动协作+心跳"切换按钮（工作区内互斥：仅一个员工可开启）
+    // ★ 在员工名称旁添加"自动协作"切换按钮（开启=设为PM专员，关闭=取消PM，工作区内仅一个PM）
     const isActive = (typeof isEmpAutoCollabActive === 'function') && isEmpAutoCollabActive(emp.id);
     nameEl.innerHTML = `${esc(emp.name)}
       <button id="empAutoCollabBtn"
               class="gc-auto-orch-btn emp-auto-collab-btn${isActive ? ' active' : ''}"
               onclick="event.stopPropagation();toggleEmpAutoCollab('${esc(emp.id)}')"
-              title="${isActive ? '自动协作+心跳已开启（' + esc(emp.name) + '）- 点击关闭' : '点击为 ' + esc(emp.name) + ' 开启自动协作+心跳'}"
+              title="${isActive ? esc(emp.name) + ' 是当前PM专员（自动协作已开启）- 点击关闭' : '点击将 ' + esc(emp.name) + ' 设为PM专员并开启自动协作'}"
       >🤖💓 自动协作</button>`;
   }
   const roleEl = $('rpEmployeeRole');
@@ -3102,13 +3102,14 @@ function _updateDelegationBar(emp) {
 
   const parts = [];
 
-  // PM专员链接（始终显示在最前）— 点击跳转到PM专员员工聊天框，而非总群
-  // ★ PM专员员工聊天框和PM专员聊天框是同一个东西
+  // ★ 协调员（PM专员）链接 — 固定显示，自动协作开关变更时自动更新
   if (typeof getPMEmployee === 'function') {
     const pm = getPMEmployee();
     if (pm) {
       const pmName = pm.name || (typeof PM_NAME !== 'undefined' ? PM_NAME : 'PM专员');
-      parts.push(`<span class="rp-del-label">${esc(pmName)}：</span><span class="rp-del-name gc-link" onclick="selectEmployee('${pm.id}')" title="打开${esc(pmName)}聊天">${esc(pmName)}</span>`);
+      parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-name gc-link rp-coordinator-link" onclick="selectEmployee('${pm.id}')" title="打开${esc(pmName)}聊天">${esc(pmName)}</span>`);
+    } else {
+      parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-label" style="opacity:.5">未设置</span>`);
     }
   }
 

@@ -43,15 +43,15 @@ function toggleAutoOrchestrate() {
   if (activeId) {
     // 当前有激活员工 → 关闭
     setActiveAutoCollabEmpId(null);
-    if (typeof showToast === 'function') showToast('⏸ 自动协作+心跳已关闭');
+    if (typeof showToast === 'function') showToast('⏸ 自动协作已关闭，PM身份已取消');
   } else {
-    // 无激活员工 → 为 PM 专员（或首个员工）开启
-    const pmEmp = (typeof EMPLOYEE_STORE !== 'undefined')
-      ? EMPLOYEE_STORE.employees.find(e => e.isPM) || EMPLOYEE_STORE.employees[0]
+    // 无激活员工 → 为首个员工开启（设为PM）
+    const firstEmp = (typeof EMPLOYEE_STORE !== 'undefined')
+      ? EMPLOYEE_STORE.employees[0]
       : null;
-    if (pmEmp) {
-      setActiveAutoCollabEmpId(pmEmp.id);
-      if (typeof showToast === 'function') showToast(`✅ 自动协作+心跳已开启（${pmEmp.name}）`);
+    if (firstEmp) {
+      setActiveAutoCollabEmpId(firstEmp.id);
+      if (typeof showToast === 'function') showToast(`✅ ${firstEmp.name} 设为PM并开启协作`);
     }
   }
 }
@@ -1852,12 +1852,13 @@ function _updateGroupDelegationBar() {
 
   const parts = [];
 
-  // PM专员链接 — 点击跳转到PM专员员工聊天框，而非总群
-  // ★ PM专员员工聊天框和PM专员聊天框是同一个东西
+  // ★ 协调员（PM专员）链接 — 固定显示，自动协作开关变更时自动更新
   const pmEmp = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
   if (pmEmp) {
     const pmName = pmEmp.name || PM_NAME;
-    parts.push(`<span class="rp-del-name gc-link" onclick="selectEmployee('${pmEmp.id}')" title="打开${pmName}聊天">${pmName}</span>`);
+    parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-name gc-link rp-coordinator-link" onclick="selectEmployee('${pmEmp.id}')" title="打开${pmName}聊天">${pmName}</span>`);
+  } else {
+    parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-label" style="opacity:.5">未设置</span>`);
   }
 
   // 成员（PM专员打开时显示：按钮 + 下拉面板，支持层级展示）
@@ -2429,12 +2430,13 @@ function _updateDelegationBarWithGroupChat(emp) {
 
   const parts = [];
 
-  // PM专员链接（始终显示在最前）— 点击跳转到PM专员员工聊天框，而非总群
-  // ★ PM专员员工聊天框和PM专员聊天框是同一个东西
+  // ★ 协调员（PM专员）链接 — 固定显示，自动协作开关变更时自动更新
   const pmEmp2 = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
   if (pmEmp2) {
     const pmName2 = pmEmp2.name || PM_NAME;
-    parts.push(`<span class="rp-del-label">${pmName2}：</span><span class="rp-del-name gc-link" onclick="selectEmployee('${pmEmp2.id}')" title="打开${pmName2}聊天">${pmName2}</span>`);
+    parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-name gc-link rp-coordinator-link" onclick="selectEmployee('${pmEmp2.id}')" title="打开${pmName2}聊天">${pmName2}</span>`);
+  } else {
+    parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-label" style="opacity:.5">未设置</span>`);
   }
 
   // 上级
@@ -2529,19 +2531,49 @@ function setActiveAutoCollabEmpId(empId) {
   HEARTBEAT_STATE.enabled = shouldBeOn;
   localStorage.setItem('pm_heartbeat_enabled', shouldBeOn ? '1' : '0');
 
+  // ★ 联动 isPM：开启自动协作 = 设为PM专员，关闭 = 取消PM
+  //    工作区内仅允许一个PM专员
+  if (typeof EMPLOYEE_STORE !== 'undefined') {
+    // 将旧的PM取消PM标记
+    if (prevId) {
+      const prevEmp = EMPLOYEE_STORE.employees.find(e => e.id === prevId);
+      if (prevEmp && prevEmp.isPM) {
+        prevEmp.isPM = false;
+      }
+    }
+    // 为新员工设置PM标记
+    if (empId) {
+      const newEmp = EMPLOYEE_STORE.employees.find(e => e.id === empId);
+      if (newEmp) {
+        newEmp.isPM = true;
+      }
+    }
+    // 持久化
+    if (typeof _saveEmployees === 'function') _saveEmployees();
+  }
+
   // 更新总群头部按钮
   _updateGcHeaderButtons();
   // 更新员工聊天头部按钮
   _updateEmpChatHeaderButtons();
-  // 更新卡片图标
+  // 更新卡片图标（重新渲染卡片和列表以反映PM状态变化）
   _refreshAutoCollabCardIndicators(prevId, empId);
+  // ★ 刷新委派栏中的"协调员"显示
+  if (typeof _updateDelegationBar === 'function') {
+    const selId = typeof EMPLOYEE_STORE !== 'undefined' ? EMPLOYEE_STORE.selectedId : null;
+    const selEmp = selId && typeof getEmployee === 'function' ? getEmployee(selId) : null;
+    _updateDelegationBar(selEmp);
+  }
+  // 重新渲染员工卡片和列表（PM身份变化需要重新渲染）
+  if (typeof renderEmployeeCards === 'function') renderEmployeeCards();
+  if (typeof renderEmployeeList === 'function') renderEmployeeList();
 }
 window.setActiveAutoCollabEmpId = setActiveAutoCollabEmpId;
 
 /**
- * 为指定员工切换自动协作+心跳
- * - 当前员工已激活 → 关闭
- * - 其他员工已激活或无人激活 → 切换到该员工
+ * 为指定员工切换自动协作+PM身份
+ * - 当前员工已激活 → 关闭（取消PM身份）
+ * - 其他员工已激活或无人激活 → 切换到该员工（设为PM）
  */
 function toggleEmpAutoCollab(empId) {
   const activeId = getActiveAutoCollabEmpId();
@@ -2550,7 +2582,7 @@ function toggleEmpAutoCollab(empId) {
     const emp = (typeof getEmployee === 'function') ? getEmployee(empId) : null;
     const empName = emp ? emp.name : '员工';
     setActiveAutoCollabEmpId(null);
-    if (typeof showToast === 'function') showToast(`⏸ ${empName} 关闭协作`);
+    if (typeof showToast === 'function') showToast(`⏸ ${empName} 已关闭协作并取消PM身份`);
   } else {
     // 切换到该员工
     const prevEmp = activeId && (typeof getEmployee === 'function') ? getEmployee(activeId) : null;
@@ -2559,10 +2591,10 @@ function toggleEmpAutoCollab(empId) {
     setActiveAutoCollabEmpId(empId);
     if (prevEmp) {
       // 从其他员工切换过来
-      if (typeof showToast === 'function') showToast(`⏸ ${prevEmp.name} 关闭协作，✅ ${newName} 开启协作`);
+      if (typeof showToast === 'function') showToast(`⏸ ${prevEmp.name} 取消PM，✅ ${newName} 设为PM并开启协作`);
     } else {
       // 无人激活 → 开启
-      if (typeof showToast === 'function') showToast(`✅ ${newName} 开启协作`);
+      if (typeof showToast === 'function') showToast(`✅ ${newName} 设为PM并开启协作`);
     }
   }
 }
@@ -2599,25 +2631,13 @@ function _updateEmpChatHeaderButtons() {
   const emp = (typeof getEmployee === 'function') ? getEmployee(empId) : null;
   const empName = emp ? emp.name : '';
   btn.title = isActive
-    ? `自动协作+心跳已开启（${empName}）- 点击关闭`
-    : `点击为 ${empName} 开启自动协作+心跳`;
+    ? `${empName} 是当前PM专员（自动协作已开启）- 点击关闭`
+    : `点击将 ${empName} 设为PM专员并开启自动协作`;
 }
 
-/** 切换卡片上的自动协作图标 */
+/** 切换卡片上的PM标识（isPM 变化后由 renderEmployeeCards 重新渲染，此处为空操作兼容） */
 function _refreshAutoCollabCardIndicators(prevEmpId, newEmpId) {
-  // 移除旧员工的图标
-  if (prevEmpId) {
-    const prevCard = document.querySelector(`.emp-card[data-id="${prevEmpId}"]`);
-    if (prevCard) {
-      const indicator = prevCard.querySelector('.emp-auto-collab-indicator');
-      if (indicator) indicator.remove();
-    }
-  }
-  // 为新员工添加图标
-  if (newEmpId) {
-    const newCard = document.querySelector(`.emp-card[data-id="${newEmpId}"]`);
-    if (newCard) _addAutoCollabIndicator(newCard);
-  }
+  // isPM 联动后由 renderEmployeeCards() 重新渲染卡片，无需手动操作
 }
 
 /** 为员工卡片添加 🤖💓 图标 */
@@ -2633,13 +2653,9 @@ function _addAutoCollabIndicator(card) {
 }
 window._addAutoCollabIndicator = _addAutoCollabIndicator;
 
-/** 渲染完卡片后，应用自动协作图标 */
+/** 渲染完卡片后，应用自动协作图标（isPM 联动后由 PM badge 统一显示，此处为空操作兼容） */
 function _applyAutoCollabIndicators() {
-  if (typeof isEmpAutoCollabActive !== 'function') return;
-  const activeId = getActiveAutoCollabEmpId();
-  if (!activeId) return;
-  const card = document.querySelector(`.emp-card[data-id="${activeId}"]`);
-  if (card) _addAutoCollabIndicator(card);
+  // isPM 联动后，PM badge 已在 _buildCard 中直接渲染，无需手动操作
 }
 window._applyAutoCollabIndicators = _applyAutoCollabIndicators;
 
