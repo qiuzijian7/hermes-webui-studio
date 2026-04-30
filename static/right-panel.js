@@ -3108,21 +3108,77 @@ function _updateDelegationBar(emp) {
     if (pm) {
       const pmName = pm.name || (typeof PM_NAME !== 'undefined' ? PM_NAME : 'PM专员');
       parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-name gc-link rp-coordinator-link" onclick="selectEmployee('${pm.id}')" title="打开${esc(pmName)}聊天">${esc(pmName)}</span>`);
+      // ★ 协调员（PM专员）聊天模式下，显示成员下拉框按钮
+      const isPMChat = emp.id === pm.id;
+      if (isPMChat && typeof _refreshGroupMembers === 'function' && typeof GROUP_CHAT_STATE !== 'undefined') {
+        _refreshGroupMembers();
+        const members = GROUP_CHAT_STATE.members;
+        if (members.length) {
+          let hierarchy = [];
+          if (typeof getSubagentsOf === 'function') {
+            const topManagers = members.filter(m => {
+              const mEmp = getEmployee(m.id);
+              return mEmp && !mEmp.subagentOf;
+            });
+            const _buildHierarchy = (empId, depth) => {
+              const mEmp = getEmployee(empId);
+              if (!mEmp) return [];
+              const result = [{ id: mEmp.id, name: mEmp.name, role: mEmp.role, avatar: mEmp.avatar, depth }];
+              const subs = getSubagentsOf(empId);
+              for (const s of subs) {
+                result.push(..._buildHierarchy(s.to, depth + 1));
+              }
+              return result;
+            };
+            for (const mgr of topManagers) {
+              hierarchy.push(..._buildHierarchy(mgr.id, 0));
+            }
+            const hierarchyIds = new Set(hierarchy.map(h => h.id));
+            for (const m of members) {
+              if (!hierarchyIds.has(m.id)) {
+                const mEmp = getEmployee(m.id);
+                hierarchy.push({ id: m.id, name: m.name, role: m.role, avatar: mEmp ? mEmp.avatar : '', depth: -1 });
+              }
+            }
+          } else {
+            hierarchy = members.map(m => {
+              const mEmp = getEmployee(m.id);
+              return { id: m.id, name: m.name, role: m.role, avatar: mEmp ? mEmp.avatar : '', depth: 0 };
+            });
+          }
+          if (typeof window !== 'undefined') window._gcMemberHierarchy = hierarchy;
+          const n = hierarchy.length;
+          parts.push(
+            `<span class="rp-del-label">成员：</span>` +
+            `<button type="button" class="gc-members-btn" id="gcMembersBtn" ` +
+            `onclick="_toggleGroupMembersDropdown(event)" aria-haspopup="listbox" aria-expanded="false" ` +
+            `title="点击查看所有成员">` +
+            `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
+            `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>` +
+            `</svg>` +
+            `<span class="gc-members-count">${n}</span>` +
+            `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="gc-members-chevron"><polyline points="6 9 12 15 18 9"/></svg>` +
+            `</button>` +
+            `<div class="gc-members-dropdown" id="gcMembersDropdown" role="listbox" style="display:none"></div>`
+          );
+        }
+      }
     } else {
       parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-label" style="opacity:.5">未设置</span>`);
     }
   }
 
-  // 管理者（从连线关系）
-  if (emp.subagentOf && typeof getEmployee === 'function') {
+  // 管理者（从连线关系）— 仅非PM专员时显示
+  const _isPMChat = (typeof getPMEmployee === 'function' && getPMEmployee() && emp.id === getPMEmployee().id);
+  if (!_isPMChat && emp.subagentOf && typeof getEmployee === 'function') {
     const mgr = getEmployee(emp.subagentOf);
     if (mgr) {
       parts.push(`<span class="rp-del-label">上级：</span><span class="rp-del-name" onclick="selectEmployee('${mgr.id}')">${esc(mgr.name)}</span>`);
     }
   }
 
-  // 下属（从连线关系）
-  if (typeof getSubagentsOf === 'function') {
+  // 下属（从连线关系）— 仅非PM专员时显示
+  if (!_isPMChat && typeof getSubagentsOf === 'function') {
     const subs = getSubagentsOf(emp.id);
     if (subs && subs.length) {
       if (typeof window._renderSubsSegment === 'function') {
