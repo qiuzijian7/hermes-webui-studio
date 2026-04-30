@@ -1010,14 +1010,29 @@ function _showCardMenu(event, empId) {
 
   const menu = document.createElement('div');
   menu.className = 'emp-card-menu';
-  menu.innerHTML = `
-    <div class="emp-menu-item" onclick="selectEmployee('${empId}', true);_hideCardMenu()">${li('message-square',13)} 打开对话</div>
-    <div class="emp-menu-item" onclick="_startRenameEmployee('${empId}');_hideCardMenu()">${li('pencil',13)} 重命名</div>
-    <div class="emp-menu-item" onclick="_showEmployeeSkillConfig('${empId}');_hideCardMenu()">${li('book-open',13)} 配置技能</div>
-    <div class="emp-menu-item" onclick="showEditEmployeeDialog('${empId}');_hideCardMenu()">${li('settings',13)} 编辑员工</div>
-    <div class="emp-menu-sep"></div>
-    <div class="emp-menu-item emp-menu-danger" onclick="deleteEmployee('${empId}');_hideCardMenu()">${li('trash-2',13)} 删除员工</div>
-  `;
+
+  const menuItems = [
+    { label: li('message-square',13) + ' 打开对话', handler: () => { selectEmployee(empId, true); _hideCardMenu(); } },
+    { label: li('pencil',13) + ' 重命名', handler: () => { _hideCardMenu(); requestAnimationFrame(() => _startRenameEmployee(empId)); } },
+    { label: li('book-open',13) + ' 配置技能', handler: () => { _showEmployeeSkillConfig(empId); _hideCardMenu(); } },
+    { label: li('settings',13) + ' 编辑员工', handler: () => { showEditEmployeeDialog(empId); _hideCardMenu(); } },
+    { sep: true },
+    { label: li('trash-2',13) + ' 删除员工', handler: () => { deleteEmployee(empId); _hideCardMenu(); }, danger: true },
+  ];
+
+  for (const item of menuItems) {
+    if (item.sep) {
+      const sep = document.createElement('div');
+      sep.className = 'emp-menu-sep';
+      menu.appendChild(sep);
+    } else {
+      const div = document.createElement('div');
+      div.className = 'emp-menu-item' + (item.danger ? ' emp-menu-danger' : '');
+      div.innerHTML = item.label;
+      div.addEventListener('click', item.handler);
+      menu.appendChild(div);
+    }
+  }
 
   // 定位：兼容画布模式(.emp-card)和列表模式(.emp-list-item)
   const listItem = event.target.closest('.emp-list-item');
@@ -1069,8 +1084,12 @@ function _startRenameEmployee(empId) {
   const oldName = emp.name;
   nameEl.innerHTML = `<input class="emp-rename-input" type="text" value="${esc(oldName)}" maxlength="32">`;
   const input = nameEl.querySelector('.emp-rename-input');
-  input.focus();
-  input.select();
+  // 延迟 focus，确保 DOM 渲染完成且菜单关闭的焦点抖动已结束
+  requestAnimationFrame(() => { input.focus(); input.select(); });
+
+  // 防止菜单关闭后的焦点抖动导致立即 blur → finish
+  let _renameReady = false;
+  setTimeout(() => { _renameReady = true; }, 80);
 
   const finish = (save) => {
     if (nameEl.dataset.editing !== '1') return;
@@ -1079,7 +1098,7 @@ function _startRenameEmployee(empId) {
     if (newName && newName !== oldName) {
       if (!isEmployeeNameUnique(newName, empId)) {
         showToast('员工名称不能重复');
-        nameEl.textContent = oldName;
+        _restoreNameWithBadges(nameEl, oldName, emp);
         return;
       }
       updateEmployee(empId, { name: newName });
@@ -1087,17 +1106,26 @@ function _startRenameEmployee(empId) {
       const rpName = $('rpEmployeeName');
       if (rpName && EMPLOYEE_STORE.selectedId === empId) rpName.textContent = newName;
     } else {
-      nameEl.textContent = oldName;
+      _restoreNameWithBadges(nameEl, oldName, emp);
     }
   };
 
-  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('blur', () => { if (_renameReady) finish(true); });
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-    if (e.key === 'Escape') { nameEl.dataset.editing = ''; nameEl.textContent = oldName; }
+    if (e.key === 'Enter') { e.preventDefault(); if (_renameReady) input.blur(); }
+    if (e.key === 'Escape') { nameEl.dataset.editing = ''; _renameReady = false; _restoreNameWithBadges(nameEl, oldName, emp); }
     e.stopPropagation();
   });
   input.addEventListener('click', (e) => e.stopPropagation());
+}
+
+/** 恢复名称元素的完整 innerHTML（含徽章），用于重命名取消/还原 */
+function _restoreNameWithBadges(nameEl, name, emp) {
+  const isAuto = typeof isEmpAutoCollabActive === 'function' && isEmpAutoCollabActive(emp.id);
+  const pmBadge = emp.isPM ? ' <span class="emp-pm-badge" title="PM 专员">PM</span>' : '';
+  const autoBadge = isAuto ? ' <span class="emp-autocollab-badge" title="自动协作">🤖💓</span>' : '';
+  nameEl.textContent = '';
+  nameEl.innerHTML = esc(name) + pmBadge + autoBadge;
 }
 
 // ── 员工创建对话框 ────────────────────────────────────────────────────────

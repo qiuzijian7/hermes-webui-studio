@@ -2182,6 +2182,7 @@ body.resizing{user-select:none;cursor:col-resize;}
 .emp-card-name:hover { cursor: text; }
 .emp-rename-input {
   width: 100%;
+  min-width: 60px;
   padding: 1px 4px;
   border: 1px solid var(--blue);
   border-radius: 4px;
@@ -2193,6 +2194,7 @@ body.resizing{user-select:none;cursor:col-resize;}
   outline: none;
   box-shadow: 0 0 0 2px var(--focus-glow);
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 .emp-card-role {
   font-size: 11px;
@@ -3415,16 +3417,17 @@ body.resizing{user-select:none;cursor:col-resize;}
 
 /* ── 提示词编辑视图 ────────────────────────────────────────────────────────── */
 .rp-prompt-view {
-  display: flex; flex-direction: column; flex: 1;
+  display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;
 }
 .rp-prompt-content {
-  flex: 1; overflow-y: auto; padding: 16px;
-  display: flex; flex-direction: column; gap: 16px;
+  flex: 1; min-height: 0; overflow: hidden; padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
 }
-.rp-prompt-section { display: flex; flex-direction: column; gap: 6px; }
+.rp-prompt-section { display: flex; flex-direction: column; gap: 6px; flex: 1 1 0; min-height: 0; overflow: hidden; }
 .rp-prompt-label {
   font-size: 12px; font-weight: 600; color: var(--muted);
   text-transform: uppercase; letter-spacing: .5px;
+  flex-shrink: 0;
 }
 
 /* ── 配置页面编辑视图 ────────────────────────────────────────────────────────── */
@@ -3467,13 +3470,16 @@ body.resizing{user-select:none;cursor:col-resize;}
 }
 }
 .rp-prompt-textarea {
-  width: 100%; min-height: 320px; padding: 12px;
+  width: 100%; padding: 12px;
   font-size: 13px; line-height: 1.6;
   font-family: var(--font-mono, 'SF Mono', 'Menlo', monospace);
   background: var(--input-bg); color: var(--text);
   border: 1px solid var(--border); border-radius: 10px;
-  resize: vertical; outline: none; box-sizing: border-box;
+  resize: none; outline: none; box-sizing: border-box;
   transition: border-color .15s;
+  flex: 1 1 0;
+  min-height: 0;
+  height: 0;
 }
 .rp-prompt-textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 2px var(--focus-glow); }
 .rp-prompt-textarea::placeholder { color: var(--muted); opacity: .7; }
@@ -4408,7 +4414,7 @@ body.resizing-v {
 .chat-panel .rp-skill-view,
 .chat-panel .rp-prompt-view,
 .chat-panel .rp-confightml-view {
-  width: 100%;
+  width: 100%; flex: 1; min-height: 0;
 }
 .chat-panel .rp-empty {
   display: flex;
@@ -4422,6 +4428,17 @@ body.resizing-v {
   text-align: center;
 }
 .chat-panel .rp-empty p { font-size: 13px; margin: 0; }
+/* chat-panel 内提示词编辑器：自动满屏，禁止手动拉伸 */
+.chat-panel .rp-prompt-content {
+  flex: 1; min-height: 0; overflow: hidden;
+}
+.chat-panel .rp-prompt-section {
+  flex: 1 1 0; min-height: 0; overflow: hidden;
+}
+.chat-panel .rp-prompt-textarea {
+  flex: 1 1 0; height: 0; min-height: 0;
+  resize: none !important;
+}
 
 /* ── 右栏：改造为输出区（文件 / 变更 / 浏览器 / 日志） ── */
 .rightpanel {
@@ -4788,9 +4805,9 @@ body.resizing-v {
   padding: 1px 7px;
   border-radius: 4px;
 }
-.ssdiff-stat.ssdiff-add  { color: #4ade80; background: rgba(74,222,128,.12); }
-.ssdiff-stat.ssdiff-del  { color: #f87171; background: rgba(248,113,113,.12); }
-.ssdiff-stat.ssdiff-mod  { color: #fbbf24; background: rgba(251,191,36,.12); }
+.ssdiff-stat.ssdiff-add  { color: #4ade80; background: rgba(74,222,128,.15); }
+.ssdiff-stat.ssdiff-del  { color: #f87171; background: rgba(248,113,113,.15); }
+.ssdiff-stat.ssdiff-mod  { color: #fbbf24; background: rgba(251,191,36,.15); }
 
 /* 双栏容器 */
 .ssdiff-container {
@@ -4808,17 +4825,7 @@ body.resizing-v {
   font-size: 12.5px;
   line-height: 1.65;
   white-space: pre;
-}
-
-/* 左栏：旧版 */
-.ssdiff-left {
-  background: rgba(248, 113, 113, .03);
-  border-right: 1px solid var(--border);
-}
-
-/* 右栏：最新版 */
-.ssdiff-right {
-  background: rgba(74, 222, 128, .03);
+  background: transparent; /* 透明背景，靠行背景色区分 */
 }
 
 /* 同步滚动条样式 */
@@ -4832,7 +4839,7 @@ body.resizing-v {
   min-height: 1.65em;
   align-items: stretch;
 }
-.ssdiff-line:hover { filter: brightness(1.08); }
+.ssdiff-line:hover { filter: brightness(1.12); }
 
 /* 行号 */
 .ssdiff-num {
@@ -4841,7 +4848,6 @@ body.resizing-v {
   text-align: right;
   padding-right: 12px;
   color: var(--muted);
-  opacity: .5;
   user-select: none;
   font-size: 11px;
   line-height: 1.65;
@@ -4855,48 +4861,50 @@ body.resizing-v {
   white-space: pre;
 }
 
-/* ── 行类型颜色 ─────────────────────────────────────────────────────── */
+/* ── 行类型颜色（高对比度配色）────────────────────────────────────── */
 /* 上下文行（无变化） */
 .ssdiff-line:not(.ssdiff-del):not(.ssdiff-add):not(.ssdiff-empty):not(.ssdiff-add-blank) {
   background: transparent;
-  color: var(--pre-text, #e2e8f0);
+  color: var(--pre-text, #c9d1d9);
 }
 
-/* 删除行（左侧红色） */
+/* 删除行（左侧红色 — 深红背景 + 亮白/红色文字，高对比） */
 .ssdiff-line.ssdiff-del {
-  background: rgba(248, 113, 113, .18);
-  color: #fca5a5;
+  background: rgba(215, 70, 70, .22);
+  color: #f8f8f8;
 }
-.ssdiff-line.ssdiff-del .ssdiff-code { border-left: 3px solid #f87171; padding-left: 5px; }
+.ssdiff-line.ssdiff-del .ssdiff-num { color: #f0a0a0; }
+.ssdiff-line.ssdiff-del .ssdiff-code { border-left: 3px solid #ef4444; padding-left: 5px; }
 
-/* 添加行（右侧绿色） */
+/* 添加行（右侧绿色 — 深绿背景 + 亮白/绿色文字，高对比） */
 .ssdiff-line.ssdiff-add {
-  background: rgba(74, 222, 128, .18);
-  color: #86efac;
+  background: rgba(38, 160, 80, .22);
+  color: #f8f8f8;
 }
-.ssdiff-line.ssdiff-add .ssdiff-code { border-left: 3px solid #4ade80; padding-left: 5px; }
+.ssdiff-line.ssdiff-add .ssdiff-num { color: #80d4a0; }
+.ssdiff-line.ssdiff-add .ssdiff-code { border-left: 3px solid #22c55e; padding-left: 5px; }
 
-/* 删除行对应的右侧空位 */
+/* 删除行对应的右侧空位（浅灰红） */
 .ssdiff-line.ssdiff-empty {
-  background: rgba(248, 113, 113, .06);
-  opacity: .5;
+  background: rgba(215, 70, 70, .07);
+  opacity: .7;
 }
-.ssdiff-line.ssdiff-empty .ssdiff-code { border-left: 3px solid rgba(248,113,113,.3); padding-left: 5px; }
+.ssdiff-line.ssdiff-empty .ssdiff-code { border-left: 3px solid rgba(239,68,68,.4); padding-left: 5px; }
 
-/* 添加行对应的左侧空位 */
+/* 添加行对应的左侧空位（浅灰绿） */
 .ssdiff-line.ssdiff-add-blank {
-  background: rgba(74, 222, 128, .06);
-  opacity: .5;
+  background: rgba(38, 160, 80, .07);
+  opacity: .7;
 }
 
 /* hunk 头 */
 .ssdiff-hdr {
   padding: 4px 16px;
-  background: rgba(124, 185, 255, .08);
+  background: rgba(59, 130, 246, .15);
   color: #93c5fd;
   font-weight: 700;
   font-size: 12px;
-  border-bottom: 1px solid rgba(124,185,255,.15);
+  border-bottom: 1px solid rgba(59,130,246,.2);
   position: sticky;
   top: 0;
   z-index: 1;
@@ -6477,8 +6485,10 @@ body.dock-dragging * {
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
-  overflow: hidden;
+  overflow: visible;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
 }
 .emp-list-role {
   font-size: 11px;

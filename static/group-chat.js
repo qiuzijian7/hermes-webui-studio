@@ -1852,14 +1852,12 @@ function _updateGroupDelegationBar() {
 
   const parts = [];
 
-  // 总群链接 — 多级兜底获取工作区路径
-  let ws = GROUP_CHAT_STATE.workspace || '';
-  if (!ws || ws === '__default__') ws = (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '');
-  if (!ws || ws === '__default__') ws = (S.session?.workspace || '');
-  if (!ws || ws === '__default__') ws = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '');
-  if (!ws && typeof _currentCanvasWorkspace !== 'undefined') ws = _currentCanvasWorkspace;
-  if (ws) {
-    parts.push(`<span class="rp-del-name gc-link" onclick="openGroupChat()" title="打开${PM_NAME}">${PM_NAME}</span>`);
+  // PM专员链接 — 点击跳转到PM专员员工聊天框，而非总群
+  // ★ PM专员员工聊天框和PM专员聊天框是同一个东西
+  const pmEmp = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+  if (pmEmp) {
+    const pmName = pmEmp.name || PM_NAME;
+    parts.push(`<span class="rp-del-name gc-link" onclick="selectEmployee('${pmEmp.id}')" title="打开${pmName}聊天">${pmName}</span>`);
   }
 
   // 成员（PM专员打开时显示：按钮 + 下拉面板，支持层级展示）
@@ -2431,15 +2429,12 @@ function _updateDelegationBarWithGroupChat(emp) {
 
   const parts = [];
 
-  // 总群链接（始终显示在最前）— 多级兜底获取工作区路径
-  let ws = GROUP_CHAT_STATE.workspace || '';
-  if (!ws || ws === '__default__') ws = (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '');
-  if (!ws || ws === '__default__') ws = (S.session?.workspace || '');
-  if (!ws || ws === '__default__') ws = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '');
-  // 最终兜底：使用 _currentCanvasWorkspace 即使是 __default__（确保始终有PM专员名）
-  if (!ws && typeof _currentCanvasWorkspace !== 'undefined') ws = _currentCanvasWorkspace;
-  if (ws) {
-    parts.push(`<span class="rp-del-name gc-link" onclick="openGroupChat()" title="打开${PM_NAME}">${PM_NAME}</span>`);
+  // PM专员链接（始终显示在最前）— 点击跳转到PM专员员工聊天框，而非总群
+  // ★ PM专员员工聊天框和PM专员聊天框是同一个东西
+  const pmEmp2 = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+  if (pmEmp2) {
+    const pmName2 = pmEmp2.name || PM_NAME;
+    parts.push(`<span class="rp-del-label">${pmName2}：</span><span class="rp-del-name gc-link" onclick="selectEmployee('${pmEmp2.id}')" title="打开${pmName2}聊天">${pmName2}</span>`);
   }
 
   // 上级

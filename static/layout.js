@@ -631,7 +631,7 @@
     }
 
     // 统计"修改"（删除后紧跟添加算作一次修改）
-    const pendingDels = [];
+    let pendingDels = [];
     for (const line of lines) {
       if (line.startsWith('-') && !line.startsWith('---')) pendingDels.push(line);
       else if (line.startsWith('+') && !line.startsWith('+++')) {

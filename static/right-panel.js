@@ -3102,16 +3102,13 @@ function _updateDelegationBar(emp) {
 
   const parts = [];
 
-  // 总群链接（始终显示在最前）
-  if (typeof _groupChatTitle === 'function') {
-    let ws = (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.workspace) || '';
-    if (!ws || ws === '__default__') ws = (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '');
-    if (!ws || ws === '__default__') ws = (S.session?.workspace || '');
-    if (!ws || ws === '__default__') ws = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '');
-    if (!ws && typeof _currentCanvasWorkspace !== 'undefined') ws = _currentCanvasWorkspace;
-    if (ws) {
-      const groupTitle = _groupChatTitle(ws);
-      parts.push(`<span class="rp-del-label">总群：</span><span class="rp-del-name gc-link" onclick="openGroupChat()" title="打开${esc(groupTitle)}">${esc(groupTitle)}</span>`);
+  // PM专员链接（始终显示在最前）— 点击跳转到PM专员员工聊天框，而非总群
+  // ★ PM专员员工聊天框和PM专员聊天框是同一个东西
+  if (typeof getPMEmployee === 'function') {
+    const pm = getPMEmployee();
+    if (pm) {
+      const pmName = pm.name || (typeof PM_NAME !== 'undefined' ? PM_NAME : 'PM专员');
+      parts.push(`<span class="rp-del-label">${esc(pmName)}：</span><span class="rp-del-name gc-link" onclick="selectEmployee('${pm.id}')" title="打开${esc(pmName)}聊天">${esc(pmName)}</span>`);
     }
   }
 
