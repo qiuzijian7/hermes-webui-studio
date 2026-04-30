@@ -3803,6 +3803,12 @@ async function openFileInRightPanel(path) {
   // 切换到文件视图
   _setRightPanelView('file');
 
+  // 分栏布局：显示文件头部，隐藏空状态提示
+  const rpHeader = $('rpFileHeader');
+  const rpEmptyHint = $('rpFileEmptyHint');
+  if (rpHeader) rpHeader.style.display = '';
+  if (rpEmptyHint) rpEmptyHint.style.display = 'none';
+
   // 更新头部信息
   const fileName = path.split('/').pop();
   const rpFileName = $('rpFileName');
@@ -3910,6 +3916,13 @@ async function closeRpFilePreview(options = {}) {
   _cmDestroy();
   const codeEl = $('rpFileCode');
   if (codeEl) codeEl.innerHTML = '';
+
+  // 分栏布局：显示空状态提示，隐藏文件头部
+  const rpHeader = $('rpFileHeader');
+  const rpEmptyHint = $('rpFileEmptyHint');
+  if (rpHeader) rpHeader.style.display = 'none';
+  if (rpEmptyHint) rpEmptyHint.style.display = '';
+
   // 如果有选中的员工，回到对话视图；否则显示空状态
   if (EMPLOYEE_STORE.selectedId) {
     _setRightPanelView('chat');

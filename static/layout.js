@@ -581,6 +581,7 @@
           if (detail && detail.diff) {
             diffEl.innerHTML = _colorizeDiff(detail.diff);
             _currentAiChangeId = latestChange.id;
+            _initSideBySideScroll();
             return;
           }
         }
@@ -593,29 +594,171 @@
         return;
       }
       diffEl.innerHTML = _colorizeDiff(diffText);
+      _initSideBySideScroll();
     } catch (e) {
       diffEl.textContent = '加载 diff 失败：' + e.message;
     }
   }
   window.showGitDiff = showGitDiff;
 
+  /**
+   * 将 unified diff 解析为左右分栏 HTML 视图（参考 VS Code / Git 工具风格）
+   * 截图样式：左侧旧版红色背景，右侧新版绿色背景，带行号和统计信息
+   */
   function _colorizeDiff(text) {
-    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    return text.split('\n').map(line => {
-      if (line.startsWith('diff --git') || line.startsWith('+++ ') || line.startsWith('--- ')) {
-        return `<span class="diff-file">${esc(line)}</span>`;
+    const lines = text.split('\n');
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    // 统计数据
+    let additions = 0, deletions = 0, modifications = 0;
+    const hunkStats = []; // [{oldStart, oldCount, newStart, newCount}]
+    let currentHunk = null;
+
+    // 第一遍扫描：收集 hunk 信息用于统计
+    for (const line of lines) {
+      const m = line.match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
+      if (m) {
+        currentHunk = {
+          oldStart: parseInt(m[1]),
+          oldCount: parseInt(m[2] || 1),
+          newStart: parseInt(m[3]),
+          newCount: parseInt(m[4] || 1),
+        };
+        hunkStats.push(currentHunk);
       }
-      if (line.startsWith('@@')) {
-        return `<span class="diff-hunk">${esc(line)}</span>`;
+      if (line.startsWith('+') && !line.startsWith('+++')) additions++;
+      else if (line.startsWith('-') && !line.startsWith('---')) deletions++;
+    }
+
+    // 统计"修改"（删除后紧跟添加算作一次修改）
+    const pendingDels = [];
+    for (const line of lines) {
+      if (line.startsWith('-') && !line.startsWith('---')) pendingDels.push(line);
+      else if (line.startsWith('+') && !line.startsWith('+++')) {
+        if (pendingDels.length > 0) { modifications++; pendingDels = []; }
+        else pendingDels = [];
       }
-      if (line.startsWith('+') && !line.startsWith('+++')) {
-        return `<span class="diff-add">${esc(line)}</span>`;
+      else pendingDels = [];
+    }
+
+    // 解析 unified diff，分割为 left/right 列
+    let oldLineNum = 0, newLineNum = 0;
+    let inHunk = false;
+    let hunkHeader = '';
+
+    // 统计栏 HTML
+    const statsBar = `
+      <div class="ssdiff-stats">
+        <span class="ssdiff-stat ssdiff-add">+${additions}</span>
+        <span class="ssdiff-stat ssdiff-del">-${deletions}</span>
+        ${modifications > 0 ? `<span class="ssdiff-stat ssdiff-mod">~${modifications}</span>` : ''}
+      </div>`;
+
+    let leftHtml = '', rightHtml = '';
+    let leftContent = '', rightContent = '';
+    let hunkStart = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // 解析 hunk 头
+      const hm = line.match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
+      if (hm) {
+        // 关闭上一个 hunk
+        if (leftContent || rightContent) {
+          leftHtml += leftContent;
+          rightHtml += rightContent;
+        }
+        oldLineNum = parseInt(hm[1]);
+        newLineNum = parseInt(hm[3]);
+        const oldCount = parseInt(hm[2] || 1);
+        const newCount = parseInt(hm[4] || 1);
+        hunkHeader = `@@ -${hm[1]}${oldCount > 1 ? ',' + oldCount : ''} +${hm[3]}${newCount > 1 ? ',' + newCount : ''} @@`;
+        leftContent = `<div class="ssdiff-hdr">${esc(hunkHeader)}</div>`;
+        rightContent = `<div class="ssdiff-hdr">${esc(hunkHeader)}</div>`;
+        hunkStart = true;
+        continue;
       }
+
+      if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('--- ') || line.startsWith('+++ ')) {
+        // 文件头，提取文件名
+        const fm = line.match(/^[a-z]+ --git a\/(.+?) b\//);
+        if (fm) {
+          hunkHeader = `b/${fm[1]}`;
+          leftContent = `<div class="ssdiff-hdr">${esc(hunkHeader)}</div>`;
+          rightContent = `<div class="ssdiff-hdr">${esc(hunkHeader)}</div>`;
+        }
+        continue;
+      }
+
       if (line.startsWith('-') && !line.startsWith('---')) {
-        return `<span class="diff-del">${esc(line)}</span>`;
+        // 删除行 → 左侧红色，右侧留空
+        leftContent += `<div class="ssdiff-line ssdiff-del"><span class="ssdiff-num">${oldLineNum}</span><span class="ssdiff-code">${esc(line.substring(1))}</span></div>`;
+        rightContent += `<div class="ssdiff-line ssdiff-empty"><span class="ssdiff-num"></span><span class="ssdiff-code"></span></div>`;
+        oldLineNum++;
+        hunkStart = false;
+        continue;
       }
-      return esc(line);
-    }).join('\n');
+
+      if (line.startsWith('+') && !line.startsWith('+++')) {
+        // 添加行 → 左侧留空，右侧绿色
+        leftContent += `<div class="ssdiff-line ssdiff-add-blank"><span class="ssdiff-num"></span><span class="ssdiff-code"></span></div>`;
+        rightContent += `<div class="ssdiff-line ssdiff-add"><span class="ssdiff-num">${newLineNum}</span><span class="ssdiff-code">${esc(line.substring(1))}</span></div>`;
+        newLineNum++;
+        hunkStart = false;
+        continue;
+      }
+
+      // 上下文行
+      const displayLine = line.startsWith(' ') ? line.substring(1) : line;
+      if (!line.startsWith('+') && !line.startsWith('-')) {
+        leftContent += `<div class="ssdiff-line"><span class="ssdiff-num">${oldLineNum > 0 && !hunkStart ? oldLineNum : ''}</span><span class="ssdiff-code">${esc(displayLine)}</span></div>`;
+        rightContent += `<div class="ssdiff-line"><span class="ssdiff-num">${newLineNum > 0 && !hunkStart ? newLineNum : ''}</span><span class="ssdiff-code">${esc(displayLine)}</span></div>`;
+        if (!hunkStart) {
+          oldLineNum++;
+          newLineNum++;
+        }
+        continue;
+      }
+    }
+
+    if (leftContent || rightContent) {
+      leftHtml += leftContent;
+      rightHtml += rightContent;
+    }
+
+    if (!leftHtml && !rightHtml) {
+      return '<div class="ssdiff-empty-msg">（无差异 — 可能是二进制文件或未跟踪文件）</div>';
+    }
+
+    return `
+    <div class="ssdiff-wrap">
+      ${statsBar}
+      <div class="ssdiff-container">
+        <div class="ssdiff-pane ssdiff-left" id="ssdiffLeft">${leftHtml}</div>
+        <div class="ssdiff-pane ssdiff-right" id="ssdiffRight">${rightHtml}</div>
+      </div>
+    </div>`;
+  }
+
+  // 左右分栏同步滚动
+  function _initSideBySideScroll() {
+    const left = document.getElementById('ssdiffLeft');
+    const right = document.getElementById('ssdiffRight');
+    if (!left || !right) return;
+    let syncing = false;
+    left.addEventListener('scroll', () => {
+      if (syncing) return;
+      syncing = true;
+      right.scrollTop = left.scrollTop;
+      syncing = false;
+    });
+    right.addEventListener('scroll', () => {
+      if (syncing) return;
+      syncing = true;
+      left.scrollTop = right.scrollTop;
+      syncing = false;
+    });
   }
 
   // ── AI 变更追踪：接受/保存功能 ───────────────────────────────────────────
@@ -800,32 +943,7 @@
     if (input && last) input.value = last;
   }
 
-  // ── 文件预览显隐：open/close 时切换 outputFilesView 显隐 ─────────────────
-  //     （保持 right-panel.js 原有的 _setRightPanelView/openFileInRightPanel 行为。
-  //      这里通过 MutationObserver 监听 rpFileView 的 display 变化，
-  //      在文件预览打开时隐藏文件树，关闭时恢复。）
-  function initFilePreviewToggle() {
-    const fv = document.getElementById('rpFileView');
-    const tree = document.getElementById('outputFilesView');
-    if (!fv || !tree) return;
-    const sync = () => {
-      const shown = fv.style.display && fv.style.display !== 'none';
-      if (shown) {
-        tree.style.display = 'none';
-        fv.style.display = 'flex';
-        // 切换到 files tab（如果不在）
-        const filesBtn = document.querySelector('.output-tab[data-out-tab="files"]');
-        if (filesBtn && !filesBtn.classList.contains('active')) {
-          switchOutputTab('files');
-        }
-      } else {
-        tree.style.display = '';
-      }
-    };
-    const mo = new MutationObserver(sync);
-    mo.observe(fv, { attributes: true, attributeFilter: ['style'] });
-    sync();
-  }
+  // initFilePreviewToggle removed: split-view layout handles file preview visibility differently
 
   // ── 覆写 switchWorkspaceTab：新布局下画布常驻，文件/日志路由到右栏 ──────
   //     （保持兼容：agent-presets.js/employee.js/workspace-tabs.js 仍在调用）
@@ -846,7 +964,7 @@
   function init() {
     initDock();
     initBrowser();
-    initFilePreviewToggle();
+    // initFilePreviewToggle removed: split-view layout handles file preview visibility differently
     installSwitchWorkspaceTabShim();
     initPanelCollapse();
 

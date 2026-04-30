@@ -442,10 +442,11 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 # ── AI 变更追踪：在 started 阶段捕获原始文件内容 ──
                 if phase == "tool.started" and name in ("write_file", "write_to_file", "patch", "edit_file"):
                     try:
-                        from api.ai_changes import capture_original
+                        from api.ai_changes import capture_original, _extract_path
                         ws = getattr(s, "workspace", "") or ""
-                        # 从 args 推导 tc_id（on_tool 回调没有 tc_id，使用 name+path 作为临时 key）
-                        _tc_id = str(id(args)) + "_" + name
+                        # 使用 path + tool_name 作为稳定 key（跨 started/completed 匹配）
+                        _path = _extract_path(args or {})
+                        _tc_id = (_path or str(id(args))) + "_" + name
                         capture_original(session_id, _tc_id, ws, name, args or {})
                     except Exception as _e:
                         pass  # 非关键路径，静默失败
@@ -495,10 +496,11 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 # ── AI 变更追踪：在工具完成后记录变更 ──
                 if tool_name in ("write_file", "write_to_file", "patch", "edit_file"):
                     try:
-                        from api.ai_changes import record_change
+                        from api.ai_changes import record_change, _extract_path
                         ws = getattr(s, "workspace", "") or ""
-                        # 使用 tc_id + tool_name 匹配 capture_original 时的 key
-                        _cap_key = str(id(tool_args)) + "_" + tool_name
+                        # 使用 path + tool_name 作为稳定 key（与 capture_original 保持一致）
+                        _path = _extract_path(tool_args or {})
+                        _cap_key = (_path or str(id(tool_args))) + "_" + tool_name
                         record_change(session_id, _cap_key, tool_name,
                                       tool_args or {}, str(tool_result or "")[:500])
                     except Exception as _e:

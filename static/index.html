@@ -560,47 +560,53 @@
         <span>详情</span>
       </button>
     </div>
-    <!-- 工作区目录 tab：文件树 + 内嵌文件预览 -->
+    <!-- 工作区目录 tab：左侧文件树 + 右侧文件预览 -->
     <div class="output-tab-panel active" id="outputPanelFiles">
-      <!-- 文件预览（打开文件时显示，关闭后显示文件树） -->
-      <div class="rp-file-view" id="rpFileView" style="display:none">
-        <div class="rp-header">
-          <div class="rp-employee-info">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <div class="rp-employee-meta">
-              <span class="rp-employee-name" id="rpFileName">文件名</span>
-              <span class="rp-employee-role" id="rpFilePath">路径</span>
+      <div class="output-files-body" id="outputFilesBody">
+        <!-- 左侧：文件树 -->
+        <div class="output-files-sidebar" id="outputFilesSidebar">
+          <div class="file-dir-toolbar" id="fileDirToolbar">
+            <div class="breadcrumb-bar" id="mainBreadcrumb"></div>
+            <button class="file-refresh-btn" id="btnRefreshDir" type="button" title="刷新目录" onclick="if(typeof loadDir==='function')loadDir(S.currentDir||'.')">↻</button>
+          </div>
+          <div class="main-file-tree" id="mainFileTree"></div>
+        </div>
+        <!-- 右侧：文件预览（始终显示，空闲时显示空状态提示） -->
+        <div class="rp-file-view" id="rpFileView">
+          <div class="rp-file-empty-hint" id="rpFileEmptyHint">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity:.25"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <p>选择文件预览内容</p>
+          </div>
+          <div class="rp-header" id="rpFileHeader" style="display:none">
+            <div class="rp-employee-info">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <div class="rp-employee-meta">
+                <span class="rp-employee-name" id="rpFileName">文件名</span>
+                <span class="rp-employee-role" id="rpFilePath">路径</span>
+              </div>
+            </div>
+            <div class="rp-header-actions">
+              <button class="panel-icon-btn" id="rpFileEditBtn" title="编辑文件" onclick="toggleRpFileEdit()" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+              <button class="panel-icon-btn" id="rpFileDownloadBtn" title="下载文件" onclick="downloadRpFile()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+              <button class="panel-icon-btn close-preview" onclick="closeRpFilePreview()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
           </div>
-          <div class="rp-header-actions">
-            <button class="panel-icon-btn" id="rpFileEditBtn" title="编辑文件" onclick="toggleRpFileEdit()" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-            <button class="panel-icon-btn" id="rpFileDownloadBtn" title="下载文件" onclick="downloadRpFile()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
-            <button class="panel-icon-btn close-preview" onclick="closeRpFilePreview()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          <div class="rp-file-content" id="rpFileContent">
+            <div class="rp-file-badge" id="rpFileBadge">text</div>
+            <div class="rp-file-mode-toggle" id="rpFileModeToggle" style="display:none">
+              <button class="rp-mode-btn active" id="rpModePreviewBtn" onclick="_switchRpFileMode('preview')">预览</button>
+              <button class="rp-mode-btn" id="rpModeSourceBtn" onclick="_switchRpFileMode('source')">源码</button>
+            </div>
+            <div class="rp-file-code" id="rpFileCode" style="display:none"></div>
+            <div class="rp-file-md" id="rpFileMd" style="display:none"></div>
+            <div class="rp-file-html-preview" id="rpFileHtmlPreview" style="display:none">
+              <iframe id="rpHtmlIframe" sandbox="allow-scripts allow-same-origin" style="width:100%;border:none;border-radius:8px;min-height:300px;background:#fff"></iframe>
+            </div>
+            <div class="rp-file-img-wrap" id="rpFileImgWrap" style="display:none">
+              <img id="rpFileImg" alt="" style="max-width:100%;border-radius:6px">
+            </div>
           </div>
         </div>
-        <div class="rp-file-content" id="rpFileContent">
-          <div class="rp-file-badge" id="rpFileBadge">text</div>
-          <div class="rp-file-mode-toggle" id="rpFileModeToggle" style="display:none">
-            <button class="rp-mode-btn active" id="rpModePreviewBtn" onclick="_switchRpFileMode('preview')">预览</button>
-            <button class="rp-mode-btn" id="rpModeSourceBtn" onclick="_switchRpFileMode('source')">源码</button>
-          </div>
-          <div class="rp-file-code" id="rpFileCode" style="display:none"></div>
-          <div class="rp-file-md" id="rpFileMd" style="display:none"></div>
-          <div class="rp-file-html-preview" id="rpFileHtmlPreview" style="display:none">
-            <iframe id="rpHtmlIframe" sandbox="allow-scripts allow-same-origin" style="width:100%;border:none;border-radius:8px;min-height:300px;background:#fff"></iframe>
-          </div>
-          <div class="rp-file-img-wrap" id="rpFileImgWrap" style="display:none">
-            <img id="rpFileImg" alt="" style="max-width:100%;border-radius:6px">
-          </div>
-        </div>
-      </div>
-      <!-- 文件树（默认显示） -->
-      <div class="output-files-view" id="outputFilesView">
-        <div class="file-dir-toolbar" id="fileDirToolbar">
-          <div class="breadcrumb-bar" id="mainBreadcrumb"></div>
-          <button class="file-refresh-btn" id="btnRefreshDir" type="button" title="刷新目录" onclick="if(typeof loadDir==='function')loadDir(S.currentDir||'.')">↻</button>
-        </div>
-        <div class="main-file-tree" id="mainFileTree"></div>
       </div>
     </div>
     <!-- 变更 tab -->

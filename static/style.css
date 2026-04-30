@@ -4489,23 +4489,48 @@ body.resizing-v {
 }
 .output-tab-panel:not(.active) { display: none; }
 
-/* 全部文件 tab：文件树 + 内嵌预览 */
-.output-files-view {
+/* 工作区目录 tab：左右分栏 */
+.output-files-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+/* 左侧：文件树侧边栏 */
+.output-files-sidebar {
+  flex: 0 0 220px;
+  min-width: 160px;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--sidebar);
+  overflow: hidden;
+}
+/* 右侧：文件预览面板 */
+#outputPanelFiles .rp-file-view {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  background: var(--bg);
 }
-/* 当 rpFileView 显示时，隐藏 outputFilesView 里的文件树 */
-#outputPanelFiles .rp-file-view {
-  flex: 1;
-  display: none;
+/* 文件预览空闲空状态提示 */
+.rp-file-empty-hint {
+  display: flex;
   flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--muted);
+  font-size: 13px;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
 }
-/* 文件预览激活状态由 JS 切换 style.display 直接控制（保留既有行为） */
+.rp-file-empty-hint svg { flex-shrink: 0; }
+.rp-file-empty-hint p { margin: 0; opacity: .6; }
 
 /* 变更 tab */
 .output-changes-toolbar {
@@ -4736,6 +4761,153 @@ body.resizing-v {
   flex: 1;
   min-width: 0;
   white-space: pre;
+}
+
+/* ── 左右分栏 Diff 视图（SSDiff）────────────────────────────────────── */
+.ssdiff-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 统计栏 */
+.ssdiff-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--border);
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.ssdiff-stat {
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+.ssdiff-stat.ssdiff-add  { color: #4ade80; background: rgba(74,222,128,.12); }
+.ssdiff-stat.ssdiff-del  { color: #f87171; background: rgba(248,113,113,.12); }
+.ssdiff-stat.ssdiff-mod  { color: #fbbf24; background: rgba(251,191,36,.12); }
+
+/* 双栏容器 */
+.ssdiff-container {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ssdiff-pane {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  font-family: 'SF Mono', 'Cascadia Code', ui-monospace, monospace;
+  font-size: 12.5px;
+  line-height: 1.65;
+  white-space: pre;
+}
+
+/* 左栏：旧版 */
+.ssdiff-left {
+  background: rgba(248, 113, 113, .03);
+  border-right: 1px solid var(--border);
+}
+
+/* 右栏：最新版 */
+.ssdiff-right {
+  background: rgba(74, 222, 128, .03);
+}
+
+/* 同步滚动条样式 */
+.ssdiff-pane::-webkit-scrollbar { width: 6px; height: 6px; }
+.ssdiff-pane::-webkit-scrollbar-track { background: transparent; }
+.ssdiff-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* 行基础 */
+.ssdiff-line {
+  display: flex;
+  min-height: 1.65em;
+  align-items: stretch;
+}
+.ssdiff-line:hover { filter: brightness(1.08); }
+
+/* 行号 */
+.ssdiff-num {
+  flex-shrink: 0;
+  width: 44px;
+  text-align: right;
+  padding-right: 12px;
+  color: var(--muted);
+  opacity: .5;
+  user-select: none;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+/* 代码内容 */
+.ssdiff-code {
+  flex: 1;
+  padding-left: 8px;
+  min-width: 0;
+  white-space: pre;
+}
+
+/* ── 行类型颜色 ─────────────────────────────────────────────────────── */
+/* 上下文行（无变化） */
+.ssdiff-line:not(.ssdiff-del):not(.ssdiff-add):not(.ssdiff-empty):not(.ssdiff-add-blank) {
+  background: transparent;
+  color: var(--pre-text, #e2e8f0);
+}
+
+/* 删除行（左侧红色） */
+.ssdiff-line.ssdiff-del {
+  background: rgba(248, 113, 113, .18);
+  color: #fca5a5;
+}
+.ssdiff-line.ssdiff-del .ssdiff-code { border-left: 3px solid #f87171; padding-left: 5px; }
+
+/* 添加行（右侧绿色） */
+.ssdiff-line.ssdiff-add {
+  background: rgba(74, 222, 128, .18);
+  color: #86efac;
+}
+.ssdiff-line.ssdiff-add .ssdiff-code { border-left: 3px solid #4ade80; padding-left: 5px; }
+
+/* 删除行对应的右侧空位 */
+.ssdiff-line.ssdiff-empty {
+  background: rgba(248, 113, 113, .06);
+  opacity: .5;
+}
+.ssdiff-line.ssdiff-empty .ssdiff-code { border-left: 3px solid rgba(248,113,113,.3); padding-left: 5px; }
+
+/* 添加行对应的左侧空位 */
+.ssdiff-line.ssdiff-add-blank {
+  background: rgba(74, 222, 128, .06);
+  opacity: .5;
+}
+
+/* hunk 头 */
+.ssdiff-hdr {
+  padding: 4px 16px;
+  background: rgba(124, 185, 255, .08);
+  color: #93c5fd;
+  font-weight: 700;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(124,185,255,.15);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* 空消息 */
+.ssdiff-empty-msg {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 /* AI 变更追踪相关样式 */
@@ -6216,6 +6388,17 @@ body.dock-dragging * {
   max-width: 640px;
   margin: 0 auto;
 }
+/* ── 列表分区标题 ──────────────────────────────────────────────── */
+.emp-list-zone-header {
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  opacity: .7;
+}
+
 .emp-list-empty {
   padding: 40px 20px;
   text-align: center;
@@ -6371,5 +6554,14 @@ body.dock-dragging * {
 :root[data-theme="light"] .emp-pm-badge {
   background: rgba(180,140,40,.12);
   color: #92700c;
+}
+
+/* 列表模式自动协作标签 */
+.emp-autocollab-badge {
+  display: inline-block;
+  font-size: 10px;
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: emp-auto-collab-pulse 2s ease-in-out infinite;
 }
 

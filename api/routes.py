@@ -656,47 +656,6 @@ def handle_get(handler, parsed) -> bool:
             return bad(handler, "Change not found", 404)
         return j(handler, entry)
 
-    if parsed.path == "/api/ai-changes/accept":
-        body = read_body(handler)
-        sid = body.get("session_id", "")
-        change_id = body.get("change_id", "")
-        if not sid or not change_id:
-            return bad(handler, "session_id and change_id required")
-        try:
-            s = get_session(sid)
-        except KeyError:
-            return bad(handler, "Session not found", 404)
-        from api.ai_changes import accept_change
-        ok = accept_change(sid, change_id)
-        return j(handler, {"success": ok})
-
-    if parsed.path == "/api/ai-changes/accept-file":
-        body = read_body(handler)
-        sid = body.get("session_id", "")
-        file_path = body.get("path", "")
-        if not sid or not file_path:
-            return bad(handler, "session_id and path required")
-        try:
-            s = get_session(sid)
-        except KeyError:
-            return bad(handler, "Session not found", 404)
-        from api.ai_changes import accept_file_changes
-        count = accept_file_changes(sid, file_path)
-        return j(handler, {"success": count > 0, "count": count})
-
-    if parsed.path == "/api/ai-changes/accept-all":
-        body = read_body(handler)
-        sid = body.get("session_id", "")
-        if not sid:
-            return bad(handler, "session_id required")
-        try:
-            s = get_session(sid)
-        except KeyError:
-            return bad(handler, "Session not found", 404)
-        from api.ai_changes import accept_all_changes
-        count = accept_all_changes(sid)
-        return j(handler, {"success": count > 0, "count": count})
-
     if parsed.path == "/api/updates/check":
         settings = load_settings()
         if not settings.get("check_for_updates", True):
@@ -1868,6 +1827,45 @@ def handle_post(handler, parsed) -> bool:
         handler.end_headers()
         handler.wfile.write(json.dumps({"ok": True}).encode())
         return True
+
+    # ── AI 变更追踪 (POST) ───────────────────────────────────────────────────
+    if parsed.path == "/api/ai-changes/accept":
+        sid = body.get("session_id", "")
+        change_id = body.get("change_id", "")
+        if not sid or not change_id:
+            return bad(handler, "session_id and change_id required")
+        try:
+            s = get_session(sid)
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        from api.ai_changes import accept_change
+        ok = accept_change(sid, change_id)
+        return j(handler, {"success": ok})
+
+    if parsed.path == "/api/ai-changes/accept-file":
+        sid = body.get("session_id", "")
+        file_path = body.get("path", "")
+        if not sid or not file_path:
+            return bad(handler, "session_id and path required")
+        try:
+            s = get_session(sid)
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        from api.ai_changes import accept_file_changes
+        count = accept_file_changes(sid, file_path)
+        return j(handler, {"success": count > 0, "count": count})
+
+    if parsed.path == "/api/ai-changes/accept-all":
+        sid = body.get("session_id", "")
+        if not sid:
+            return bad(handler, "session_id required")
+        try:
+            s = get_session(sid)
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        from api.ai_changes import accept_all_changes
+        count = accept_all_changes(sid)
+        return j(handler, {"success": count > 0, "count": count})
 
     return False  # 404
 
