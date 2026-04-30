@@ -393,6 +393,9 @@ async function openEmployeeChat(empId, taskId) {
     }
   }
 
+  // ★ 同步员工模型 chip 显示
+  if (typeof syncEmpModelChip === 'function') syncEmpModelChip();
+
   if (!targetSessionId) {
     try {
       // 传递当前工作区路径，确保新 session 的 workspace 与画布工作区一致
@@ -3209,8 +3212,12 @@ function _updateDelegationBar(emp) {
     info.innerHTML = parts.join('<span class="rp-del-sep">|</span>');
     bar.style.display = '';
   } else {
+    info.innerHTML = '';
     bar.style.display = 'none';
   }
+
+  // ★ 同步员工模型 chip 显示
+  if (typeof syncEmpModelChip === 'function') syncEmpModelChip();
 
   // 异步加载委派历史（从后端 API）
   _loadDelegationHistory(emp);

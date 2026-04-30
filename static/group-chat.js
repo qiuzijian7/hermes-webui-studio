@@ -192,6 +192,9 @@ async function openGroupChat() {
   GROUP_CHAT_STATE.isOpen = true;
   console.log('[总群] openGroupChat: isOpen set to true');
 
+  // ★ 总群模式下隐藏员工模型选择器
+  if (typeof syncEmpModelChip === 'function') syncEmpModelChip();
+
   // ★ 确保聊天 dock panel 处于 active tab 状态（与员工聊天同理），
   //   否则若用户把画布和聊天合并到同一 leaf，总群界面会被 detach 不可见
   if (typeof dockFocusPanel === 'function') {
@@ -1954,6 +1957,9 @@ function _updateGroupDelegationBar() {
   } else {
     bar.style.display = 'none';
   }
+
+  // ★ 总群模式下隐藏员工模型选择器
+  if (typeof syncEmpModelChip === 'function') syncEmpModelChip();
 }
 
 // ── 总群成员下拉面板 ───────────────────────────────────────────────────────
@@ -2520,8 +2526,12 @@ function _updateDelegationBarWithGroupChat(emp) {
     info.innerHTML = parts.join('<span class="rp-del-sep">|</span>');
     bar.style.display = '';
   } else {
+    info.innerHTML = '';
     bar.style.display = 'none';
   }
+
+  // ★ 同步员工模型 chip 显示
+  if (typeof syncEmpModelChip === 'function') syncEmpModelChip();
 
   // 异步加载委派历史
   _loadDelegationHistory(emp);
@@ -3123,3 +3133,440 @@ function initGroupChat() {
     _updateGroupDelegationBar();
   }
 }
+
+// ── 员工模型选择器（provider + model 联动） ──────────────────────────────────
+
+/** 同步员工模型 chip 显示 */
+function syncEmpModelChip() {
+  const emp = (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId)
+    ? (typeof getEmployee === 'function' ? getEmployee(EMPLOYEE_STORE.selectedId) : null)
+    : null;
+  const label = document.getElementById('rpEmpModelLabel');
+  const chip = document.getElementById('rpEmpModelChip');
+  if (!label || !chip) return;
+  if (emp && emp.model) {
+    const shortName = emp.model.split('/').pop();
+    label.textContent = shortName;
+    chip.title = emp.model;
+  } else {
+    label.textContent = 'Model';
+    chip.title = '选择模型';
+  }
+  // 同步 provider chip
+  syncEmpProviderChip();
+  // 显示/隐藏选择器（仅员工聊天模式显示，总群隐藏）
+  const isOpen = typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen;
+  const show = !isOpen && emp;
+  const divider = document.getElementById('empSelectorsDivider');
+  const pWrap = document.getElementById('empProviderWrap');
+  const mWrap = document.getElementById('empModelWrap');
+  if (divider) divider.style.display = show ? '' : 'none';
+  if (pWrap) pWrap.style.display = show ? '' : 'none';
+  if (mWrap) mWrap.style.display = show ? '' : 'none';
+}
+
+/** 同步 provider chip 显示 */
+function syncEmpProviderChip() {
+  const emp = (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId)
+    ? (typeof getEmployee === 'function' ? getEmployee(EMPLOYEE_STORE.selectedId) : null)
+    : null;
+  const label = document.getElementById('rpEmpProviderLabel');
+  const chip = document.getElementById('rpEmpProviderChip');
+  if (!label || !chip) return;
+  const sel = $('modelSelect');
+  if (!sel) { label.textContent = 'Provider'; chip.title = '选择 Provider'; return; }
+  const currentProvider = emp ? _getModelProvider(emp.model, sel) : '';
+  if (currentProvider) {
+    // 查找 provider 友好名
+    let friendlyName = currentProvider;
+    for (const child of Array.from(sel.children)) {
+      if (child.tagName === 'OPTGROUP' && child.label && child.label.toLowerCase() === currentProvider) {
+        friendlyName = child.label;
+        break;
+      }
+    }
+    label.textContent = friendlyName;
+    chip.title = friendlyName;
+  } else {
+    label.textContent = 'Provider';
+    chip.title = '选择 Provider';
+  }
+}
+
+// ── Provider 选择器 ────────────────────────────────────────────────────────
+
+/** 切换 provider 下拉面板 */
+function toggleEmpProviderDropdown() {
+  const dd = document.getElementById('rpEmpProviderDropdown');
+  const chip = document.getElementById('rpEmpProviderChip');
+  if (!dd || !chip) return;
+  const isOpen = dd.classList.contains('open');
+  if (isOpen) {
+    closeEmpProviderDropdown();
+    return;
+  }
+  // 关闭另一个下拉
+  closeEmpModelDropdown();
+  renderEmpProviderDropdown();
+  // ★ 定位下拉：对齐 chip 左侧（chip 相对于 composer-footer）
+  _positionEmpDropdown(dd, chip);
+  dd.classList.add('open');
+  chip.classList.add('active');
+  setTimeout(() => {
+    document.addEventListener('click', _onEmpProviderOutsideClick, true);
+    document.addEventListener('keydown', _onEmpProviderKeydown, true);
+  }, 0);
+}
+
+function closeEmpProviderDropdown() {
+  const dd = document.getElementById('rpEmpProviderDropdown');
+  const chip = document.getElementById('rpEmpProviderChip');
+  if (dd) dd.classList.remove('open');
+  if (chip) chip.classList.remove('active');
+  document.removeEventListener('click', _onEmpProviderOutsideClick, true);
+  document.removeEventListener('keydown', _onEmpProviderKeydown, true);
+}
+
+function _onEmpProviderOutsideClick(e) {
+  const dd = document.getElementById('rpEmpProviderDropdown');
+  const chip = document.getElementById('rpEmpProviderChip');
+  if (!dd || !chip) return;
+  if (dd.contains(e.target) || chip.contains(e.target)) return;
+  closeEmpProviderDropdown();
+}
+
+function _onEmpProviderKeydown(e) {
+  if (e.key === 'Escape') { e.preventDefault(); closeEmpProviderDropdown(); }
+}
+
+/** 渲染 provider 下拉面板 */
+function renderEmpProviderDropdown() {
+  const dd = document.getElementById('rpEmpProviderDropdown');
+  if (!dd) return;
+  dd.innerHTML = '';
+  const sel = $('modelSelect');
+  if (!sel) return;
+
+  const emp = (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId)
+    ? (typeof getEmployee === 'function' ? getEmployee(EMPLOYEE_STORE.selectedId) : null)
+    : null;
+  const currentProvider = emp ? _getModelProvider(emp.model, sel) : '';
+
+  // 收集 provider 列表（含模型数量）
+  const providers = [];
+  for (const child of Array.from(sel.children)) {
+    if (child.tagName === 'OPTGROUP' && child.label) {
+      const count = Array.from(child.children).length;
+      providers.push({ name: child.label, key: child.label.toLowerCase(), count });
+    }
+  }
+
+  // "全部"选项
+  const allItem = document.createElement('div');
+  allItem.className = 'emp-prov-item' + (!currentProvider ? ' active' : '');
+  allItem.innerHTML = `<span class="emp-prov-check">${!currentProvider ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</span><span>全部</span><span class="emp-prov-count">${Array.from(sel.querySelectorAll('option')).length}</span>`;
+  allItem.onclick = () => _selectEmpProvider('');
+  dd.appendChild(allItem);
+
+  for (const p of providers) {
+    const item = document.createElement('div');
+    item.className = 'emp-prov-item' + (p.key === currentProvider ? ' active' : '');
+    item.innerHTML = `<span class="emp-prov-check">${p.key === currentProvider ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</span><span>${esc(p.name)}</span><span class="emp-prov-count">${p.count}</span>`;
+    item.onclick = () => _selectEmpProvider(p.key);
+    dd.appendChild(item);
+  }
+}
+
+/** 选择 provider 后，设置过滤并打开 model 选择器 */
+function _selectEmpProvider(providerKey) {
+  // 保存当前选中的 provider key
+  window._empSelectedProvider = providerKey;
+  // 更新 provider chip 显示
+  const label = document.getElementById('rpEmpProviderLabel');
+  const chip = document.getElementById('rpEmpProviderChip');
+  if (label && chip) {
+    if (providerKey) {
+      // 查找友好名
+      const sel = $('modelSelect');
+      let friendlyName = providerKey;
+      if (sel) {
+        for (const child of Array.from(sel.children)) {
+          if (child.tagName === 'OPTGROUP' && child.label && child.label.toLowerCase() === providerKey) {
+            friendlyName = child.label;
+            break;
+          }
+        }
+      }
+      label.textContent = friendlyName;
+      chip.title = friendlyName;
+    } else {
+      label.textContent = 'Provider';
+      chip.title = '选择 Provider';
+    }
+  }
+  closeEmpProviderDropdown();
+  // 标记 provider chip 为 active（已选择）
+  const pChip = document.getElementById('rpEmpProviderChip');
+  if (pChip && providerKey) pChip.classList.add('active');
+  // ★ 切换 provider 后，将 model 重置为空
+  const emp = (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId)
+    ? (typeof getEmployee === 'function' ? getEmployee(EMPLOYEE_STORE.selectedId) : null)
+    : null;
+  if (emp) {
+    emp.model = '';
+    if (typeof _saveEmployees === 'function') _saveEmployees();
+  }
+  const mLabel = document.getElementById('rpEmpModelLabel');
+  const mChip = document.getElementById('rpEmpModelChip');
+  if (mLabel) { mLabel.textContent = 'Model'; mLabel.title = '选择模型'; }
+  if (mChip) { mChip.classList.remove('active'); mChip.title = '选择模型'; }
+  // 自动打开 model 选择器
+  setTimeout(() => toggleEmpModelDropdown(), 80);
+}
+
+// ── Model 选择器 ────────────────────────────────────────────────────────
+
+/** 切换员工模型下拉面板 */
+function toggleEmpModelDropdown() {
+  const dd = document.getElementById('rpEmpModelDropdown');
+  const chip = document.getElementById('rpEmpModelChip');
+  if (!dd || !chip) return;
+  const isOpen = dd.classList.contains('open');
+  if (isOpen) {
+    closeEmpModelDropdown();
+    return;
+  }
+  // 关闭另一个下拉
+  closeEmpProviderDropdown();
+  renderEmpModelDropdown();
+  // ★ 定位下拉：对齐 chip 左侧
+  _positionEmpDropdown(dd, chip);
+  dd.classList.add('open');
+  chip.classList.add('active');
+  setTimeout(() => {
+    document.addEventListener('click', _onEmpModelOutsideClick, true);
+    document.addEventListener('keydown', _onEmpModelKeydown, true);
+  }, 0);
+}
+
+function closeEmpModelDropdown() {
+  const dd = document.getElementById('rpEmpModelDropdown');
+  const chip = document.getElementById('rpEmpModelChip');
+  if (dd) dd.classList.remove('open');
+  if (chip) chip.classList.remove('active');
+  document.removeEventListener('click', _onEmpModelOutsideClick, true);
+  document.removeEventListener('keydown', _onEmpModelKeydown, true);
+}
+
+function _onEmpModelOutsideClick(e) {
+  const dd = document.getElementById('rpEmpModelDropdown');
+  const chip = document.getElementById('rpEmpModelChip');
+  if (!dd || !chip) return;
+  if (dd.contains(e.target) || chip.contains(e.target)) return;
+  closeEmpModelDropdown();
+}
+
+function _onEmpModelKeydown(e) {
+  if (e.key === 'Escape') { e.preventDefault(); closeEmpModelDropdown(); }
+}
+
+/** 渲染员工模型下拉面板（不含 provider tabs，由 provider chip 控制） */
+function renderEmpModelDropdown() {
+  const dd = document.getElementById('rpEmpModelDropdown');
+  if (!dd) return;
+  dd.innerHTML = '';
+
+  const sel = $('modelSelect');
+  if (!sel) return;
+
+  const emp = (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId)
+    ? (typeof getEmployee === 'function' ? getEmployee(EMPLOYEE_STORE.selectedId) : null)
+    : null;
+  const currentModel = emp ? emp.model : '';
+
+  // 获取当前选中的 provider（由 provider chip 设置）
+  const activeProvider = window._empSelectedProvider || _getModelProvider(currentModel, sel);
+
+  // ── Search input ──
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'model-search-wrap';
+  searchWrap.innerHTML = '<input type="text" class="model-search-input" id="empModelSearchInput" placeholder="搜索模型..." autocomplete="off">';
+  dd.appendChild(searchWrap);
+
+  // ── Model list ──
+  const listWrap = document.createElement('div');
+  listWrap.className = 'model-list-wrap';
+  listWrap.id = 'empModelListWrap';
+  for (const child of Array.from(sel.children)) {
+    if (child.tagName === 'OPTGROUP') {
+      const provKey = (child.label || '').toLowerCase();
+      // 如果有选中的 provider，只显示该 provider 下的模型
+      if (activeProvider && provKey !== activeProvider) continue;
+      const heading = document.createElement('div');
+      heading.className = 'model-group';
+      heading.dataset.group = child.label || 'Models';
+      heading.textContent = child.label || 'Models';
+      listWrap.appendChild(heading);
+      for (const opt of Array.from(child.children)) {
+        const row = document.createElement('div');
+        row.className = 'model-opt' + (opt.value === currentModel ? ' active' : '');
+        row.dataset.label = (opt.textContent || '').toLowerCase();
+        row.dataset.value = opt.value.toLowerCase();
+        row.dataset.provider = provKey;
+        row.innerHTML = `<span class="model-opt-name">${esc(opt.textContent || '')}</span><span class="model-opt-id">${esc(opt.value)}</span>`;
+        row.onclick = () => _selectEmpModel(opt.value);
+        listWrap.appendChild(row);
+      }
+    } else if (child.tagName === 'OPTION') {
+      const row = document.createElement('div');
+      row.className = 'model-opt' + (child.value === currentModel ? ' active' : '');
+      row.dataset.label = (child.textContent || '').toLowerCase();
+      row.dataset.value = child.value.toLowerCase();
+      row.dataset.provider = '';
+      row.innerHTML = `<span class="model-opt-name">${esc(child.textContent || '')}</span><span class="model-opt-id">${esc(child.value)}</span>`;
+      row.onclick = () => _selectEmpModel(child.value);
+      listWrap.appendChild(row);
+    }
+  }
+  dd.appendChild(listWrap);
+
+  // ── Custom model input ──
+  const customWrap = document.createElement('div');
+  customWrap.className = 'model-custom-wrap';
+  customWrap.innerHTML = '<div class="model-custom-divider"></div><div class="model-custom-row"><input type="text" class="model-custom-input" id="empModelCustomInput" placeholder="自定义模型 ID..." autocomplete="off"><button class="model-custom-btn" id="empModelCustomBtn" title="应用"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button></div>';
+  dd.appendChild(customWrap);
+
+  // ── Wire up events ──
+  const searchInput = document.getElementById('empModelSearchInput');
+  if (searchInput) {
+    let composing = false;
+    searchInput.addEventListener('compositionstart', () => { composing = true; });
+    searchInput.addEventListener('compositionend', () => {
+      composing = false;
+      _filterEmpModelDropdown(searchInput.value);
+    });
+    searchInput.addEventListener('input', () => {
+      if (composing) return;
+      _filterEmpModelDropdown(searchInput.value.trim());
+    });
+    requestAnimationFrame(() => searchInput.focus());
+  }
+
+  const customInput = document.getElementById('empModelCustomInput');
+  const customBtn = document.getElementById('empModelCustomBtn');
+  if (customInput && customBtn) {
+    const applyCustom = () => {
+      const val = customInput.value.trim();
+      if (val) _selectEmpModel(val);
+    };
+    customBtn.addEventListener('click', applyCustom);
+    customInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); applyCustom(); } });
+  }
+}
+
+/** 获取模型所属的 provider key */
+function _getModelProvider(modelId, sel) {
+  if (!modelId || !sel) return '';
+  const slashIdx = modelId.indexOf('/');
+  if (slashIdx > 0) {
+    const prefix = modelId.slice(0, slashIdx).toLowerCase();
+    for (const child of Array.from(sel.children)) {
+      if (child.tagName === 'OPTGROUP' && child.label && child.label.toLowerCase() === prefix) {
+        return prefix;
+      }
+    }
+  }
+  for (const child of Array.from(sel.children)) {
+    if (child.tagName === 'OPTGROUP') {
+      for (const opt of Array.from(child.children)) {
+        if (opt.value === modelId) {
+          return (child.label || '').toLowerCase();
+        }
+      }
+    }
+  }
+  return '';
+}
+
+/** 搜索过滤员工模型列表 */
+function _filterEmpModelDropdown(query) {
+  const listWrap = document.getElementById('empModelListWrap');
+  if (!listWrap) return;
+  const q = (query || '').toLowerCase().trim();
+  const groups = listWrap.querySelectorAll('.model-group');
+  const opts = listWrap.querySelectorAll('.model-opt');
+  if (!q) {
+    groups.forEach(g => g.style.display = '');
+    opts.forEach(o => o.style.display = '');
+    return;
+  }
+  opts.forEach(o => {
+    const label = o.dataset.label || '';
+    const value = o.dataset.value || '';
+    const match = label.includes(q) || value.includes(q);
+    o.style.display = match ? '' : 'none';
+  });
+  groups.forEach(g => {
+    let next = g.nextElementSibling;
+    let hasVisible = false;
+    while (next && !next.classList.contains('model-group')) {
+      if (next.style.display !== 'none') hasVisible = true;
+      next = next.nextElementSibling;
+    }
+    g.style.display = hasVisible ? '' : 'none';
+  });
+}
+
+/** 选择模型并更新员工 */
+function _selectEmpModel(modelId) {
+  const emp = (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId)
+    ? (typeof getEmployee === 'function' ? getEmployee(EMPLOYEE_STORE.selectedId) : null)
+    : null;
+  if (!emp) { closeEmpModelDropdown(); return; }
+
+  emp.model = modelId;
+  if (typeof _saveEmployees === 'function') _saveEmployees();
+
+  // 同步 chip 显示
+  syncEmpModelChip();
+
+  closeEmpModelDropdown();
+
+  // 标记 model chip 为 active（已选择）
+  const mChip = document.getElementById('rpEmpModelChip');
+  if (mChip) mChip.classList.add('active');
+
+  // 同步到全局模型选择器
+  const sel = $('modelSelect');
+  if (sel && sel.value !== modelId) {
+    if (!sel.querySelector(`option[value="${CSS.escape(modelId)}"]`)) {
+      const opt = document.createElement('option');
+      opt.value = modelId;
+      opt.textContent = (typeof getModelLabel === 'function') ? getModelLabel(modelId) : modelId;
+      sel.appendChild(opt);
+    }
+    sel.value = modelId;
+    if (typeof syncModelChip === 'function') syncModelChip();
+  }
+
+  if (typeof showToast === 'function') {
+    const shortName = modelId.split('/').pop();
+    showToast(`✅ ${emp.name} 模型已切换为 ${shortName}`);
+  }
+}
+
+/** 定位员工下拉面板（对齐对应 chip 的左侧） */
+function _positionEmpDropdown(dd, chip) {
+  const footer = dd.parentElement; // composer-footer
+  if (!footer || !chip) return;
+  const footerRect = footer.getBoundingClientRect();
+  const chipRect = chip.getBoundingClientRect();
+  dd.style.left = (chipRect.left - footerRect.left) + 'px';
+}
+
+window.syncEmpModelChip = syncEmpModelChip;
+window.syncEmpProviderChip = syncEmpProviderChip;
+window.toggleEmpProviderDropdown = toggleEmpProviderDropdown;
+window.closeEmpProviderDropdown = closeEmpProviderDropdown;
+window.toggleEmpModelDropdown = toggleEmpModelDropdown;
+window.closeEmpModelDropdown = closeEmpModelDropdown;

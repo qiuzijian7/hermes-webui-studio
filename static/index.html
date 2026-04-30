@@ -418,6 +418,22 @@
                 <option value="" disabled selected>Loading models…</option>
                 </select>
               </div>
+              <!-- ★ 员工 Provider / Model 选择器（composer-footer 内） -->
+              <div class="composer-divider emp-selectors-divider" aria-hidden="true" id="empSelectorsDivider" style="display:none"></div>
+              <div class="emp-provider-wrap" id="empProviderWrap" style="display:none">
+                <button class="composer-model-chip emp-provider-chip" id="rpEmpProviderChip" type="button" onclick="toggleEmpProviderDropdown()" title="选择 Provider">
+                  <span class="composer-model-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>
+                  <span class="composer-model-label" id="rpEmpProviderLabel">Provider</span>
+                  <span class="composer-model-chevron" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+                </button>
+              </div>
+              <div class="emp-model-wrap" id="empModelWrap" style="display:none">
+                <button class="composer-model-chip emp-model-chip" id="rpEmpModelChip" type="button" onclick="toggleEmpModelDropdown()" title="选择模型">
+                  <span class="composer-model-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+                  <span class="composer-model-label" id="rpEmpModelLabel">Model</span>
+                  <span class="composer-model-chevron" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+                </button>
+              </div>
             </div>
             <div class="composer-right">
               <span class="composer-status" id="composerStatus" style="display:none"></span>
@@ -433,6 +449,8 @@
             <div class="profile-dropdown" id="profileDropdown"></div>
             <div class="ws-dropdown ws-dropdown-footer" id="composerWsDropdown"></div>
             <div class="model-dropdown" id="composerModelDropdown"></div>
+            <div class="emp-provider-dropdown" id="rpEmpProviderDropdown"></div>
+            <div class="emp-model-dropdown" id="rpEmpModelDropdown"></div>
           </div>
           <div class="upload-bar-wrap" id="uploadBarWrap"><div class="upload-bar" id="uploadBar"></div></div>
         </div>
