@@ -10,6 +10,7 @@ paths are used as fallback when no profile module is available.
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 
 from api.config import (
@@ -305,12 +306,14 @@ def git_changes_for_workspace(workspace: Path) -> dict:
 
     Returns: { is_git, branch, modified, added, deleted, untracked,
                files: [ {path, status, additions, deletions}, ... ] }
+
+    For non-git workspaces, returns recently modified files (mtime-based).
     """
     if not (workspace / '.git').exists():
-        return {'is_git': False}
+        return _non_git_changes(workspace)
     branch = _run_git(['rev-parse', '--abbrev-ref', 'HEAD'], workspace)
     if branch is None:
-        return {'is_git': False}
+        return _non_git_changes(workspace)
 
     # Per-file status via porcelain
     status_out = _run_git_raw(['status', '--porcelain'], workspace) or ''
@@ -388,9 +391,12 @@ def git_changes_for_workspace(workspace: Path) -> dict:
 
 
 def git_diff_for_path(workspace: Path, rel_path: str) -> str:
-    """Return unified diff for a single path (worktree + staged combined)."""
+    """Return unified diff for a single path (worktree + staged combined).
+
+    For non-git workspaces, returns the entire file as a new-file diff.
+    """
     if not (workspace / '.git').exists():
-        return ''
+        return _non_git_file_diff(workspace, rel_path)
     # Unstaged diff
     unstaged = _run_git_raw(['diff', '--', rel_path], workspace) or ''
     # Staged diff
@@ -423,3 +429,110 @@ def git_diff_for_path(workspace: Path, rel_path: str) -> str:
     if unstaged.strip():
         parts.append('# --- unstaged ---\n' + unstaged)
     return '\n'.join(parts)
+
+
+# ── Non-git workspace: mtime-based "recent changes" ─────────────────────
+
+# Directories to skip when scanning for recent changes
+_NON_GIT_SKIP_DIRS = {
+    '.git', '.svn', '.hg', 'node_modules', '__pycache__', '.DS_Store',
+    '.venv', 'venv', 'env', '.env', '.tox', '.mypy_cache', '.pytest_cache',
+    'dist', 'build', '.next', '.nuxt', '.cache', '.sass-cache',
+    'target', 'vendor', 'Pods', '.gradle', '.idea', '.vscode',
+    'hermes-webui-studio',  # skip self (webui assets)
+}
+
+# File extensions to skip
+_NON_GIT_SKIP_EXTS = {
+    '.pyc', '.pyo', '.class', '.so', '.dylib', '.dll', '.exe',
+    '.o', '.a', '.lib', '.obj', '.pdb', '.ilk',
+    '.woff', '.woff2', '.ttf', '.otf', '.eot',
+    '.map',  # source maps
+}
+
+
+def _non_git_changes(workspace: Path, hours: float = 24, max_files: int = 200) -> dict:
+    """Scan workspace for files modified within the last N hours.
+
+    Returns the same shape as git_changes_for_workspace but with is_git=False
+    and status 'U' (updated) for recently modified files.
+    """
+    cutoff = time.time() - hours * 3600
+    files = []
+
+    try:
+        for root, dirs, filenames in os.walk(workspace):
+            # Prune skipped directories in-place
+            dirs[:] = [d for d in dirs if d not in _NON_GIT_SKIP_DIRS and not d.startswith('.')]
+            for fname in filenames:
+                ext = Path(fname).suffix.lower()
+                if ext in _NON_GIT_SKIP_EXTS:
+                    continue
+                try:
+                    fp = Path(root) / fname
+                    st = fp.stat()
+                    if st.st_mtime < cutoff:
+                        continue
+                    rel = str(fp.relative_to(workspace)).replace('\\', '/')
+                    # Count lines for additions estimate
+                    additions = 0
+                    try:
+                        if st.st_size < 1024 * 128:  # only count lines for small-ish files
+                            with open(fp, 'rb') as f:
+                                additions = f.read().count(b'\n')
+                    except Exception:
+                        pass
+                    files.append({
+                        'path': rel,
+                        'status': 'U',
+                        'additions': additions,
+                        'deletions': 0,
+                        'mtime': st.st_mtime,
+                    })
+                except (OSError, PermissionError):
+                    continue
+                if len(files) >= max_files:
+                    break
+            if len(files) >= max_files:
+                break
+    except (OSError, PermissionError):
+        pass
+
+    # Sort by mtime descending (most recent first)
+    files.sort(key=lambda f: f.get('mtime', 0), reverse=True)
+
+    # Remove mtime from response (internal only)
+    for f in files:
+        f.pop('mtime', None)
+
+    return {
+        'is_git': False,
+        'branch': '',
+        'modified': len(files),
+        'added': 0,
+        'deleted': 0,
+        'untracked': 0,
+        'files': files,
+        'recent_hours': hours,
+    }
+
+
+def _non_git_file_diff(workspace: Path, rel_path: str) -> str:
+    """Generate a full-add diff for a file in a non-git workspace."""
+    try:
+        fp = workspace / rel_path
+        if not fp.is_file():
+            return ''
+        text = fp.read_text(encoding='utf-8', errors='replace')
+        lines = text.splitlines()
+        body = '\n'.join('+' + l for l in lines)
+        header = (
+            f"diff --git a/{rel_path} b/{rel_path}\n"
+            f"new file\n"
+            f"--- /dev/null\n"
+            f"+++ b/{rel_path}\n"
+            f"@@ -0,0 +1,{len(lines)} @@\n"
+        )
+        return header + body
+    except Exception:
+        return ''

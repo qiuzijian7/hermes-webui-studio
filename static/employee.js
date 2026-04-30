@@ -231,6 +231,12 @@ function switchCanvasWorkspace(newWsPath) {
     b.classList.toggle('active', b.dataset.filter === 'all');
   });
 
+  // ★ 恢复新工作区的显示模式（画布/列表）
+  try {
+    if (typeof _loadDisplayMode === 'function') _loadDisplayMode();
+    if (typeof _applyDisplayMode === 'function') _applyDisplayMode();
+  } catch(e) { console.error('[switchCanvasWorkspace] load display mode err:', e); }
+
   // ★ 2026-04-27 修复渲染顺序：先恢复新工作区的画布 transform（zoom/pan），
   //   再渲染员工卡片，这样卡片位置以新 transform 为基准，不会因旧 transform
   //   导致卡片跑到视口外被用户误以为"画布空"。
@@ -631,6 +637,10 @@ function updateEmployee(id, updates) {
 function deleteEmployee(id) {
   const idx = EMPLOYEE_STORE.employees.findIndex(e => e.id === id);
   if (idx < 0) return;
+  // ★ 清理自动协作状态：若该员工是当前激活的自动协作员工，关闭
+  if (typeof isEmpAutoCollabActive === 'function' && isEmpAutoCollabActive(id)) {
+    if (typeof setActiveAutoCollabEmpId === 'function') setActiveAutoCollabEmpId(null);
+  }
   // 清理连线关系
   if (typeof removeConnectionsForEmployee === 'function') {
     removeConnectionsForEmployee(id);
@@ -696,9 +706,12 @@ function selectEmployee(id, fromUser, taskId) {
   if (btnCondense) btnCondense.style.display = '';
   const btnSkills = $('btnEmployeeSkills');
   if (btnSkills) btnSkills.style.display = '';
-  // 更新卡片选中状态
+  // 更新卡片选中状态（画布模式 + 列表模式）
   document.querySelectorAll('.emp-card').forEach(c => {
     c.classList.toggle('emp-selected', c.dataset.id === id);
+  });
+  document.querySelectorAll('.emp-list-item').forEach(c => {
+    c.classList.toggle('emp-list-selected', c.dataset.id === id);
   });
   // 打开右侧对话面板（★ 传 taskId 以便加载委派任务的独立 session）
   openEmployeeChat(id, taskId || undefined);
@@ -785,6 +798,9 @@ function renderEmployeeCards() {
     const card = _buildCard(emp);
     canvas.appendChild(card);
   }
+
+  // ★ 渲染完卡片后，应用自动协作图标（🤖💓）
+  if (typeof _applyAutoCollabIndicators === 'function') _applyAutoCollabIndicators();
 }
 
 function _buildCard(emp) {
@@ -825,7 +841,7 @@ function _buildCard(emp) {
       <div class="emp-card-header">
         ${avatarHtml}
         <div class="emp-card-info">
-          <div class="emp-card-name" ondblclick="event.stopPropagation();_startRenameEmployee('${emp.id}')">${esc(emp.name)}${emp.isPM ? ' <span class="emp-pm-badge" title="PM 专员">PM</span>' : ''}</div>
+          <div class="emp-card-name" ondblclick="event.stopPropagation();_startRenameEmployee('${emp.id}')">${esc(emp.name)}${emp.isPM ? ' <span class="emp-pm-badge" title="PM 专员">PM</span>' : ''}${(typeof isEmpAutoCollabActive === 'function' && isEmpAutoCollabActive(emp.id)) ? ' <span class="emp-auto-collab-indicator" title="自动协作+心跳已开启">🤖💓</span>' : ''}</div>
           <div class="emp-card-role">${esc(emp.role)}</div>
         </div>
         <button class="emp-card-menu-btn" onclick="event.stopPropagation();_showCardMenu(event,'${emp.id}')">⋯</button>
@@ -1003,10 +1019,28 @@ function _showCardMenu(event, empId) {
     <div class="emp-menu-item emp-menu-danger" onclick="deleteEmployee('${empId}');_hideCardMenu()">${li('trash-2',13)} 删除员工</div>
   `;
 
-  // 定位
-  const rect = event.target.closest('.emp-card').getBoundingClientRect();
-  menu.style.left = rect.left + 'px';
-  menu.style.top = (rect.bottom + 4) + 'px';
+  // 定位：兼容画布模式(.emp-card)和列表模式(.emp-list-item)
+  const listItem = event.target.closest('.emp-list-item');
+  const card = event.target.closest('.emp-card');
+  const btn = event.target.closest('button');
+
+  if (listItem) {
+    // 列表模式：菜单在按钮右下方弹出
+    const btnRect = btn ? btn.getBoundingClientRect() : listItem.getBoundingClientRect();
+    menu.style.left = (btnRect.left + btnRect.width / 2) + 'px';
+    menu.style.top = (btnRect.bottom + 6) + 'px';
+    menu.style.transform = 'translateX(-50%)';
+  } else if (card) {
+    const rect = card.getBoundingClientRect();
+    menu.style.left = rect.left + 'px';
+    menu.style.top = (rect.bottom + 4) + 'px';
+    menu.style.transform = '';
+  } else {
+    const rect = (btn || event.target).getBoundingClientRect();
+    menu.style.left = rect.left + 'px';
+    menu.style.top = (rect.bottom + 4) + 'px';
+    menu.style.transform = '';
+  }
   document.body.appendChild(menu);
   _cardMenuEl = menu;
 
@@ -1022,12 +1056,13 @@ function _hideCardMenu() {
 
 // ── 内联重命名 ──────────────────────────────────────────────────────────────
 function _startRenameEmployee(empId) {
-  const card = document.querySelector(`.emp-card[data-id="${empId}"]`);
+  // 兼容画布模式(.emp-card)和列表模式(.emp-list-item)
+  const card = document.querySelector(`.emp-card[data-id="${empId}"]`) || document.querySelector(`.emp-list-item[data-id="${empId}"]`);
   if (!card) return;
   const emp = getEmployee(empId);
   if (!emp) return;
 
-  const nameEl = card.querySelector('.emp-card-name');
+  const nameEl = card.querySelector('.emp-card-name') || card.querySelector('.emp-list-name');
   if (!nameEl || nameEl.dataset.editing === '1') return;
 
   nameEl.dataset.editing = '1';

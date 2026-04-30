@@ -55,7 +55,16 @@
     _migrateLegacyPM();
 
     const existing = getPMEmployee();
-    if (existing) return existing;
+    if (existing) {
+      // ★ PM专员已存在：如果当前无自动协作激活员工，默认为 PM 开启
+      if (typeof getActiveAutoCollabEmpId === 'function' && !getActiveAutoCollabEmpId()) {
+        if (typeof setActiveAutoCollabEmpId === 'function') {
+          setActiveAutoCollabEmpId(existing.id);
+          console.log('[pm-manager] 已为已有 PM 专员默认开启自动协作+心跳');
+        }
+      }
+      return existing;
+    }
 
     // 找预设
     const preset = AGENT_PRESETS.find(p => p.id === DEFAULT_PM_PRESET_ID);
@@ -71,6 +80,11 @@
         showToast(`已自动创建 ${emp.name}`);
       }
       updatePMButtonLabel();
+      // ★ PM专员默认开启自动协作+心跳
+      if (typeof setActiveAutoCollabEmpId === 'function') {
+        setActiveAutoCollabEmpId(emp.id);
+        console.log('[pm-manager] 已为 PM 专员默认开启自动协作+心跳');
+      }
     }
     return emp;
   }
@@ -118,6 +132,10 @@
     if (emp) {
       updatePMButtonLabel();
       if (typeof showToast === 'function') showToast(`PM 已更新为 ${emp.name}`);
+      // ★ 新 PM 默认开启自动协作+心跳
+      if (typeof setActiveAutoCollabEmpId === 'function') {
+        setActiveAutoCollabEmpId(emp.id);
+      }
       // 选中新 PM
       if (typeof selectEmployee === 'function') {
         setTimeout(() => selectEmployee(emp.id), 150);

@@ -1,9 +1,10 @@
 /**
  * layout.js — 2026-04 新布局行为：
  *   - 中栏垂直拖动条（画布 / 聊天区）
- *   - 右栏输出区 tab 切换（全部文件 / 变更 / 浏览器 / 日志）
+ *   - 右栏输出区 tab 切换（工作区目录 / 变更 / 浏览器 / 日志）
  *   - 浏览器 tab 简易历史与导航
  *   - 变更 tab（git status + git diff）加载
+ *   - 变更 tab 左右分栏：左侧文件列表 + 右侧 Diff/预览切换
  *
  * 依赖：boot.js 的 $() 辅助、workspace.js 的 api()、S 全局状态。
  */
@@ -172,8 +173,26 @@
   }
   window.switchOutputTab = switchOutputTab;
 
-  // ── 变更 tab：加载 git status + diff ──────────────────────────────────────
+  // ── 变更 tab：左右分栏 — 文件列表 + Diff/预览 ──────────────────────────
   let _changesCurrentFile = null;
+  let _changesViewMode = 'diff';  // 'diff' | 'file'
+  let _changesFiles = [];         // 缓存文件列表
+  let _aiChanges = {};            // AI 变更数据 {path: {count, pending, changes[]}}
+  let _aiTotalPending = 0;        // AI 待确认变更总数
+  let _currentAiChangeId = null;  // 当前显示的 AI 变更 ID
+
+  // 文件扩展名分类
+  const _CHANGES_IMAGE_EXTS = new Set(['.png','.jpg','.jpeg','.gif','.svg','.webp','.ico','.bmp']);
+  const _CHANGES_MD_EXTS = new Set(['.md','.markdown','.mdown']);
+
+  function _changesFileExt(p) {
+    const i = p.lastIndexOf('.');
+    return i >= 0 ? p.slice(i).toLowerCase() : '';
+  }
+
+  function _escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
 
   async function loadGitChanges() {
     const listEl = document.getElementById('outChangesList');
@@ -182,6 +201,12 @@
     const summaryEl = document.getElementById('outChangesSummary');
     const badgeEl = document.getElementById('outChangesBadge');
     const diffEl = document.getElementById('outChangesDiff');
+    const previewEmpty = document.getElementById('changesPreviewEmpty');
+    const previewHeader = document.getElementById('changesPreviewHeader');
+    const filePreview = document.getElementById('changesFilePreview');
+    const aiBadgeEl = document.getElementById('outChangesAiBadge');
+    const saveAllBtn = document.getElementById('btnAcceptAllChanges');
+    const acceptBtn = document.getElementById('changesAcceptBtn');
     if (!listEl) return;
 
     if (!S.session || !S.session.session_id) {
@@ -194,35 +219,85 @@
 
     try {
       const sid = encodeURIComponent(S.session.session_id);
-      const data = await api(`/api/git-changes?session_id=${sid}`);
-      if (!data || !data.is_git) {
-        if (branchEl) branchEl.textContent = '非 git 仓库';
+      // 同时加载 git 变更和 AI 变更
+      const [gitData, aiData] = await Promise.all([
+        api(`/api/git-changes?session_id=${sid}`),
+        api(`/api/ai-changes?session_id=${sid}`).catch(() => null),
+      ]);
+
+      // 处理 AI 变更数据
+      _aiChanges = {};
+      _aiTotalPending = 0;
+      if (aiData && aiData.files) {
+        for (const f of aiData.files) {
+          _aiChanges[f.path] = f;
+        }
+        _aiTotalPending = aiData.total_pending || 0;
+      }
+
+      // 更新 AI badge
+      if (aiBadgeEl) {
+        if (_aiTotalPending > 0) {
+          aiBadgeEl.textContent = `${_aiTotalPending} 待确认`;
+          aiBadgeEl.style.display = '';
+        } else {
+          aiBadgeEl.style.display = 'none';
+        }
+      }
+      if (saveAllBtn) {
+        saveAllBtn.style.display = _aiTotalPending > 0 ? '' : 'none';
+      }
+
+      const data = gitData;
+      if (!data) {
+        if (branchEl) branchEl.textContent = '—';
         if (summaryEl) summaryEl.textContent = '';
         if (badgeEl) badgeEl.style.display = 'none';
         listEl.innerHTML = '';
-        if (emptyEl) { emptyEl.style.display = ''; listEl.appendChild(emptyEl); emptyEl.querySelector('p').textContent = '当前工作区不是 git 仓库'; }
+        if (emptyEl) { emptyEl.style.display = ''; listEl.appendChild(emptyEl); emptyEl.querySelector('p').textContent = '加载失败'; }
         if (diffEl) { diffEl.style.display = 'none'; diffEl.innerHTML = ''; }
+        if (previewEmpty) previewEmpty.style.display = '';
+        if (previewHeader) previewHeader.style.display = 'none';
+        if (filePreview) filePreview.style.display = 'none';
+        _changesFiles = [];
         return;
       }
-      if (branchEl) branchEl.textContent = data.branch || 'HEAD';
+      const isGit = !!data.is_git;
+      if (isGit) {
+        if (branchEl) branchEl.textContent = data.branch || 'HEAD';
+      } else {
+        if (branchEl) branchEl.textContent = data.recent_hours ? `近 ${data.recent_hours}h` : '本地';
+      }
       if (summaryEl) {
         const bits = [];
-        if (data.modified)  bits.push(`${data.modified} 改动`);
-        if (data.added)     bits.push(`${data.added} 新增`);
-        if (data.deleted)   bits.push(`${data.deleted} 删除`);
-        if (data.untracked) bits.push(`${data.untracked} 未跟踪`);
+        if (data.modified)  bits.push(`${data.modified} ${isGit ? '改动' : '文件'}`);
+        if (isGit && data.added)     bits.push(`${data.added} 新增`);
+        if (isGit && data.deleted)   bits.push(`${data.deleted} 删除`);
+        if (isGit && data.untracked) bits.push(`${data.untracked} 未跟踪`);
         summaryEl.textContent = bits.join(' · ');
       }
       const files = data.files || [];
+      _changesFiles = files;
       if (badgeEl) {
         if (files.length) { badgeEl.textContent = files.length; badgeEl.style.display = ''; }
         else badgeEl.style.display = 'none';
       }
 
+      // 计算最大改动量（用于统计条宽度）
+      let maxChanges = 1;
+      for (const f of files) {
+        const total = (f.additions || 0) + (f.deletions || 0);
+        if (total > maxChanges) maxChanges = total;
+      }
+
       listEl.innerHTML = '';
       if (!files.length) {
-        if (emptyEl) { emptyEl.style.display = ''; emptyEl.querySelector('p').textContent = '没有未提交的变更'; listEl.appendChild(emptyEl); }
+        const emptyMsg = isGit ? '没有未提交的变更' : '近期没有文件变更';
+        if (emptyEl) { emptyEl.style.display = ''; emptyEl.querySelector('p').textContent = emptyMsg; listEl.appendChild(emptyEl); }
         if (diffEl) { diffEl.style.display = 'none'; diffEl.innerHTML = ''; }
+        if (previewEmpty) previewEmpty.style.display = '';
+        if (previewHeader) previewHeader.style.display = 'none';
+        if (filePreview) filePreview.style.display = 'none';
         _changesCurrentFile = null;
         return;
       }
@@ -231,6 +306,7 @@
         const row = document.createElement('div');
         row.className = 'output-change-item';
         row.dataset.path = f.path;
+        row.tabIndex = 0;
         const statusCh = (f.status || '??').trim().charAt(0) || '?';
         const st = document.createElement('span');
         st.className = 'output-change-status ' + statusCh;
@@ -240,25 +316,66 @@
         p.className = 'output-change-path';
         p.textContent = f.path;
         p.title = f.path;
+
+        // 增删统计条
+        const bar = document.createElement('span');
+        bar.className = 'output-change-bar';
+        const totalChanges = (f.additions || 0) + (f.deletions || 0);
+        if (totalChanges > 0) {
+          const addWidth = Math.max(1, Math.round(((f.additions || 0) / maxChanges) * 100));
+          const delWidth = Math.max(1, Math.round(((f.deletions || 0) / maxChanges) * 100));
+          const barAdd = document.createElement('span');
+          barAdd.className = 'output-change-bar-add';
+          barAdd.style.width = addWidth + '%';
+          const barDel = document.createElement('span');
+          barDel.className = 'output-change-bar-del';
+          barDel.style.width = delWidth + '%';
+          bar.appendChild(barAdd);
+          bar.appendChild(barDel);
+        }
+
         const sub = document.createElement('span');
         sub.className = 'output-change-sub';
         if (typeof f.additions === 'number' || typeof f.deletions === 'number') {
           sub.textContent = `+${f.additions||0} -${f.deletions||0}`;
         }
+
+        // AI 修改次数 badge
+        const aiInfo = _aiChanges[f.path];
+        let aiBadge = null;
+        if (aiInfo && aiInfo.pending > 0) {
+          aiBadge = document.createElement('span');
+          aiBadge.className = 'output-change-ai-count';
+          aiBadge.textContent = aiInfo.pending;
+          aiBadge.title = `${aiInfo.pending} 次 AI 修改待确认`;
+        }
+
         row.appendChild(st);
         row.appendChild(p);
+        if (aiBadge) row.appendChild(aiBadge);
+        row.appendChild(bar);
         row.appendChild(sub);
-        row.addEventListener('click', () => showGitDiff(f.path));
+        row.addEventListener('click', () => _selectChangesFile(f.path));
+        // 键盘支持
+        row.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _selectChangesFile(f.path); }
+        });
         listEl.appendChild(row);
       }
 
-      // 默认展开第一个文件的 diff
+      // 默认展开第一个文件
       if (files[0] && !_changesCurrentFile) {
-        showGitDiff(files[0].path);
+        _selectChangesFile(files[0].path);
       } else if (_changesCurrentFile) {
         const cur = files.find(f => f.path === _changesCurrentFile);
-        if (cur) showGitDiff(cur.path);
-        else { _changesCurrentFile = null; if (diffEl) { diffEl.style.display='none'; diffEl.innerHTML=''; } }
+        if (cur) _selectChangesFile(cur.path);
+        else {
+          _changesCurrentFile = null;
+          if (diffEl) { diffEl.style.display='none'; diffEl.innerHTML=''; }
+          if (previewEmpty) previewEmpty.style.display = '';
+          if (previewHeader) previewHeader.style.display = 'none';
+          if (filePreview) filePreview.style.display = 'none';
+        }
       }
     } catch (e) {
       console.warn('[changes] loadGitChanges failed:', e);
@@ -268,21 +385,207 @@
   }
   window.loadGitChanges = loadGitChanges;
 
-  async function showGitDiff(path) {
+  /** 选中变更文件，更新左侧高亮 + 右侧预览 */
+  function _selectChangesFile(path) {
     _changesCurrentFile = path;
-    const diffEl = document.getElementById('outChangesDiff');
     const listEl = document.getElementById('outChangesList');
-    if (!diffEl) return;
+    const previewHeader = document.getElementById('changesPreviewHeader');
+    const previewEmpty = document.getElementById('changesPreviewEmpty');
+    const filenameEl = document.getElementById('changesPreviewFilename');
+    const filepathEl = document.getElementById('changesPreviewFilepath');
+    const openInEditorBtn = document.getElementById('changesOpenInEditor');
+    const acceptBtn = document.getElementById('changesAcceptBtn');
+
+    // 高亮当前选中文件
     if (listEl) {
       listEl.querySelectorAll('.output-change-item').forEach(row => {
         row.classList.toggle('active', row.dataset.path === path);
       });
     }
-    diffEl.style.display = 'block';
+
+    // 更新预览头部
+    if (previewHeader) previewHeader.style.display = '';
+    if (previewEmpty) previewEmpty.style.display = 'none';
+    const fileName = path.split('/').pop();
+    const dirPath = path.substring(0, path.length - fileName.length);
+    if (filenameEl) filenameEl.textContent = fileName;
+    if (filepathEl) filepathEl.textContent = dirPath;
+    if (openInEditorBtn) openInEditorBtn.style.display = '';
+
+    // 显示/隐藏保存按钮
+    const aiInfo = _aiChanges[path];
+    if (acceptBtn) {
+      if (aiInfo && aiInfo.pending > 0) {
+        acceptBtn.style.display = '';
+        acceptBtn.textContent = '';
+        acceptBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>保存</span>';
+        acceptBtn.classList.remove('saved');
+      } else {
+        acceptBtn.style.display = 'none';
+      }
+    }
+
+    // 根据当前视图模式加载内容
+    if (_changesViewMode === 'diff') {
+      showGitDiff(path);
+    } else {
+      _showChangesFilePreview(path);
+    }
+  }
+
+  /** 切换 Diff / 文件预览模式 */
+  function _switchChangesViewMode(mode) {
+    _changesViewMode = mode;
+    const diffBtn = document.getElementById('changesModeDiff');
+    const fileBtn = document.getElementById('changesModeFile');
+    const diffEl = document.getElementById('outChangesDiff');
+    const filePreview = document.getElementById('changesFilePreview');
+
+    if (diffBtn) diffBtn.classList.toggle('active', mode === 'diff');
+    if (fileBtn) fileBtn.classList.toggle('active', mode === 'file');
+
+    if (mode === 'diff') {
+      if (diffEl) diffEl.style.display = '';
+      if (filePreview) filePreview.style.display = 'none';
+      if (_changesCurrentFile) showGitDiff(_changesCurrentFile);
+    } else {
+      if (diffEl) diffEl.style.display = 'none';
+      if (filePreview) filePreview.style.display = '';
+      if (_changesCurrentFile) _showChangesFilePreview(_changesCurrentFile);
+    }
+  }
+  window._switchChangesViewMode = _switchChangesViewMode;
+
+  /** 在变更面板右侧显示文件预览 */
+  async function _showChangesFilePreview(path) {
+    const contentEl = document.getElementById('changesFileContent');
+    const diffEl = document.getElementById('outChangesDiff');
+    const filePreview = document.getElementById('changesFilePreview');
+    if (!contentEl) return;
+
+    if (diffEl) diffEl.style.display = 'none';
+    if (filePreview) filePreview.style.display = '';
+
+    const ext = _changesFileExt(path);
+    const sid = (S.session && S.session.session_id) ? encodeURIComponent(S.session.session_id) : '';
+    const qs = sid ? `session_id=${sid}&path=${encodeURIComponent(path)}` : `path=${encodeURIComponent(path)}`;
+
+    // 图片预览
+    if (_CHANGES_IMAGE_EXTS.has(ext)) {
+      contentEl.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;padding:20px;min-height:200px"><img src="/api/file/raw?${qs}" alt="${_escHtml(path)}" style="max-width:100%;border-radius:6px" onerror="this.parentElement.innerHTML='<p style=\\'color:var(--muted)\\'>图片加载失败</p>'"></div>`;
+      return;
+    }
+
+    // Markdown 预览
+    if (_CHANGES_MD_EXTS.has(ext)) {
+      try {
+        const data = await api(`/api/file?${qs}`);
+        const mdHtml = typeof renderMd === 'function' ? renderMd(data.content || '') : (data.content || '');
+        contentEl.innerHTML = `<div class="md-preview">${mdHtml}</div>`;
+      } catch (e) {
+        contentEl.innerHTML = `<p style="color:var(--muted);padding:16px">文件加载失败: ${_escHtml(e.message)}</p>`;
+      }
+      return;
+    }
+
+    // 代码/文本预览 - 使用 CM6 或纯文本
+    try {
+      const data = await api(`/api/file?${qs}`);
+      if (data.binary) {
+        contentEl.innerHTML = `<p style="color:var(--muted);padding:16px">二进制文件，无法预览</p>`;
+        return;
+      }
+      const lang = typeof _rpFileLang === 'function' ? _rpFileLang(path) : '';
+      // 尝试 CM6
+      contentEl.innerHTML = '';
+      if (typeof window.CM_EDITOR !== 'undefined' && window.CM_EDITOR.create) {
+        try {
+          window.CM_EDITOR.create(contentEl, data.content || '', lang, false);
+          if (!contentEl.querySelector('.cm-editor')) throw new Error('no mount');
+          contentEl.classList.add('cm-active');
+        } catch (_) {
+          contentEl.classList.remove('cm-active');
+          contentEl.innerHTML = `<pre>${_escHtml(data.content || '')}</pre>`;
+        }
+      } else {
+        contentEl.innerHTML = `<pre>${_escHtml(data.content || '')}</pre>`;
+      }
+    } catch (e) {
+      contentEl.innerHTML = `<p style="color:var(--muted);padding:16px">文件加载失败: ${_escHtml(e.message)}</p>`;
+    }
+  }
+
+  /** 在编辑器中打开变更文件（跳转到工作区目录的文件预览） */
+  function _openChangesFileInEditor() {
+    if (!_changesCurrentFile) return;
+    if (typeof openFileInRightPanel === 'function') {
+      openFileInRightPanel(_changesCurrentFile);
+    }
+  }
+  window._openChangesFileInEditor = _openChangesFileInEditor;
+
+  async function showGitDiff(path) {
+    _changesCurrentFile = path;
+    const diffEl = document.getElementById('outChangesDiff');
+    const filePreview = document.getElementById('changesFilePreview');
+    const listEl = document.getElementById('outChangesList');
+    const previewHeader = document.getElementById('changesPreviewHeader');
+    const previewEmpty = document.getElementById('changesPreviewEmpty');
+    const filenameEl = document.getElementById('changesPreviewFilename');
+    const filepathEl = document.getElementById('changesPreviewFilepath');
+    const openInEditorBtn = document.getElementById('changesOpenInEditor');
+    const acceptBtn = document.getElementById('changesAcceptBtn');
+    if (!diffEl) return;
+
+    // 确保 diff 视图可见
+    if (filePreview) filePreview.style.display = 'none';
+    diffEl.style.display = '';
+
+    if (listEl) {
+      listEl.querySelectorAll('.output-change-item').forEach(row => {
+        row.classList.toggle('active', row.dataset.path === path);
+      });
+    }
+    if (previewHeader) previewHeader.style.display = '';
+    if (previewEmpty) previewEmpty.style.display = 'none';
+
+    // 更新文件名
+    const fileName = path.split('/').pop();
+    const dirPath = path.substring(0, path.length - fileName.length);
+    if (filenameEl) filenameEl.textContent = fileName;
+    if (filepathEl) filepathEl.textContent = dirPath;
+    if (openInEditorBtn) openInEditorBtn.style.display = '';
+
+    // 显示/隐藏保存按钮
+    const aiInfo = _aiChanges[path];
+    if (acceptBtn) {
+      if (aiInfo && aiInfo.pending > 0) {
+        acceptBtn.style.display = '';
+        acceptBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>保存</span>';
+        acceptBtn.classList.remove('saved');
+      } else {
+        acceptBtn.style.display = 'none';
+      }
+    }
+
     diffEl.textContent = '加载中...';
     try {
       const sid = encodeURIComponent(S.session.session_id);
       const p = encodeURIComponent(path);
+      // 如果有 AI 变更，优先显示 AI 变更的 diff
+      if (aiInfo && aiInfo.pending > 0 && aiInfo.changes && aiInfo.changes.length > 0) {
+        // 获取最新的 AI 变更 diff
+        const latestChange = aiInfo.changes[aiInfo.changes.length - 1];
+        if (latestChange.id) {
+          const detail = await api(`/api/ai-changes/detail?session_id=${sid}&change_id=${latestChange.id}`);
+          if (detail && detail.diff) {
+            diffEl.innerHTML = _colorizeDiff(detail.diff);
+            _currentAiChangeId = latestChange.id;
+            return;
+          }
+        }
+      }
+      // 否则显示 git diff
       const data = await api(`/api/git-diff?session_id=${sid}&path=${p}`);
       const diffText = (data && data.diff) || '';
       if (!diffText.trim()) {
@@ -314,6 +617,93 @@
       return esc(line);
     }).join('\n');
   }
+
+  // ── AI 变更追踪：接受/保存功能 ───────────────────────────────────────────
+
+  /** 接受当前选中文件的所有 AI 变更 */
+  async function _acceptFileChanges() {
+    if (!_changesCurrentFile || !_aiChanges[_changesCurrentFile]) return;
+    const path = _changesCurrentFile;
+    try {
+      const sid = S.session.session_id;
+      const res = await api('/api/ai-changes/accept-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sid, path: path })
+      });
+      if (res && res.success) {
+        // 更新本地状态
+        const aiInfo = _aiChanges[path];
+        if (aiInfo) {
+          aiInfo.pending = 0;
+          aiInfo.accepted = aiInfo.count;
+          for (const c of aiInfo.changes) {
+            c.accepted = true;
+          }
+        }
+        _aiTotalPending = Math.max(0, _aiTotalPending - (res.count || 0));
+        // 更新 UI
+        const acceptBtn = document.getElementById('changesAcceptBtn');
+        if (acceptBtn) {
+          acceptBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>已保存</span>';
+          acceptBtn.classList.add('saved');
+        }
+        const aiBadgeEl = document.getElementById('outChangesAiBadge');
+        if (aiBadgeEl) {
+          if (_aiTotalPending > 0) {
+            aiBadgeEl.textContent = `${_aiTotalPending} 待确认`;
+          } else {
+            aiBadgeEl.style.display = 'none';
+          }
+        }
+        const saveAllBtn = document.getElementById('btnAcceptAllChanges');
+        if (saveAllBtn) {
+          saveAllBtn.style.display = _aiTotalPending > 0 ? '' : 'none';
+        }
+        // 刷新文件列表中的 badge
+        loadGitChanges();
+      }
+    } catch (e) {
+      console.warn('[changes] accept file failed:', e);
+    }
+  }
+  window._acceptFileChanges = _acceptFileChanges;
+
+  /** 接受所有 AI 变更 */
+  async function _acceptAllAiChanges() {
+    try {
+      const sid = S.session.session_id;
+      const res = await api('/api/ai-changes/accept-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sid })
+      });
+      if (res && res.success) {
+        // 更新本地状态
+        for (const path in _aiChanges) {
+          const info = _aiChanges[path];
+          info.pending = 0;
+          info.accepted = info.count;
+          for (const c of info.changes) {
+            c.accepted = true;
+          }
+        }
+        _aiTotalPending = 0;
+        // 更新 UI
+        const aiBadgeEl = document.getElementById('outChangesAiBadge');
+        if (aiBadgeEl) aiBadgeEl.style.display = 'none';
+        const saveAllBtn = document.getElementById('btnAcceptAllChanges');
+        if (saveAllBtn) saveAllBtn.style.display = 'none';
+        const acceptBtn = document.getElementById('changesAcceptBtn');
+        if (acceptBtn) acceptBtn.style.display = 'none';
+        // 刷新
+        loadGitChanges();
+      }
+    } catch (e) {
+      console.warn('[changes] accept all failed:', e);
+    }
+  }
+  window._acceptAllAiChanges = _acceptAllAiChanges;
 
   // ── 浏览器 tab ────────────────────────────────────────────────────────────
   const BROWSER_URL_KEY = 'hermes-browser-url';

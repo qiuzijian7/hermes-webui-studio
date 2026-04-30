@@ -624,6 +624,79 @@ def handle_get(handler, parsed) -> bool:
         diff = git_diff_for_path(Path(s.workspace), path)
         return j(handler, {"diff": diff, "path": path})
 
+    # ── AI 变更追踪 API ────────────────────────────────────────────────────────
+    if parsed.path == "/api/ai-changes":
+        qs = parse_qs(parsed.query)
+        sid = qs.get("session_id", [""])[0]
+        if not sid:
+            return bad(handler, "session_id required")
+        try:
+            s = get_session(sid)
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        from api.ai_changes import get_changes_summary
+        summary = get_changes_summary(sid)
+        return j(handler, summary)
+
+    if parsed.path == "/api/ai-changes/detail":
+        qs = parse_qs(parsed.query)
+        sid = qs.get("session_id", [""])[0]
+        change_id = qs.get("change_id", [""])[0]
+        if not sid:
+            return bad(handler, "session_id required")
+        if not change_id:
+            return bad(handler, "change_id required")
+        try:
+            s = get_session(sid)
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        from api.ai_changes import get_change_diff
+        entry = get_change_diff(sid, change_id)
+        if not entry:
+            return bad(handler, "Change not found", 404)
+        return j(handler, entry)
+
+    if parsed.path == "/api/ai-changes/accept":
+        body = read_body(handler)
+        sid = body.get("session_id", "")
+        change_id = body.get("change_id", "")
+        if not sid or not change_id:
+            return bad(handler, "session_id and change_id required")
+        try:
+            s = get_session(sid)
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        from api.ai_changes import accept_change
+        ok = accept_change(sid, change_id)
+        return j(handler, {"success": ok})
+
+    if parsed.path == "/api/ai-changes/accept-file":
+        body = read_body(handler)
+        sid = body.get("session_id", "")
+        file_path = body.get("path", "")
+        if not sid or not file_path:
+            return bad(handler, "session_id and path required")
+        try:
+            s = get_session(sid)
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        from api.ai_changes import accept_file_changes
+        count = accept_file_changes(sid, file_path)
+        return j(handler, {"success": count > 0, "count": count})
+
+    if parsed.path == "/api/ai-changes/accept-all":
+        body = read_body(handler)
+        sid = body.get("session_id", "")
+        if not sid:
+            return bad(handler, "session_id required")
+        try:
+            s = get_session(sid)
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        from api.ai_changes import accept_all_changes
+        count = accept_all_changes(sid)
+        return j(handler, {"success": count > 0, "count": count})
+
     if parsed.path == "/api/updates/check":
         settings = load_settings()
         if not settings.get("check_for_updates", True):

@@ -919,16 +919,21 @@ function _renderMainBreadcrumb() {
   if (!bar) return;
   bar.innerHTML = '';
 
+  // 获取工作区绝对路径
+  const wsPath = (typeof _activeWorkspacePath === 'function') ? _activeWorkspacePath() : (S.session && S.session.workspace) || '';
+
   if (!S.currentDir || S.currentDir === '.') {
     const root = document.createElement('span');
     root.className = 'breadcrumb-seg breadcrumb-current';
-    root.textContent = '~';
+    root.textContent = wsPath || '~';
+    root.title = wsPath || '~';
     bar.appendChild(root);
   } else {
-    // Root
+    // Root — 显示工作区路径
     const root = document.createElement('span');
     root.className = 'breadcrumb-seg breadcrumb-link';
-    root.textContent = '~';
+    root.textContent = wsPath || '~';
+    root.title = wsPath || '~';
     root.onclick = () => { if (typeof loadDir === 'function') loadDir('.'); };
     bar.appendChild(root);
 
@@ -1064,6 +1069,11 @@ function _renderMainTreeItems(container, entries, depth) {
 const _originalRenderEmployeeCards = typeof renderEmployeeCards === 'function' ? renderEmployeeCards : null;
 
 function renderEmployeeCards() {
+  // 列表模式时渲染列表，不走画布渲染
+  if (_displayMode === 'list') {
+    renderEmployeeList();
+    return;
+  }
   const canvas = $('canvasZoomLayer') || $('employeeCanvas');
   const empty = $('employeeEmptyState');
   if (!canvas) return;
@@ -1127,12 +1137,8 @@ function renderEmployeeCards() {
 (function() {
   const _origRenderFileTree = typeof renderFileTree === 'function' ? renderFileTree : null;
   window.renderFileTree = function() {
-    if (_activeWorkspaceTab === 'files') {
-      // 主面板文件页签激活时，只渲染主面板树，跳过旧版侧边栏渲染
-      _renderMainFileTree();
-    } else if (_origRenderFileTree) {
-      _origRenderFileTree();
-    }
+    // 始终更新右侧面板文件树（mainFileTree），不受中间面板 tab 状态影响
+    _renderMainFileTree();
   };
 
   // 同时覆盖 renderBreadcrumb，让中间面板面包屑也能被 loadDir 自动更新
@@ -1163,5 +1169,224 @@ function initWorkspaceTabs() {
   _initBoxSelection();
   // 初始化工作区选择器标签
   syncWsSelectorLabel();
+  // 恢复显示模式
+  _loadDisplayMode();
+  _applyDisplayMode();
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// 显示模式：画布 / 员工列表
+// ═══════════════════════════════════════════════════════════════════
+
+let _displayMode = 'canvas';  // 'canvas' | 'list'
+
+function _displayModeStorageKey() {
+  return 'hermes-display-mode:' + _currentWsKey();
+}
+
+function _saveDisplayMode() {
+  try { localStorage.setItem(_displayModeStorageKey(), _displayMode); } catch(e) {}
+}
+
+function _loadDisplayMode() {
+  try {
+    const saved = localStorage.getItem(_displayModeStorageKey());
+    if (saved === 'list' || saved === 'canvas') _displayMode = saved;
+    else _displayMode = 'canvas';
+  } catch(e) { _displayMode = 'canvas'; }
+}
+
+/** 切换画布/列表模式 */
+function toggleDisplayMode() {
+  _displayMode = _displayMode === 'canvas' ? 'list' : 'canvas';
+  _saveDisplayMode();
+  _applyDisplayMode();
+}
+
+/** 应用当前显示模式到 DOM */
+function _applyDisplayMode() {
+  const canvas = $('employeeCanvas');
+  const list = $('employeeList');
+  const toggle = $('empModeToggle');
+  const zoomControls = $('canvasZoomControls');
+  const canvasHint = $('canvasHint');
+  const empty = $('employeeEmptyState');
+
+  if (_displayMode === 'list') {
+    if (canvas) canvas.style.display = 'none';
+    if (list) list.style.display = '';
+    if (toggle) toggle.classList.add('list-active');
+    if (zoomControls) zoomControls.style.display = 'none';
+    if (canvasHint) canvasHint.style.display = 'none';
+    if (empty) empty.style.display = 'none';
+    renderEmployeeList();
+  } else {
+    if (canvas) canvas.style.display = '';
+    if (list) list.style.display = 'none';
+    if (toggle) toggle.classList.remove('list-active');
+    if (zoomControls) zoomControls.style.display = '';
+    renderEmployeeCards();
+  }
+}
+
+
+// ── 员工列表渲染 ──────────────────────────────────────────────────────────
+
+/** 渲染员工列表 */
+function renderEmployeeList() {
+  const container = $('empListItems');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const filtered = _getFilteredEmployees();
+
+  // PM 专员置顶
+  filtered.sort((a, b) => {
+    const aPM = a.isPM ? 1 : 0;
+    const bPM = b.isPM ? 1 : 0;
+    return bPM - aPM;
+  });
+
+  // 列表模式使用自己的空状态（employeeCanvas 被隐藏，其内部空态不可见）
+  if (!EMPLOYEE_STORE.employees.length) {
+    container.innerHTML = '<div class="emp-list-empty">还没有员工<br><span style="font-size:11px;opacity:.6">点击"添加员工"按钮创建你的第一个 AI 员工</span></div>';
+    return;
+  }
+
+  if (!filtered.length && _empSearchQuery) {
+    container.innerHTML = '<div class="emp-list-empty">没有找到匹配的员工</div>';
+    return;
+  }
+
+  for (const emp of filtered) {
+    const item = _buildListItem(emp);
+    container.appendChild(item);
+  }
+}
+
+/** 构建单个列表项 */
+function _buildListItem(emp) {
+  const st = (typeof STATUS_MAP !== 'undefined' ? STATUS_MAP[emp.status] : null) || { label: '空闲', color: 'var(--muted)', bg: 'rgba(255,255,255,.05)', dot: 'var(--muted)', animated: false };
+  const item = document.createElement('div');
+  item.className = 'emp-list-item' + (emp.id === EMPLOYEE_STORE.selectedId ? ' emp-list-selected' : '');
+  item.dataset.id = emp.id;
+  item.draggable = true;
+
+  const avatarHtml = (typeof getEmployeeAvatarHtml === 'function')
+    ? getEmployeeAvatarHtml(emp, { size: 64, statusStyle: st, className: 'emp-list-avatar', animated: false })
+    : `<div class="emp-list-avatar" style="background:${st.bg}"><span style="font-size:16px">${esc(emp.avatar || '🤖')}</span></div>`;
+
+  const skills = emp.skills || [];
+
+  item.innerHTML = `
+    <div class="emp-list-drag-handle" title="拖拽排序">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg>
+    </div>
+    ${avatarHtml}
+    <div class="emp-list-info">
+      <div class="emp-list-name">${esc(emp.name)}${emp.isPM ? ' <span class="emp-pm-badge" title="PM 专员">PM</span>' : ''}</div>
+      <div class="emp-list-role">${esc(emp.role)}</div>
+    </div>
+    <div class="emp-list-status">
+      <span class="emp-status-dot${st.animated ? ' emp-dot-animated' : ''}" style="background:${st.dot}"></span>
+      <span class="emp-status-label" style="color:${st.color}">${st.label}</span>
+    </div>
+    <button class="emp-list-menu-btn" onclick="event.stopPropagation();if(typeof _showCardMenu==='function')_showCardMenu(event,'${emp.id}')">⋯</button>
+  `;
+
+  // 点击选中
+  item.addEventListener('click', () => {
+    if (typeof selectEmployee === 'function') selectEmployee(emp.id, true);
+  });
+
+  // 双击名称重命名
+  const nameEl = item.querySelector('.emp-list-name');
+  if (nameEl) nameEl.ondblclick = (e) => {
+    e.stopPropagation();
+    if (typeof _startRenameEmployee === 'function') _startRenameEmployee(emp.id);
+  };
+
+  // 拖拽排序
+  _initListItemDrag(item, emp);
+
+  return item;
+}
+
+// ── 列表拖拽排序 ──────────────────────────────────────────────────────────
+
+let _listDragSourceId = null;
+let _listDragOverId = null;
+let _listDragSide = null;  // 'before' | 'after'
+
+function _initListItemDrag(item, emp) {
+  item.addEventListener('dragstart', e => {
+    if (e.target.closest('button')) { e.preventDefault(); return; }
+    _listDragSourceId = emp.id;
+    item.classList.add('emp-list-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', emp.id);
+  });
+
+  item.addEventListener('dragend', () => {
+    item.classList.remove('emp-list-dragging');
+    _listDragSourceId = null;
+    _listDragOverId = null;
+    _listDragSide = null;
+    document.querySelectorAll('.emp-list-drag-over-before, .emp-list-drag-over-after').forEach(el => {
+      el.classList.remove('emp-list-drag-over-before', 'emp-list-drag-over-after');
+    });
+  });
+
+  item.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!_listDragSourceId || _listDragSourceId === emp.id) return;
+
+    const rect = item.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const side = e.clientY < midY ? 'before' : 'after';
+
+    // 清除其他项的指示器
+    document.querySelectorAll('.emp-list-drag-over-before, .emp-list-drag-over-after').forEach(el => {
+      el.classList.remove('emp-list-drag-over-before', 'emp-list-drag-over-after');
+    });
+
+    item.classList.add('emp-list-drag-over-' + side);
+    _listDragOverId = emp.id;
+    _listDragSide = side;
+  });
+
+  item.addEventListener('dragleave', () => {
+    item.classList.remove('emp-list-drag-over-before', 'emp-list-drag-over-after');
+  });
+
+  item.addEventListener('drop', e => {
+    e.preventDefault();
+    item.classList.remove('emp-list-drag-over-before', 'emp-list-drag-over-after');
+    const sourceId = _listDragSourceId || e.dataTransfer.getData('text/plain');
+    if (!sourceId || sourceId === emp.id) return;
+
+    const sourceEmp = EMPLOYEE_STORE.employees.find(em => em.id === sourceId);
+    const targetEmp = EMPLOYEE_STORE.employees.find(em => em.id === emp.id);
+    if (!sourceEmp || !targetEmp) return;
+
+    // PM 置顶保护：非 PM 不能拖到 PM 上方
+    if (!sourceEmp.isPM && targetEmp.isPM && _listDragSide === 'before') return;
+
+    // 在 EMPLOYEE_STORE.employees 数组中重排
+    const srcIdx = EMPLOYEE_STORE.employees.findIndex(em => em.id === sourceId);
+    const tgtIdx = EMPLOYEE_STORE.employees.findIndex(em => em.id === emp.id);
+    if (srcIdx < 0 || tgtIdx < 0) return;
+
+    const [moved] = EMPLOYEE_STORE.employees.splice(srcIdx, 1);
+    const newTgtIdx = EMPLOYEE_STORE.employees.findIndex(em => em.id === emp.id);
+    const insertIdx = _listDragSide === 'before' ? newTgtIdx : newTgtIdx + 1;
+    EMPLOYEE_STORE.employees.splice(insertIdx, 0, moved);
+
+    // 持久化
+    if (typeof _saveEmployees === 'function') _saveEmployees();
+    renderEmployeeList();
+  });
 }
 

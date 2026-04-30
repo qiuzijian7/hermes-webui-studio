@@ -370,7 +370,16 @@ async function openEmployeeChat(empId, taskId) {
     }
   }
   const nameEl = $('rpEmployeeName');
-  if (nameEl) nameEl.textContent = emp.name;
+  if (nameEl) {
+    // ★ 在员工名称旁添加"自动协作+心跳"切换按钮（工作区内互斥：仅一个员工可开启）
+    const isActive = (typeof isEmpAutoCollabActive === 'function') && isEmpAutoCollabActive(emp.id);
+    nameEl.innerHTML = `${esc(emp.name)}
+      <button id="empAutoCollabBtn"
+              class="gc-auto-orch-btn emp-auto-collab-btn${isActive ? ' active' : ''}"
+              onclick="event.stopPropagation();toggleEmpAutoCollab('${esc(emp.id)}')"
+              title="${isActive ? '自动协作+心跳已开启（' + esc(emp.name) + '）- 点击关闭' : '点击为 ' + esc(emp.name) + ' 开启自动协作+心跳'}"
+      >🤖💓 自动协作</button>`;
+  }
   const roleEl = $('rpEmployeeRole');
   if (roleEl) roleEl.textContent = emp.role;
 
@@ -2288,7 +2297,7 @@ function openSkillDetail(skillName, category, content) {
 /**
  * 关闭右侧栏「详情」tab：
  *  - 隐藏 tab 按钮；
- *  - 切回默认的「全部文件」tab；
+ *  - 切回默认的「工作区目录」tab；
  *  - 清空内容避免下次打开时短暂看到旧数据。
  */
 function closeDetailPanel() {

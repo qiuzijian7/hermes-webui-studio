@@ -37,20 +37,22 @@ const GROUP_CHAT_STATE = {
   autoOrchestrate: (localStorage.getItem('gc_auto_orchestrate') === '1'),
 };
 
-/** 切换自动协作模式 */
+/** 切换自动协作模式（与心跳联动，通过 setActiveAutoCollabEmpId 统一管理） */
 function toggleAutoOrchestrate() {
-  GROUP_CHAT_STATE.autoOrchestrate = !GROUP_CHAT_STATE.autoOrchestrate;
-  localStorage.setItem('gc_auto_orchestrate', GROUP_CHAT_STATE.autoOrchestrate ? '1' : '0');
-  // 更新按钮 UI
-  const btn = document.getElementById('gcAutoOrchBtn');
-  if (btn) {
-    btn.classList.toggle('active', GROUP_CHAT_STATE.autoOrchestrate);
-    btn.title = GROUP_CHAT_STATE.autoOrchestrate
-      ? '自动协作已开启：未 @ 人的消息会交给 @制作人 规划分工'
-      : '自动协作已关闭：消息仅发送给 @ 到的员工';
-  }
-  if (typeof showToast === 'function') {
-    showToast(GROUP_CHAT_STATE.autoOrchestrate ? '✅ 自动协作已开启' : '⏸ 自动协作已关闭');
+  const activeId = getActiveAutoCollabEmpId();
+  if (activeId) {
+    // 当前有激活员工 → 关闭
+    setActiveAutoCollabEmpId(null);
+    if (typeof showToast === 'function') showToast('⏸ 自动协作+心跳已关闭');
+  } else {
+    // 无激活员工 → 为 PM 专员（或首个员工）开启
+    const pmEmp = (typeof EMPLOYEE_STORE !== 'undefined')
+      ? EMPLOYEE_STORE.employees.find(e => e.isPM) || EMPLOYEE_STORE.employees[0]
+      : null;
+    if (pmEmp) {
+      setActiveAutoCollabEmpId(pmEmp.id);
+      if (typeof showToast === 'function') showToast(`✅ 自动协作+心跳已开启（${pmEmp.name}）`);
+    }
   }
 }
 
@@ -202,19 +204,22 @@ async function openGroupChat() {
 
   const nameEl = $('rpEmployeeName');
   if (nameEl) {
-    // ★ 在标题中附加"自动协作"和"心跳调度"切换按钮
+    // ★ 在标题中附加"自动协作"和"心跳调度"切换按钮（联动：两者始终同步）
     const autoOn = GROUP_CHAT_STATE.autoOrchestrate;
     const hbOn = HEARTBEAT_STATE.enabled;
+    const activeEmpId = getActiveAutoCollabEmpId(ws);
+    const activeEmpName = activeEmpId && typeof getEmployee === 'function'
+      ? (getEmployee(activeEmpId)?.name || '') : '';
     nameEl.innerHTML = `${esc(_groupChatTitle(ws))}
       <button id="gcAutoOrchBtn"
               class="gc-auto-orch-btn${autoOn ? ' active' : ''}"
               onclick="event.stopPropagation();toggleAutoOrchestrate()"
-              title="${autoOn ? '自动协作已开启：未 @ 人的消息会交给 @制作人 规划分工' : '点击开启自动协作：未 @ 人的消息会交给 @制作人 规划分工'}"
+              title="${autoOn ? '自动协作+心跳已开启' + (activeEmpName ? '（' + esc(activeEmpName) + '）' : '') + ' - 点击关闭' : '点击开启自动协作+心跳'}"
       >🤖 自动协作</button>
       <button id="gcHeartbeatBtn"
               class="gc-auto-orch-btn${hbOn ? ' active' : ''}"
               onclick="event.stopPropagation();toggleHeartbeat()"
-              title="${hbOn ? '心跳调度已开启：员工完成任务后自动唤醒PM分析后续步骤' : '点击开启心跳调度：员工完成后自动触发PM调度'}"
+              title="${hbOn ? '心跳+自动协作已开启' + (activeEmpName ? '（' + esc(activeEmpName) + '）' : '') + ' - 点击关闭' : '点击开启心跳+自动协作'}"
       >💓 心跳</button>`;
   }
 
@@ -2466,6 +2471,183 @@ function _updateDelegationBarWithGroupChat(emp) {
 
 // ── PM专员心跳调度 ─────────────────────────────────────────────────────────────
 
+// ── 员工自动协作+心跳 互斥状态 ─────────────────────────────────────────────────
+// 工作区内仅一个员工可开启自动协作+心跳，切换时自动关闭旧的
+
+/** 缓存：workspace path → 激活的员工 ID */
+const EMP_AUTO_STATE = {};
+
+/** 生成 localStorage key（按工作区隔离） */
+function _wsAutoCollabKey(wsPath) {
+  const ws = wsPath || (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '') || '__default__';
+  return 'hermes-auto-collab-emp:' + ws;
+}
+
+/** 获取当前工作区中激活自动协作+心跳的员工 ID（null 表示无） */
+function getActiveAutoCollabEmpId(wsPath) {
+  const ws = wsPath || (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '') || '__default__';
+  // 缓存命中
+  if (EMP_AUTO_STATE[ws]) return EMP_AUTO_STATE[ws];
+  // 从 localStorage 读取
+  const stored = localStorage.getItem(_wsAutoCollabKey(ws));
+  if (stored) {
+    // 校验：该员工是否仍存在于当前工作区
+    if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.employees.find(e => e.id === stored)) {
+      EMP_AUTO_STATE[ws] = stored;
+      return stored;
+    }
+    // 员工已被删除，清除过期状态
+    localStorage.removeItem(_wsAutoCollabKey(ws));
+  }
+  return null;
+}
+window.getActiveAutoCollabEmpId = getActiveAutoCollabEmpId;
+
+/** 判断某员工是否激活了自动协作+心跳 */
+function isEmpAutoCollabActive(empId) {
+  return getActiveAutoCollabEmpId() === empId;
+}
+window.isEmpAutoCollabActive = isEmpAutoCollabActive;
+
+/**
+ * 设置当前工作区激活自动协作+心跳的员工 ID
+ * - null 表示关闭（无人激活）
+ * - 自动同步 GROUP_CHAT_STATE.autoOrchestrate 和 HEARTBEAT_STATE.enabled
+ * - 自动更新卡片图标和头部按钮
+ */
+function setActiveAutoCollabEmpId(empId) {
+  const ws = (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '') || '__default__';
+  const prevId = EMP_AUTO_STATE[ws] || null;
+  if (empId === prevId) return; // 无变化
+
+  EMP_AUTO_STATE[ws] = empId;
+  if (empId) {
+    localStorage.setItem(_wsAutoCollabKey(ws), empId);
+  } else {
+    localStorage.removeItem(_wsAutoCollabKey(ws));
+  }
+
+  // 联动：自动协作和心跳始终绑定
+  const shouldBeOn = !!empId;
+  GROUP_CHAT_STATE.autoOrchestrate = shouldBeOn;
+  localStorage.setItem('gc_auto_orchestrate', shouldBeOn ? '1' : '0');
+  HEARTBEAT_STATE.enabled = shouldBeOn;
+  localStorage.setItem('pm_heartbeat_enabled', shouldBeOn ? '1' : '0');
+
+  // 更新总群头部按钮
+  _updateGcHeaderButtons();
+  // 更新员工聊天头部按钮
+  _updateEmpChatHeaderButtons();
+  // 更新卡片图标
+  _refreshAutoCollabCardIndicators(prevId, empId);
+}
+window.setActiveAutoCollabEmpId = setActiveAutoCollabEmpId;
+
+/**
+ * 为指定员工切换自动协作+心跳
+ * - 当前员工已激活 → 关闭
+ * - 其他员工已激活或无人激活 → 切换到该员工
+ */
+function toggleEmpAutoCollab(empId) {
+  const activeId = getActiveAutoCollabEmpId();
+  if (activeId === empId) {
+    // 当前员工已激活 → 关闭
+    const emp = (typeof getEmployee === 'function') ? getEmployee(empId) : null;
+    const empName = emp ? emp.name : '员工';
+    setActiveAutoCollabEmpId(null);
+    if (typeof showToast === 'function') showToast(`⏸ ${empName} 关闭协作`);
+  } else {
+    // 切换到该员工
+    const prevEmp = activeId && (typeof getEmployee === 'function') ? getEmployee(activeId) : null;
+    const newEmp = (typeof getEmployee === 'function') ? getEmployee(empId) : null;
+    const newName = newEmp ? newEmp.name : '员工';
+    setActiveAutoCollabEmpId(empId);
+    if (prevEmp) {
+      // 从其他员工切换过来
+      if (typeof showToast === 'function') showToast(`⏸ ${prevEmp.name} 关闭协作，✅ ${newName} 开启协作`);
+    } else {
+      // 无人激活 → 开启
+      if (typeof showToast === 'function') showToast(`✅ ${newName} 开启协作`);
+    }
+  }
+}
+window.toggleEmpAutoCollab = toggleEmpAutoCollab;
+
+// ── 自动协作 UI 辅助 ────────────────────────────────────────────────────────
+
+/** 同步总群头部按钮状态 */
+function _updateGcHeaderButtons() {
+  const autoBtn = document.getElementById('gcAutoOrchBtn');
+  if (autoBtn) {
+    autoBtn.classList.toggle('active', GROUP_CHAT_STATE.autoOrchestrate);
+    autoBtn.title = GROUP_CHAT_STATE.autoOrchestrate
+      ? '自动协作+心跳已开启 - 点击关闭'
+      : '点击开启自动协作+心跳';
+  }
+  const hbBtn = document.getElementById('gcHeartbeatBtn');
+  if (hbBtn) {
+    hbBtn.classList.toggle('active', HEARTBEAT_STATE.enabled);
+    hbBtn.title = HEARTBEAT_STATE.enabled
+      ? '心跳调度已开启 - 点击关闭'
+      : '点击开启心跳+自动协作';
+  }
+}
+
+/** 同步员工聊天头部按钮状态 */
+function _updateEmpChatHeaderButtons() {
+  const btn = document.getElementById('empAutoCollabBtn');
+  if (!btn) return;
+  const empId = (typeof EMPLOYEE_STORE !== 'undefined') ? EMPLOYEE_STORE.selectedId : null;
+  if (!empId) return;
+  const isActive = isEmpAutoCollabActive(empId);
+  btn.classList.toggle('active', isActive);
+  const emp = (typeof getEmployee === 'function') ? getEmployee(empId) : null;
+  const empName = emp ? emp.name : '';
+  btn.title = isActive
+    ? `自动协作+心跳已开启（${empName}）- 点击关闭`
+    : `点击为 ${empName} 开启自动协作+心跳`;
+}
+
+/** 切换卡片上的自动协作图标 */
+function _refreshAutoCollabCardIndicators(prevEmpId, newEmpId) {
+  // 移除旧员工的图标
+  if (prevEmpId) {
+    const prevCard = document.querySelector(`.emp-card[data-id="${prevEmpId}"]`);
+    if (prevCard) {
+      const indicator = prevCard.querySelector('.emp-auto-collab-indicator');
+      if (indicator) indicator.remove();
+    }
+  }
+  // 为新员工添加图标
+  if (newEmpId) {
+    const newCard = document.querySelector(`.emp-card[data-id="${newEmpId}"]`);
+    if (newCard) _addAutoCollabIndicator(newCard);
+  }
+}
+
+/** 为员工卡片添加 🤖💓 图标 */
+function _addAutoCollabIndicator(card) {
+  if (card.querySelector('.emp-auto-collab-indicator')) return;
+  const nameEl = card.querySelector('.emp-card-name');
+  if (!nameEl) return;
+  const indicator = document.createElement('span');
+  indicator.className = 'emp-auto-collab-indicator';
+  indicator.textContent = ' \u{1F916}\u{1F493}'; // 🤖💓
+  indicator.title = '自动协作+心跳已开启';
+  nameEl.appendChild(indicator);
+}
+window._addAutoCollabIndicator = _addAutoCollabIndicator;
+
+/** 渲染完卡片后，应用自动协作图标 */
+function _applyAutoCollabIndicators() {
+  if (typeof isEmpAutoCollabActive !== 'function') return;
+  const activeId = getActiveAutoCollabEmpId();
+  if (!activeId) return;
+  const card = document.querySelector(`.emp-card[data-id="${activeId}"]`);
+  if (card) _addAutoCollabIndicator(card);
+}
+window._applyAutoCollabIndicators = _applyAutoCollabIndicators;
+
 /** 心跳状态 */
 const HEARTBEAT_STATE = {
   /** 是否正在处理心跳（防止重入） */
@@ -2478,21 +2660,9 @@ const HEARTBEAT_STATE = {
   logSource: null,
 };
 
-/** 切换心跳开关 */
+/** 切换心跳开关（与自动协作联动，委托给 toggleAutoOrchestrate） */
 function toggleHeartbeat() {
-  HEARTBEAT_STATE.enabled = !HEARTBEAT_STATE.enabled;
-  localStorage.setItem('pm_heartbeat_enabled', HEARTBEAT_STATE.enabled ? '1' : '0');
-  if (typeof showToast === 'function') {
-    showToast(HEARTBEAT_STATE.enabled ? '💓 心跳调度已开启' : '⏸ 心跳调度已关闭');
-  }
-  // 更新 UI 按钮状态
-  const btn = document.getElementById('gcHeartbeatBtn');
-  if (btn) {
-    btn.classList.toggle('active', HEARTBEAT_STATE.enabled);
-    btn.title = HEARTBEAT_STATE.enabled
-      ? '心跳调度已开启：员工完成任务后自动唤醒PM分析后续步骤'
-      : '心跳调度已关闭：员工完成任务后不自动触发PM调度';
-  }
+  toggleAutoOrchestrate();
 }
 window.toggleHeartbeat = toggleHeartbeat;
 

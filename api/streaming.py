@@ -439,6 +439,17 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                     except Exception as _e:
                         print(f"[webui] browser_cap err: {_e}", flush=True)
 
+                # ── AI 变更追踪：在 started 阶段捕获原始文件内容 ──
+                if phase == "tool.started" and name in ("write_file", "write_to_file", "patch", "edit_file"):
+                    try:
+                        from api.ai_changes import capture_original
+                        ws = getattr(s, "workspace", "") or ""
+                        # 从 args 推导 tc_id（on_tool 回调没有 tc_id，使用 name+path 作为临时 key）
+                        _tc_id = str(id(args)) + "_" + name
+                        capture_original(session_id, _tc_id, ws, name, args or {})
+                    except Exception as _e:
+                        pass  # 非关键路径，静默失败
+
                 # 仅在 started 阶段推 'tool' SSE（避免一次调用双推重复卡片）
                 if phase != "tool.started":
                     return
@@ -481,6 +492,18 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
                 tool_complete_callback — 工具完成时拿到 result（拼接到 browser_step 里方便前端展示 url/title）。
                 （注意：这个回调在 run_agent.py 里另有独立调用路径，**不是** tool_progress_callback 的一部分）
                 """
+                # ── AI 变更追踪：在工具完成后记录变更 ──
+                if tool_name in ("write_file", "write_to_file", "patch", "edit_file"):
+                    try:
+                        from api.ai_changes import record_change
+                        ws = getattr(s, "workspace", "") or ""
+                        # 使用 tc_id + tool_name 匹配 capture_original 时的 key
+                        _cap_key = str(id(tool_args)) + "_" + tool_name
+                        record_change(session_id, _cap_key, tool_name,
+                                      tool_args or {}, str(tool_result or "")[:500])
+                    except Exception as _e:
+                        pass  # 非关键路径，静默失败
+
                 if _browser_cap is None:
                     return
                 try:

@@ -240,11 +240,16 @@
       <!-- 页签栏 -->
       <div class="workspace-tabs" id="workspaceTabs">
         <!-- 工作区选择下拉框已迁移至顶部栏（topbar） -->
+        <!-- 显示模式切换：画布 / 员工列表 -->
+        <button class="emp-mode-toggle" id="empModeToggle" onclick="toggleDisplayMode()" title="切换列表/画布模式">
+          <svg class="emp-mode-icon-list" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          <svg class="emp-mode-icon-canvas" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </button>
         <button class="chip add-employee-btn" id="btnAddEmployee" onclick="showEmployeeDialog()" title="添加新员工">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/><circle cx="12" cy="7" r="4" fill="none"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
           <span>添加员工</span>
         </button>
-        <!-- 搜索/筛选工具栏（仅画布模式显示） -->
+        <!-- 搜索/筛选工具栏（画布和列表模式共用） -->
         <div class="emp-toolbar-inline" id="empToolbarInline">
           <div class="emp-search-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -305,6 +310,10 @@
             <p>点击右上角"添加员工"按钮创建你的第一个 AI 员工</p>
             <p style="font-size:12px;color:var(--muted);opacity:.6;margin-top:4px">拖动员工卡片自由安排工作位置</p>
           </div>
+        </div>
+        <!-- 员工列表模式容器 -->
+        <div class="employee-list" id="employeeList" style="display:none">
+          <div class="emp-list-items" id="empListItems"></div>
         </div>
       </div>
       <!-- 兼容旧DOM占位：文件目录/日志已移到右栏输出区 -->
@@ -519,13 +528,13 @@
       </div><!-- /#dockPanel_chat -->
     </div><!-- /#dockRoot -->
   </main>
-  <!-- 右侧输出区：全部文件 / 变更 / 浏览器 -->
+  <!-- 右侧输出区：工作区目录 / 变更 / 浏览器 -->
   <aside class="rightpanel" id="rightPanel">
     <div class="resize-handle" id="rightpanelResize"></div>
     <div class="output-tabs" id="outputTabs">
-      <button class="output-tab active" data-out-tab="files" onclick="switchOutputTab('files')" title="全部文件">
+      <button class="output-tab active" data-out-tab="files" onclick="switchOutputTab('files')" title="工作区目录">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-        <span>全部文件</span>
+        <span>工作区目录</span>
       </button>
       <button class="output-tab" data-out-tab="changes" onclick="switchOutputTab('changes')" title="git 变更">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
@@ -551,7 +560,7 @@
         <span>详情</span>
       </button>
     </div>
-    <!-- 全部文件 tab：文件树 + 内嵌文件预览 -->
+    <!-- 工作区目录 tab：文件树 + 内嵌文件预览 -->
     <div class="output-tab-panel active" id="outputPanelFiles">
       <!-- 文件预览（打开文件时显示，关闭后显示文件树） -->
       <div class="rp-file-view" id="rpFileView" style="display:none">
@@ -599,6 +608,11 @@
       <div class="output-changes-toolbar">
         <span class="output-changes-branch" id="outChangesBranch">—</span>
         <span class="output-changes-summary" id="outChangesSummary"></span>
+        <span class="output-changes-ai-badge" id="outChangesAiBadge" style="display:none" title="AI 待确认变更数"></span>
+        <button class="changes-save-all-btn" id="btnAcceptAllChanges" type="button" title="接受所有 AI 变更" onclick="if(typeof _acceptAllAiChanges==='function')_acceptAllAiChanges()" style="display:none">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>保存全部</span>
+        </button>
         <button class="file-refresh-btn" type="button" title="刷新" onclick="if(typeof loadGitChanges==='function')loadGitChanges()" style="margin-left:auto">↻</button>
       </div>
       <!-- 左右分栏容器 -->
@@ -631,6 +645,10 @@
               </button>
               <button class="panel-icon-btn" id="changesOpenInEditor" title="在编辑器中打开" onclick="_openChangesFileInEditor()" style="display:none">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </button>
+              <button class="changes-save-btn" id="changesAcceptBtn" title="接受此文件的 AI 变更" onclick="if(typeof _acceptFileChanges==='function')_acceptFileChanges()" style="display:none">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>保存</span>
               </button>
             </div>
           </div>
@@ -1106,21 +1124,21 @@
 <script src="/static/delegation-handler.js?v=20260427a"></script>
 <script src="/static/browser-panel.js?v=20260427a"></script>
 <script src="/static/panels.js?v=20260424w"></script>
-<script src="/static/employee.js?v=20260429a"></script>
+<script src="/static/employee.js?v=20260430a"></script>
 <script src="/static/canvas-connections.js?v=20260417u"></script>
 <script src="/static/agent-presets.js?v=20260430a"></script>
-<script src="/static/pm-manager.js?v=20260429a"></script>
+<script src="/static/pm-manager.js?v=20260430a"></script>
 <script src="/static/workspace-tabs.js?v=20260427r"></script>
 <script src="/static/logs-panel.js?v=20260427i"></script>
 
 
 
-<script src="/static/right-panel.js?v=20260429a"></script>
+<script src="/static/right-panel.js?v=20260430a"></script>
 <!-- CodeMirror 6 editor module (async, non-blocking) -->
 <script type="module" src="/static/cm-editor.js?v=20260416d"></script>
 <script src="/static/onboarding.js?v=20260414"></script>
 <script src="/static/delegation-vm.js?v=20260427d"></script>
-<script src="/static/group-chat.js?v=20260428d"></script>
+<script src="/static/group-chat.js?v=20260430a"></script>
 <script src="/static/peer-delegate.js?v=20260427a"></script>
 <script src="/static/dock-manager.js?v=20260427o"></script>
 <script src="/static/layout.js?v=20260427q"></script>
