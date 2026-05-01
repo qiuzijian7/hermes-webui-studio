@@ -512,7 +512,7 @@ function _appendLogEntry(data, eventType) {
       entry.task_id = data.task_id || '';
       break;
     case 'group_message':
-      entry.message = data.message || ('[总群] ' + (data.sender_name || '') + ': ' + (data.text || '').slice(0, 120));
+      entry.message = data.message || ('[PM] ' + (data.sender_name || '') + ': ' + (data.text || '').slice(0, 120));
       entry.text = data.text || '';
       entry.sender_name = data.sender_name || '';
       break;

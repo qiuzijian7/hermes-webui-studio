@@ -27,7 +27,7 @@
   function getCurrentPMName() {
     const pm = getPMEmployee();
     if (pm && pm.name) return pm.name;
-    return (typeof PM_NAME !== 'undefined') ? PM_NAME : 'PM专员';
+    return 'PM';
   }
 
   // ── 迁移：兼容旧数据（有 pm-specialist 预设但没 isPM 标记） ──────────
@@ -201,7 +201,7 @@
     menu.appendChild(header);
 
     // 子菜单：打开群聊
-    const openBtn = _mkMenuItem('💬 打开 PM 群聊', () => {
+    const openBtn = _mkMenuItem('💬 打开PM聊天', () => {
       menu.remove();
       if (typeof openGroupChat === 'function') openGroupChat();
     });
@@ -287,13 +287,13 @@
     return picked;
   }
 
-  // ── 更新顶部栏 PM 按钮的显示名 ──────────────────────────────────────
+  // ── 更新顶部栏PM按钮的显示名 ──────────────────────────────────────
   function updatePMButtonLabel() {
     const labelEl = document.getElementById('pmGroupChatLabel');
     const name = getCurrentPMName();
     if (labelEl) labelEl.textContent = name;
     const btn = document.getElementById('pmGroupChatBtn');
-    if (btn) btn.title = `打开 ${name} 群聊`;
+    if (btn) btn.title = `打开 ${name} 聊天`;
   }
 
   // ── 工作区切换时自动确保 PM 存在 ──────────────────────────────────

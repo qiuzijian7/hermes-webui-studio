@@ -472,21 +472,21 @@ function buildEmployeeSystemPrompt(emp) {
   }
 
   // 6. PM专员协作指引（始终追加，告知员工如何使用 send_group_message 和 delegate_task 协作）
-  let groupChatCtx = '';
+  let coordinatorCtx = '';
   if (emp.subagentOf || (typeof getSubagentsOf === 'function' && getSubagentsOf(emp.id)?.length)) {
-    groupChatCtx = `\n\n## PM专员协作\n你当前在PM专员上下文中工作。你可以使用以下工具与团队成员协作：\n- **send_group_message**: 向PM专员发送消息，汇报进度、请求帮助、或与其他员工协调。支持 @mention 其他员工来委派任务。\n- **delegate_task**: 向下属员工委派子任务。委派结果会自动回传到PM专员，所有成员可见。\n\n协作建议：\n- 复杂任务请使用 delegate_task 分解给下属，不要自己全部执行\n- 需要其他员工协助时，使用 send_group_message @对方名\n- 定期用 send_group_message 汇报进度，让团队了解你的工作状态`;
+    coordinatorCtx = `\n\n## PM专员协作\n你当前在PM专员上下文中工作。你可以使用以下工具与团队成员协作：\n- **send_group_message**: 向PM专员发送消息，汇报进度、请求帮助、或与其他员工协调。支持 @mention 其他员工来委派任务。\n- **delegate_task**: 向下属员工委派子任务。委派结果会自动回传到PM专员，所有成员可见。\n\n协作建议：\n- 复杂任务请使用 delegate_task 分解给下属，不要自己全部执行\n- 需要其他员工协助时，使用 send_group_message @对方名\n- 定期用 send_group_message 汇报进度，让团队了解你的工作状态`;
   } else {
     // 普通员工（无上下级关系）也可以向PM专员发消息
-    groupChatCtx = `\n\n## PM专员协作\n你当前在PM专员上下文中工作。你可以使用 **send_group_message** 工具向PM专员发送消息，汇报进度或请求帮助。`;
+    coordinatorCtx = `\n\n## PM专员协作\n你当前在PM专员上下文中工作。你可以使用 **send_group_message** 工具向PM专员发送消息，汇报进度或请求帮助。`;
   }
 
   // 7. 用户自定义提示词
-  // 当 customPrompt 存在时，以用户编辑的完整提示词为基础，但仍追加关系上下文和总群指引
+  // 当 customPrompt 存在时，以用户编辑的完整提示词为基础，但仍追加关系上下文和PM协作指引
   if (emp.customPrompt && emp.customPrompt.trim()) {
-    return emp.customPrompt.trim() + relationCtx + groupChatCtx;
+    return emp.customPrompt.trim() + relationCtx + coordinatorCtx;
   }
 
-  return parts.join('\n\n') + relationCtx + groupChatCtx;
+  return parts.join('\n\n') + relationCtx + coordinatorCtx;
 }
 
 // ─── 异步 Prompt 构建（走后端 /api/prompt/build，Jinja2 + 多语言 + skill 注入） ───
@@ -666,19 +666,15 @@ function setEmployeeStatus(id, status) {
 }
 
 function selectEmployee(id, fromUser, taskId) {
-  // 如果总群正在打开中 且 不是用户主动点击，忽略员工选择请求（防止异步操作干扰总群UI）
-  if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen && !fromUser) {
-    console.log('[selectEmployee] 总群打开中，忽略非用户触发的选择:', id);
-    return;
-  }
+  // REMOVED: 总群打开中检查 — 总群概念已移除
 
-  // ★ 关闭该员工当前 active 任务的总群 SSE 监听（避免与 _attachLiveStreamToChat 双消费者竞争）
+  // 关闭该员工当前 active 任务的 SSE 监听（避免与 _attachLiveStreamToChat 双消费者竞争）
   // 方案 A：SSE 引用现在存储在 task 对象上，不再在 emp 上
   const emp = getEmployee(id);
   if (emp && emp._activeTaskId && typeof DelegationVM !== 'undefined') {
     const task = DelegationVM.getTask(emp._activeTaskId);
     if (task && task.sseSource) {
-      console.log('[selectEmployee] 关闭总群任务 SSE 监听, taskId=', task.id);
+      console.log('[selectEmployee] 关闭任务 SSE 监听, taskId=', task.id);
       // 标记为主动关闭，避免 error 处理器触发重复回传
       task.sseSource._intentionallyClosed = true;
       try { task.sseSource.close(); } catch(_) {}
@@ -695,11 +691,10 @@ function selectEmployee(id, fromUser, taskId) {
   }
 
   EMPLOYEE_STORE.selectedId = id;
-  // ★ 持久化选中状态，刷新UI后恢复
+  // 持久化选中状态，刷新UI后恢复
   localStorage.setItem('hermes-webui-selected-employee', id);
-  // 关闭总群模式
-  if (typeof GROUP_CHAT_STATE !== 'undefined') GROUP_CHAT_STATE.isOpen = false;
-  // 恢复总群隐藏的头部按钮
+  // 总群模式已移除（PM 聊天 = PM 员工聊天框）
+  // 恢复头部按钮
   const btnEditPrompt = $('btnEditPrompt');
   if (btnEditPrompt) btnEditPrompt.style.display = '';
   const btnCondense = $('btnCondenseSkill');

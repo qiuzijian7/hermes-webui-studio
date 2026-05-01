@@ -19,11 +19,15 @@
   let _pollTimer = null;
   let _isActive = false;
 
-  /** 获取当前 parent session_id（员工会话或总群）。 */
+  /** 获取当前 parent session_id（员工会话或 PM）。 */
   function _getParentSessionId() {
     try {
-      if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) {
-        return GROUP_CHAT_STATE.sessionId || null;
+      // ★ 若当前选中的是 PM 员工，使用 PM 的 sessionId
+      if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId) {
+        const pm = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+        if (pm && EMPLOYEE_STORE.selectedId === pm.id && pm.sessionId) {
+          return pm.sessionId;
+        }
       }
       if (typeof S !== 'undefined' && S.session) {
         return S.session.session_id || null;

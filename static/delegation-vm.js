@@ -279,13 +279,7 @@
           _updateDelegationBar(emp);
         }
       } catch (_) {}
-      // 总群打开时，任何员工的队列变化都要刷新总群委派栏（含执行中按钮）
-      try {
-        if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen
-            && typeof _updateGroupDelegationBar === 'function') {
-          _updateGroupDelegationBar();
-        }
-      } catch (_) {}
+      // REMOVED: 总群委派栏刷新 — 总群概念已移除
     },
 
     // ── 任务生命周期 ────────────────────────────────────────────────────────
@@ -435,10 +429,18 @@
           requester_name: requesterName,
         };
         if (sessionId) payload.session_id = sessionId;
-        await api('/api/group-chat/result', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
+        if (typeof _postResultToPMSession === 'function') {
+          await _postResultToPMSession(payload);
+        } else {
+          await api('/api/session/message', {
+            method: 'POST',
+            body: JSON.stringify({
+              session_id: sessionId || '',
+              role: 'user',
+              content: `[${emp.name} 完成任务 #${tid}]\n${trimmed.slice(0, 200)}`,
+            }),
+          });
+        }
         return true;
       } catch (e) {
         console.warn('[DelegationVM] postResultOnce 请求失败:', e);
@@ -475,7 +477,7 @@
 
     // ── 持久化接口 ───────────────────────────────────────────────────────
 
-    /** 暴露内部 _persistTask 供外部调用（如 group-chat.js 中 sessionId 赋值后） */
+    /** 暴露内部 _persistTask 供外部调用（如 pm-delegation.js 中 sessionId 赋值后） */
     _persistTask: _persistTask,
 
     /**

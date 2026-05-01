@@ -468,7 +468,7 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/sessions/search":
         return _handle_sessions_search(handler, parsed)
 
-    # ── Group chat (总群) ──
+    # ── Coordinator (协调员) GET — DEPRECATED: 前端已迁移到 PM session API，此路由仅供内部兼容 ──
     if parsed.path == "/api/group-chat":
         return _handle_group_chat_get(handler, parsed)
 
@@ -947,6 +947,29 @@ def handle_post(handler, parsed) -> bool:
             pass
         return j(handler, {"ok": True})
 
+    if parsed.path == "/api/session/message":
+        # Append a single message to a session (used by PM delegation to persist user messages)
+        try:
+            require(body, "session_id", "role", "content")
+        except ValueError as e:
+            return bad(handler, str(e))
+        try:
+            s = get_session(body["session_id"])
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        msg = {
+            "role": body["role"],
+            "content": body["content"],
+        }
+        # Optional fields
+        if "reasoning" in body:
+            msg["reasoning"] = body["reasoning"]
+        if "timestamp" in body:
+            msg["timestamp"] = body["timestamp"]
+        s.messages.append(msg)
+        s.save()
+        return j(handler, {"ok": True, "message": msg})
+
     if parsed.path == "/api/session/clear":
         try:
             require(body, "session_id")
@@ -1041,7 +1064,7 @@ def handle_post(handler, parsed) -> bool:
     if parsed.path == "/api/team-templates/manifest":
         return _handle_team_templates_manifest_update(handler, body)
 
-    # ── Group chat (总群) POST ──
+    # ── Coordinator (协调员) POST — DEPRECATED: 前端已迁移到 PM session API，此路由仅供内部 hook 兼容 ──
     if parsed.path == "/api/group-chat/send":
         return _handle_group_chat_send(handler, body)
 
@@ -4118,13 +4141,12 @@ def _handle_employees_import(handler, body):
         return bad(handler, _sanitize_error(e), 500)
 
 
-# ── Group chat (总群) endpoints ────────────────────────────────────────────────
+# ── Coordinator (协调员) endpoints (formerly group chat / 总群) ─────────────────
 
 def _handle_group_chat_get(handler, parsed):
-    """GET /api/group-chat?workspace=...
+    """GET /api/group-chat?workspace=...  (DEPRECATED — now returns PM session data)
 
-    Returns the group chat session for a workspace, creating one if it doesn't exist.
-    Also returns the member list (employees on the canvas).
+    Returns the PM employee's session for a workspace.
     """
     from api.group_chat import get_or_create_group_chat
     qs = parse_qs(parsed.query)
@@ -4140,9 +4162,9 @@ def _handle_group_chat_get(handler, parsed):
 
 
 def _handle_group_chat_send(handler, body):
-    """POST /api/group-chat/send
+    """POST /api/group-chat/send  (DEPRECATED — now writes to PM session)
 
-    Send a message to the group chat. Parses @mentions and returns
+    Send a message to the coordinator (PM) session. Parses @mentions and returns
     the parsed mentions list for the frontend to dispatch tasks.
 
     Body: {
@@ -4164,7 +4186,7 @@ def _handle_group_chat_send(handler, body):
     sender_name = body.get("sender_name", "你").strip()
     orchestrate = bool(body.get("orchestrate", False))
 
-    print(f"[group_chat_send] workspace={workspace}, orchestrate={orchestrate}, message={message[:50]}...", file=sys.stderr, flush=True)
+    print(f"[coordinator_send] workspace={workspace}, orchestrate={orchestrate}, message={message[:50]}...", file=sys.stderr, flush=True)
 
     if not workspace:
         return bad(handler, "workspace is required")
@@ -4175,12 +4197,12 @@ def _handle_group_chat_send(handler, body):
         # ★ Log user message to the unified log panel
         _broadcast_log_event('user_input', {
             'text': message[:500] + ('...' if len(message) > 500 else ''),
-            'message': f"[总群] {sender_name}: {message[:120]}{'...' if len(message) > 120 else ''}",
+            'message': f"[协调员] {sender_name}: {message[:120]}{'...' if len(message) > 120 else ''}",
         }, session_id='', employee_name=sender_name)
 
         # Parse @mentions from the message
         mentioned_names = parse_mentions(message)
-        print(f"[group_chat_send] mentions={mentioned_names}", file=sys.stderr, flush=True)
+        print(f"[coordinator_send] mentions={mentioned_names}", file=sys.stderr, flush=True)
         mentions_with_tasks = []
         for name in mentioned_names:
             task_id = f"task-{uuid.uuid4().hex[:8]}"
@@ -4222,34 +4244,22 @@ def _handle_group_chat_send(handler, body):
                     'source': sender_name,
                 }, session_id='', employee_name=sender_name)
 
-        print(f"[group_chat_send] returning ok, mentions_with_tasks={mentions_with_tasks}", file=sys.stderr, flush=True)
+        print(f"[coordinator_send] returning ok, mentions_with_tasks={mentions_with_tasks}", file=sys.stderr, flush=True)
         return j(handler, {
             "ok": True,
             "message": msg,
             "mentions": mentions_with_tasks,
         })
     except Exception as e:
-        print(f"[group_chat_send] ERROR: {e}", file=sys.stderr, flush=True)
+        print(f"[coordinator_send] ERROR: {e}", file=sys.stderr, flush=True)
         import traceback; traceback.print_exc(file=sys.stderr)
         return bad(handler, _sanitize_error(e), 500)
 
 
 def _handle_group_chat_message(handler, body):
-    """POST /api/group-chat/message
+    """POST /api/group-chat/message  (DEPRECATED — now writes to PM session)
 
-    Directly add a message to the group chat (no @mention parsing,
-    no system messages, no task_id generation).
-    Used by the send_group_message tool to post employee messages
-    without triggering delegation — the frontend SSE handler
-    will parse @mentions and dispatch tasks via _dispatchTaskToEmployee.
-
-    Body: {
-        workspace: str,
-        message: str,
-        sender_name: str (optional)
-    }
-
-    Returns: { ok: True, message: dict }
+    Directly add a message to the coordinator (PM) session.
     """
     from api.group_chat import add_group_message
 
@@ -4273,30 +4283,20 @@ def _handle_group_chat_message(handler, body):
         log_sender = sender_name or '员工'
         _broadcast_log_event('group_message', {
             'text': message[:500] + ('...' if len(message) > 500 else ''),
-            'message': f"[总群] {log_sender}: {message[:120]}{'...' if len(message) > 120 else ''}",
+            'message': f"[协调员] {log_sender}: {message[:120]}{'...' if len(message) > 120 else ''}",
             'sender_name': log_sender,
         }, session_id='', employee_name=log_sender)
         return j(handler, {"ok": True, "message": msg})
     except Exception as e:
+        print(f"[coordinator_message] ERROR: {e}", file=sys.stderr, flush=True)
+        import traceback; traceback.print_exc(file=sys.stderr)
         return bad(handler, _sanitize_error(e), 500)
 
 
 def _handle_group_chat_result(handler, body):
-    """POST /api/group-chat/result
+    """POST /api/group-chat/result  (DEPRECATED — now writes to PM session)
 
-    Post a task result back to the group chat from an employee.
-
-    Body: {
-        workspace: str,
-        employee_name: str,
-        task_id: str,
-        result: str,
-        requester_name: str (optional),
-        session_id: str (optional)  - if provided, the backend will
-            extract the "complete" assistant reply for the task from
-            the session instead of trusting the client-supplied result,
-            which may contain only the first text segment before tools.
-    }
+    Post a task result back to the coordinator (PM) session from an employee.
     """
     from api.group_chat import post_task_result
 
@@ -4321,7 +4321,7 @@ def _handle_group_chat_result(handler, body):
                     result = aggregated
         except Exception as e:
             import sys
-            print(f"[group_chat_result] session aggregation failed: {e}",
+            print(f"[coordinator_result] session aggregation failed: {e}",
                   file=sys.stderr, flush=True)
 
     if not result:
@@ -4337,6 +4337,8 @@ def _handle_group_chat_result(handler, body):
         )
         return j(handler, {"ok": True, "message": msg})
     except Exception as e:
+        print(f"[coordinator_result] ERROR: {e}", file=sys.stderr, flush=True)
+        import traceback; traceback.print_exc(file=sys.stderr)
         return bad(handler, _sanitize_error(e), 500)
 
 
@@ -4347,16 +4349,7 @@ def _handle_pm_heartbeat_trigger(handler, body):
 
     前端收到 pm_heartbeat 日志事件后调用此端点，
     启动 PM专员 AI 对话，让 PM 分析员工完成情况并决定后续调度。
-
-    Body: {
-        workspace: str,          -- 工作区路径
-        completions: [           -- 已完成的员工列表
-            { employee_name, status, summary },
-            ...
-        ],
-    }
-
-    Returns: { ok: true, stream_id, session_id } (前端通过 SSE 接收 PM 回复)
+    现在使用 PM 员工的 session（而非独立的总群 session）。
     """
     from api.group_chat import get_or_create_group_chat
 
@@ -4372,9 +4365,21 @@ def _handle_pm_heartbeat_trigger(handler, body):
         gc_data = get_or_create_group_chat(workspace)
         gc_session_id = gc_data.get("session_id")
         if not gc_session_id:
-            return bad(handler, "Failed to get group chat session", 500)
+            # Fallback: try to find any employee session for this workspace
+            try:
+                from api.employee_fs import list_employees
+                employees = list_employees(workspace)
+                for emp in employees:
+                    sid = emp.get("sessionId") or emp.get("session_id")
+                    if sid:
+                        gc_session_id = sid
+                        break
+            except Exception:
+                pass
+        if not gc_session_id:
+            return bad(handler, "Failed to get coordinator session: no PM employee with session found", 500)
     except Exception as e:
-        return bad(handler, f"Failed to get group chat: {_sanitize_error(e)}", 500)
+        return bad(handler, f"Failed to get coordinator session: {_sanitize_error(e)}", 500)
 
     # 构建心跳模式的 user message
     # 包含员工完成摘要 + 当前员工状态，让 PM 决定后续调度
@@ -4415,7 +4420,7 @@ def _handle_pm_heartbeat_trigger(handler, body):
         "\n\n直接回复你的分析和决策。如需委派，在回复中使用 @员工名 格式。"
     )
 
-    # 使用总群 session 启动 PM专员 AI 对话
+    # 使用协调员(PM) session 启动 PM专员 AI 对话
     model = body.get("model") or gc_data.get("model") or DEFAULT_MODEL
     s = get_session(gc_session_id)
 
@@ -4442,7 +4447,7 @@ def _aggregate_task_assistant_reply(messages: list, task_id: str = "") -> str:
 
     Strategy (v2 -- final-reply only):
       1) Find the last user message whose content starts with
-         "[总群委派任务 #<task_id>]" (or just "[总群委派任务" as fallback).
+         "[协调员（PM专员）委派任务 #<task_id>]" (or just "[协调员（PM专员）委派任务" as fallback).
       2) Scan all subsequent assistant messages in order, collecting only the
          ones that contain actual text content (skip empty / tool-only turns).
       3) Return ONLY the LAST non-empty text segment -- this is the final answer.
@@ -4461,7 +4466,7 @@ def _aggregate_task_assistant_reply(messages: list, task_id: str = "") -> str:
     # Find the anchor user message (most recent matching)
     anchor_idx = -1
     if task_id:
-        marker = f"[总群委派任务 #{task_id}]"
+        marker = f"[协调员（PM专员）委派任务 #{task_id}]"
         for i in range(len(messages) - 1, -1, -1):
             m = messages[i]
             if not isinstance(m, dict) or m.get("role") != "user":
@@ -4477,7 +4482,7 @@ def _aggregate_task_assistant_reply(messages: list, task_id: str = "") -> str:
             if not isinstance(m, dict) or m.get("role") != "user":
                 continue
             c = m.get("content", "")
-            if isinstance(c, str) and c.startswith("[总群委派任务"):
+            if isinstance(c, str) and c.startswith("[协调员（PM专员）委派任务"):
                 anchor_idx = i
                 break
     if anchor_idx < 0:

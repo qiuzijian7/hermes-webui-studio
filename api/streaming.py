@@ -380,10 +380,17 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             def on_token(text):
                 if text is None:
                     return  # end-of-stream sentinel
+                # ★ 过滤空外观 token：某些 provider/模型在 tool_calls 前发送
+                #   content="{}" / "[]" / '""'，不应推送到前端渲染
+                if text and str(text).strip() in ("{}", "[]", '""'):
+                    return
                 put('token', {'text': text})
 
             def on_reasoning(text):
                 if text is None:
+                    return
+                # ★ 过滤空外观 token（同 on_token 逻辑）
+                if text and str(text).strip() in ("{}", "[]", '""'):
                     return
                 put('reasoning', {'text': text})
 
@@ -688,7 +695,7 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
             #   注入 system-like user message 强制重跑，并允许它继续正常使用工具。
             #   2 次后若仍偷懒（例如模型根本不支持 function calling），停止避免无限循环。
             _is_delegation_task = isinstance(msg_text, str) and (
-                msg_text.startswith('[总群委派任务 #') or
+                msg_text.startswith('[协调员（PM专员）委派任务 #') or
                 msg_text.startswith('[制作人委派任务 ')
             )
 
@@ -1219,7 +1226,7 @@ def _run_cli_backend_streaming(sess, msg_text, model, put, cancel_event, attachm
     sp_file_arg = str(b.get('systemPromptFileArg', '')).strip()
     sp_mode = str(b.get('systemPromptMode', '')).strip().lower()  # '', 'arg', 'file', 'prepend', 'skip'
     # ★ 传给 CLI 前，剥离前端给所有员工共享的委派样板：
-    #    (1) 开头的 "[总群委派任务 #task-xxxx] " 前缀（前端用于点击跳回总群）
+    #    (1) 开头的 "[协调员（PM专员）委派任务 #task-xxxx] " 前缀（前端用于点击跳回总群）
     #    (2) 结尾的 "---\n⚠️ **执行要求（必读...）**：..." 样板（针对 Hermes agent 的工具调用约束，
     #        对 knot-cli/claude-code 等外部 CLI 无意义，且会污染 -p 前景）
     #    这些清理不影响 WebUI 聊天框显示（sess.messages 保留原 msg_text）。
@@ -1227,7 +1234,7 @@ def _run_cli_backend_streaming(sess, msg_text, model, put, cancel_event, attachm
     try:
         import re as _re
         # 开头前缀
-        _cleaned_msg = _re.sub(r'^\s*\[总群委派任务[^\]]*\]\s*', '', _cleaned_msg, count=1)
+        _cleaned_msg = _re.sub(r'^\s*\[协调员（PM专员）委派任务[^\]]*\]\s*', '', _cleaned_msg, count=1)
         # 结尾"执行要求"样板：从 "---\n⚠ **执行要求" 起全部砍掉
         # (⚠ 后可能跟 \ufe0f 变体选择符；用可选非贪婪匹配兼容两种写法)
         _cleaned_msg = _re.sub(

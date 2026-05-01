@@ -1,54 +1,76 @@
 /**
- * group-chat.js — 总群聊天功能
+ * group-chat.js — PM 聊天功能
  *
- * 每个工作区对应一个总群，名称为 [工作区名]_总群
- * 支持通过 @员工名 委派任务，员工执行结果回传到总群
+ * PM 是被标记为 isPM 的员工，任务委派和结果回传都通过 PM 会话进行。
+ * 支持通过 @员工名 委派任务，员工执行结果回传到 PM 聊天框。
  */
 
 // ── PM专员名称（全局常量，避免硬编码） ────────────────────────────────────────
 // 注意：PM_NAME 是兜底默认值，实际显示名由 pm-manager.js::getCurrentPMName() 动态提供。
 const PM_NAME = 'PM专员';
 
-// ★ 初始化：更新 HTML 中 PM专员 按钮的文本和 title（避免硬编码）
-document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.getElementById('pmGroupChatBtn');
-  if (btn) {
-    btn.title = `打开${PM_NAME}`;
-    const labelEl = btn.querySelector('#pmGroupChatLabel');
-    if (labelEl) {
-      // 新版结构：仅更新 label，不破坏图标和下拉按钮
-      labelEl.textContent = PM_NAME;
-    } else {
-      // 兼容旧版无 label span
-      btn.textContent = `🏠 ${PM_NAME}`;
-    }
-  }
-});
+// ── PM 辅助函数 ─────────────────────────────────────────────────────────
+/** 获取 PM 员工的 sessionId */
+function _getPMSessionId() {
+  const pm = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+  return pm?.sessionId || null;
+}
 
-// ── 总群状态 ────────────────────────────────────────────────────────────────
+/** 判断当前是否处于 PM 聊天状态
+ *  新逻辑：检查 S.sessionId 是否等于 PM sessionId（即当前右侧面板是否正在显示 PM 会话）
+ *  旧逻辑（PM 员工是否被选中）不够准确：PM 委派栏打开时用户可能选中了其他员工
+ */
+function _isPMChatOpen() {
+  const pmSessionId = (typeof _getPMSessionId === 'function') ? _getPMSessionId() : null;
+  if (!pmSessionId) return false;
+  // 当前右侧面板正在显示 PM 会话 → 认为 PM 聊天已打开
+  if (S && S.session && S.session.session_id === pmSessionId) return true;
+  // 兼容旧逻辑：PM 员工被选中
+  const pm = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+  return !!(pm && (typeof EMPLOYEE_STORE !== 'undefined') && EMPLOYEE_STORE.selectedId === pm.id);
+}
+
+/** 获取所有员工成员列表 */
+function _getAllMembers() {
+  if (typeof EMPLOYEE_STORE === 'undefined') return [];
+  return EMPLOYEE_STORE.employees.map(e => ({
+    id: e.id, name: e.name, avatar: e.avatar,
+    role: e.role, status: e.status, sessionId: e.sessionId,
+  }));
+}
+
+/** 获取当前工作区 */
+function _getCurrentWorkspace() {
+  return (typeof _currentCanvasWorkspace !== 'undefined') ? _currentCanvasWorkspace : '';
+}
+
+// ── 自动协作模式状态 ─────────────────────────────────────────────────────
+let _autoOrchestrate = (localStorage.getItem('gc_auto_orchestrate') === '1');
+
+// ── 向后兼容：GROUP_CHAT_STATE（最小化兼容层，供外部可能的引用） ──────────────
 const GROUP_CHAT_STATE = {
-  sessionId: null,       // 总群 session ID
-  messages: [],          // 总群消息列表
-  members: [],           // 成员列表（从员工数据读取）
-  isOpen: false,         // 总群面板是否打开
-  workspace: '',         // 当前总群对应的工作区路径
-  // ★ 自动协作模式：开启时，用户发送未 @任何人 的消息会被自动转给
-  //   "制作人"（或其他 lead 角色），让其规划并通过 delegate_task 分工执行
-  autoOrchestrate: (localStorage.getItem('gc_auto_orchestrate') === '1'),
+  get sessionId() { return _getPMSessionId(); },
+  set sessionId(v) {},
+  get isOpen() { return _isPMChatOpen(); },
+  set isOpen(v) {},
+  get members() { return _getAllMembers(); },
+  set members(v) {},
+  get workspace() { return _getCurrentWorkspace(); },
+  set workspace(v) {},
+  get messages() { return []; },
+  set messages(v) {},
+  get autoOrchestrate() { return _autoOrchestrate; },
+  set autoOrchestrate(v) { _autoOrchestrate = !!v; },
 };
 
 /** 切换自动协作模式（与心跳联动，通过 setActiveAutoCollabEmpId 统一管理） */
 function toggleAutoOrchestrate() {
   const activeId = getActiveAutoCollabEmpId();
   if (activeId) {
-    // 当前有激活员工 → 关闭
     setActiveAutoCollabEmpId(null);
     if (typeof showToast === 'function') showToast('⏸ 自动协作已关闭，PM身份已取消');
   } else {
-    // 无激活员工 → 为首个员工开启（设为PM）
-    const firstEmp = (typeof EMPLOYEE_STORE !== 'undefined')
-      ? EMPLOYEE_STORE.employees[0]
-      : null;
+    const firstEmp = (typeof EMPLOYEE_STORE !== 'undefined') ? EMPLOYEE_STORE.employees[0] : null;
     if (firstEmp) {
       setActiveAutoCollabEmpId(firstEmp.id);
       if (typeof showToast === 'function') showToast(`✅ ${firstEmp.name} 设为PM并开启协作`);
@@ -56,42 +78,101 @@ function toggleAutoOrchestrate() {
   }
 }
 
-// ── 获取总群数据 ────────────────────────────────────────────────────────────
-async function loadGroupChat(workspace) {
+// ── 加载 PM 会话数据 ─────────────────────────────────────────────────────────
+async function loadPMSession(workspace) {
   if (!workspace) return null;
+  const pm = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+  if (pm && pm.sessionId) {
+    try {
+      const data = await api(`/api/session?session_id=${encodeURIComponent(pm.sessionId)}`);
+      return { session_id: pm.sessionId, messages: (data.session && data.session.messages) || [] };
+    } catch(e) {
+      console.warn('加载PM会话失败:', e);
+    }
+  }
+  return null;
+}
+// 向后兼容别名
+const loadGroupChat = loadPMSession;
+
+/**
+ * 向 PM session 添加系统消息（替代旧的 /api/group-chat/send）
+ * @param {string} message - 消息内容
+ * @param {string} senderName - 发送者名称
+ */
+async function _addPMSessionMessage(message, senderName) {
+  const pmSessionId = _getPMSessionId();
+  if (!pmSessionId) {
+    console.warn('[PM] _addPMSessionMessage 跳过：pmSessionId 为空 (PM 员工可能未创建或无 sessionId)');
+    return;
+  }
   try {
-    const data = await api(`/api/group-chat?workspace=${encodeURIComponent(workspace)}`);
-    GROUP_CHAT_STATE.sessionId = data.session_id;
-    GROUP_CHAT_STATE.messages = data.messages || [];
-    // 从员工列表获取成员
-    _refreshGroupMembers();
-    return data;
-  } catch(e) {
-    console.warn('加载总群失败:', e);
-    return null;
+    await api('/api/session/message', {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: pmSessionId,
+        role: 'user',
+        content: `[${senderName || '系统'}] ${message}`,
+      }),
+    });
+    // 成功后刷新 PM 聊天（如已打开）
+    if (_isPMChatOpen() && typeof _renderGroupMessages === 'function') {
+      _renderGroupMessages();
+    }
+  } catch (e) {
+    console.warn('[PM] 添加 session 消息失败:', e);
   }
 }
 
-/** 从 EMPLOYEE_STORE 刷新成员列表 */
+/**
+ * 向 PM session 回传员工执行结果（替代旧的 /api/group-chat/result）
+ * @param {object} opts - { workspace, employee_name, task_id, result, requester_name }
+ */
+async function _postResultToPMSession(opts) {
+  const pmSessionId = _getPMSessionId();
+  if (!pmSessionId) {
+    console.warn('[PM] _postResultToPMSession 跳过：pmSessionId 为空 (PM 员工可能未创建或无 sessionId)',
+      'empName=', opts.employee_name, 'taskId=', opts.task_id);
+    return;
+  }
+  try {
+    const fullResult = String(opts.result || '');
+    // ★ 2026-05-01：结果保留前 2000 字符（从 200 扩大到 2000，避免上下文重要信息被截断）
+    const MAX_LEN = 2000;
+    const summary = fullResult.slice(0, MAX_LEN);
+    const content = `[${opts.employee_name} 完成任务 #${opts.task_id}]\n${summary}${fullResult.length > MAX_LEN ? `\n\n...(结果已截断，完整内容共 ${fullResult.length} 字符)` : ''}`;
+    console.log('[PM] _postResultToPMSession POST, empName=', opts.employee_name, 'taskId=', opts.task_id,
+      'pmSessionId=', pmSessionId, 'resultLen=', fullResult.length, 'contentLen=', content.length);
+    await api('/api/session/message', {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: pmSessionId,
+        role: 'user',
+        content,
+        timestamp: Date.now() / 1000,
+      }),
+    });
+    console.log('[PM] _postResultToPMSession POST 成功，taskId=', opts.task_id);
+    // 成功后刷新 PM 聊天（如已打开）
+    if (_isPMChatOpen() && typeof _renderGroupMessages === 'function') {
+      _renderGroupMessages();
+    }
+  } catch (e) {
+    console.warn('[PM] 回传结果失败:', e, 'taskId=', opts.task_id);
+  }
+}
+
+/** 刷新成员列表（直接从 _getAllMembers() 实时获取） */
 function _refreshGroupMembers() {
-  if (typeof EMPLOYEE_STORE === 'undefined') return;
-  GROUP_CHAT_STATE.members = EMPLOYEE_STORE.employees.map(e => ({
-    id: e.id,
-    name: e.name,
-    avatar: e.avatar,
-    role: e.role,
-    status: e.status,
-    sessionId: e.sessionId,
-  }));
+  // No-op: 成员始终从 _getAllMembers() 实时获取
 }
 
-/** 获取总群标题 */
-function _groupChatTitle(wsPath) {
-  const wsName = wsPath ? wsPath.split(/[\/\\]/).filter(Boolean).pop() : 'workspace';
-  return PM_NAME;
+/** 获取PM聊天标题 */
+function _groupChatTitle() {
+  return 'PM';
 }
 
-/** 查找适合的"协调员"（用于自动协作模式）
+/** 查找适合的"PM"（用于自动协作模式）
  *  优先级：
  *    1) 名为"制作人"、"项目经理"、"Producer"、"Project Manager" 的员工
  *    2) presetId 为 producer / technical-director / creative-director / art-director 的员工
@@ -131,142 +212,13 @@ function _findOrchestratorEmployee() {
 
 // ── 总群面板 ────────────────────────────────────────────────────────────────
 
-/** 打开总群面板（替换右侧面板内容） */
+/** 打开PM聊天框（重定向：不再打开总群面板，改为导航到PM员工聊天） */
 async function openGroupChat() {
-  let ws = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '';
-  // __default__ 表示未选择特定工作区，仍允许打开总群（使用默认路径）
-  if (!ws || ws === '__default__') {
-    ws = (S.session && S.session.workspace) || '';
-  }
-  // 最终兜底：从工作区列表获取第一个
-  if (!ws) {
-    try {
-      const data = await api('/api/workspaces');
-      const workspaces = data.workspaces || [];
-      if (workspaces.length) ws = workspaces[0].path;
-    } catch(_) {}
-  }
-  // 最终兜底：使用 _activeWorkspacePath()（统一的工作区解析函数）
-  if (!ws && typeof _activeWorkspacePath === 'function') {
-    ws = _activeWorkspacePath();
-  }
-
-  console.log('[总群] openGroupChat, ws=', ws, '_currentCanvasWorkspace=', typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '(undefined)');
-
-  // 取消选中员工
-  if (typeof EMPLOYEE_STORE !== 'undefined') EMPLOYEE_STORE.selectedId = null;
-  document.querySelectorAll('.emp-card').forEach(c => c.classList.remove('emp-selected'));
-
-  // ★ 2026-04-27 Bug 修复：打开总群前，主动关闭所有员工 active 任务挂在聊天面板上
-  //   的 SSE（task._chatSseSource）与占位轮询定时器（task._placeholderPollTimer）。
-  //   否则 DOM 已被总群渲染替换，但后台 SSE/轮询仍在运行：
-  //     - SSE 会消费 done 事件，把 task.status 置为 done、清空 emp._activeTaskId，
-  //       导致用户切回员工聊天时丢失"正在执行"的任务信息；
-  //     - _showThinkingPlaceholder 的 500ms×60 轮询会在 streamId 到达时静默调用
-  //       _attachLiveStreamToChat，但此刻总群已打开（被 isOpen 守卫拦住），轮询
-  //       继续 30 秒才退出，白白消耗资源。
-  //   关闭后重新打开员工聊天时，_attachLiveStreamToChat / _showThinkingPlaceholder
-  //   会按新 DOM 重建；SSE 通过 STREAM_HISTORY 回放把 token 全部补给新连接。
-  try {
-    if (typeof DelegationVM !== 'undefined' && DelegationVM.tasks) {
-      for (const task of DelegationVM.tasks.values()) {
-        if (!task) continue;
-        if (task._chatSseSource) {
-          task._chatSseSource._intentionallyClosed = true;
-          try { task._chatSseSource.close(); } catch (_) {}
-          task._chatSseSource = null;
-        }
-        if (task._placeholderPollTimer) {
-          try { clearInterval(task._placeholderPollTimer); } catch (_) {}
-          task._placeholderPollTimer = null;
-        }
-      }
-    }
-  } catch (_) {}
-
-  // 保存工作区到状态
-  GROUP_CHAT_STATE.workspace = ws;
-
-  // 先切换右侧面板视图并更新 UI（不等 API）
-  _setRightPanelView('chat');
-  GROUP_CHAT_STATE.isOpen = true;
-  console.log('[总群] openGroupChat: isOpen set to true');
-
-  // ★ 总群模式下隐藏员工模型选择器
-  if (typeof syncEmpModelChip === 'function') syncEmpModelChip();
-
-  // ★ 确保聊天 dock panel 处于 active tab 状态（与员工聊天同理），
-  //   否则若用户把画布和聊天合并到同一 leaf，总群界面会被 detach 不可见
-  if (typeof dockFocusPanel === 'function') {
-    try { dockFocusPanel('chat'); } catch (_) {}
-  }
-
-  // 更新头部 — 显示总群头像（不显示成员，成员在委派栏中）
-  const avatarEl = $('rpEmployeeAvatar');
-  if (avatarEl) avatarEl.innerHTML = '<span class="gc-avatar">🏠</span>';
-
-  const nameEl = $('rpEmployeeName');
-  if (nameEl) {
-    // ★ 在标题中附加"自动协作"和"心跳调度"切换按钮（联动：两者始终同步）
-    const autoOn = GROUP_CHAT_STATE.autoOrchestrate;
-    const hbOn = HEARTBEAT_STATE.enabled;
-    const activeEmpId = getActiveAutoCollabEmpId(ws);
-    const activeEmpName = activeEmpId && typeof getEmployee === 'function'
-      ? (getEmployee(activeEmpId)?.name || '') : '';
-    nameEl.innerHTML = `${esc(_groupChatTitle(ws))}
-      <button id="gcAutoOrchBtn"
-              class="gc-auto-orch-btn${autoOn ? ' active' : ''}"
-              onclick="event.stopPropagation();toggleAutoOrchestrate()"
-              title="${autoOn ? '自动协作+心跳已开启' + (activeEmpName ? '（' + esc(activeEmpName) + '）' : '') + ' - 点击关闭' : '点击开启自动协作+心跳'}"
-      >🤖 自动协作</button>
-      <button id="gcHeartbeatBtn"
-              class="gc-auto-orch-btn${hbOn ? ' active' : ''}"
-              onclick="event.stopPropagation();toggleHeartbeat()"
-              title="${hbOn ? '心跳+自动协作已开启' + (activeEmpName ? '（' + esc(activeEmpName) + '）' : '') + ' - 点击关闭' : '点击开启心跳+自动协作'}"
-      >💓 心跳</button>`;
-  }
-
-  _refreshGroupMembers();
-  console.log('[总群] openGroupChat: members after refresh =', GROUP_CHAT_STATE.members.length, GROUP_CHAT_STATE.members.map(m => m.name));
-  const roleEl = $('rpEmployeeRole');
-  if (roleEl) roleEl.textContent = '';
-
-  // 隐藏员工专用的头部按钮（编辑提示词、配置技能、配置页面）
-  const btnEditPrompt = $('btnEditPrompt');
-  if (btnEditPrompt) btnEditPrompt.style.display = 'none';
-  const btnCondense = $('btnCondenseSkill');
-  if (btnCondense) btnCondense.style.display = 'none';
-  const btnSkills = $('btnEmployeeSkills');
-  if (btnSkills) btnSkills.style.display = 'none';
-  const btnConfigHtml = $('btnEmployeeConfigHtml');
-  if (btnConfigHtml) btnConfigHtml.style.display = 'none';
-
-
-
-  // ★ 关键：在 await 之前就更新委派栏，确保显示正确
-  _updateGroupDelegationBar();
-  console.log('[总群] openGroupChat: _updateGroupDelegationBar called (before await)');
-
-  // 切换到总群：重置渲染窗口，仅渲染最近一页消息（避免历史过多时卡顿）
-  if (typeof window._resetRenderWindow === 'function') {
-    window._resetRenderWindow('group', ws || '__default__');
-  }
-
-  // 渲染总群空状态（先渲染空状态，不等 API）
-  _renderGroupMessages();
-
-  // 异步加载总群数据，成功后刷新消息
-  if (ws) {
-    try {
-      await loadGroupChat(ws);
-      // 数据加载完成后，再次重置窗口为"最近一页"（首次打开需要看到最新消息）
-      if (typeof window._resetRenderWindow === 'function') {
-        window._resetRenderWindow('group', ws);
-      }
-      _renderGroupMessages();
-    } catch(e) {
-      console.warn('[总群] loadGroupChat 失败:', e);
-    }
+  const pm = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+  if (pm && typeof selectEmployee === 'function') {
+    selectEmployee(pm.id, true);
+  } else {
+    if (typeof showToast === 'function') showToast('未设置PM');
   }
 }
 
@@ -323,150 +275,90 @@ function _renderSystemMessageContent(content, msg) {
   return rendered.join('<br>');
 }
 
-/** 渲染总群消息 */
+/** 渲染总群消息（DEPRECATED: 总群概念已移除）
+ *  PM聊天框的消息由 _renderRpMessages() 统一渲染。
+ */
 function _renderGroupMessages() {
-  const inner = $('rpMsgInner');
-  const emptyChat = $('rpEmptyChat');
-  if (!inner) return;
-
-  // ★ 如果总群已关闭，不渲染总群消息（防止覆盖员工聊天内容）
-  if (!GROUP_CHAT_STATE.isOpen) return;
-
-  // 隐藏原有的"与员工开始对话"空状态（总群有自己的空状态）
-  if (emptyChat) emptyChat.style.display = 'none';
-
-  // 清空右侧面板原有的员工对话内容
-  inner.innerHTML = '';
-
-  const msgs = GROUP_CHAT_STATE.messages.filter(m => m && m.role && m.role !== 'tool');
-
-  // 如果没有消息，显示总群空状态
-  if (!msgs.length) {
-    const emptyDiv = document.createElement('div');
-    emptyDiv.className = 'gc-empty-state';
-    emptyDiv.innerHTML = `
-      <div class="gc-empty-icon">🏠</div>
-      <div class="gc-empty-title">${PM_NAME}</div>
-      <div class="gc-empty-hint">直接发消息与PM对话，或 @员工名 来委派任务</div>
-    `;
-    inner.appendChild(emptyDiv);
-    return;
-  }
-
-  // ── 窗口化：只渲染最近一页，更早的消息通过顶部 sentinel 加载 ──
-  // 用 workspace 作为 key；切换总群所属工作区时会自动重置窗口
-  const _total = msgs.length;
-  const _key = (GROUP_CHAT_STATE && GROUP_CHAT_STATE.workspace) || '__default__';
-  const _start = (typeof window._computeWindowStart === 'function')
-    ? window._computeWindowStart(_total, 'group:' + _key, 'group')
-    : 0;
-  const _visible = msgs.slice(_start);
-
-  for (const m of _visible) {
-    const content = _extractContent(m);
-    if (!content && !m._mentions?.length) continue;
-
-    const row = document.createElement('div');
-    row.className = 'rp-msg-row gc-msg-row';
-    row.dataset.role = m.role;
-
-    // ★ 锚点标记：单个 task_id（assistant 结果）或 task_ids 列表（user 委派消息/系统派发消息）
-    if (m._task_id) row.dataset.taskId = m._task_id;
-    if (Array.isArray(m._task_ids) && m._task_ids.length) {
-      row.dataset.taskIds = m._task_ids.join(',');
+  // ★ 刷新 PM 聊天：重新加载 PM session 消息 → 更新 S.messages → 渲染
+  if (!_isPMChatOpen()) return;
+  const pm = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+  if (!pm || !pm.sessionId) return;
+  api(`/api/session?session_id=${encodeURIComponent(pm.sessionId)}`).then(data => {
+    // ★★★ 异步守卫：回调到达时用户可能已切换到其他员工聊天，
+    //     此时若继续写入 S.messages 会把 PM 的消息覆盖到当前员工的渲染状态，
+    //     导致该员工聊天框里的思考过程、工具调用消失（竞态 bug）。
+    if (!_isPMChatOpen()) {
+      console.log('[PM] _renderGroupMessages 回调丢弃：用户已切换到其他员工聊天');
+      return;
     }
-
-    // 发送者信息
-    const senderName = m._sender || (m.role === 'user' ? '你' : m.role === 'system' ? '系统' : PM_NAME);
-    const senderAvatar = _senderAvatar(m);
-    const isUser = m.role === 'user';
-    const isSystem = m.role === 'system';
-
-    // ★ 点击员工头像/名字 → 切换到该员工聊天框
-    //   查找发送者对应的员工对象，如果不是 user/PM，则头像和名字可点击
-    const _senderEmp = (!isUser && !isSystem && m._sender && typeof getEmployee === 'function')
-      ? EMPLOYEE_STORE.employees.find(e => e.name === m._sender)
-      : null;
-    const _clickAttr = _senderEmp
-      ? ` class="gc-msg-clickable" onclick="selectEmployee('${esc(_senderEmp.id)}', true)" title="点击与 ${esc(_senderEmp.name)} 对话"`
-      : '';
-    const _nameClickAttr = _senderEmp
-      ? ` class="rp-msg-name gc-msg-clickable" onclick="selectEmployee('${esc(_senderEmp.id)}', true)" title="点击与 ${esc(_senderEmp.name)} 对话"`
-      : '';
-
-    // 消息正文渲染
-    let bodyHtml;
-    if (isSystem) {
-      // ★ 系统消息独立渲染：识别 {{TASK_LINK:xxx}} 占位符，转换为可点击锚点
-      bodyHtml = _renderSystemMessageContent(String(content), m);
-    } else {
-      bodyHtml = isUser ? esc(String(content)).replace(/\n/g, '<br>') : renderMd(String(content));
-      // ★ 非系统消息也识别 {{TASK_LINK:xxx}} 占位符（员工结果消息含任务 id 链接）
-      bodyHtml = bodyHtml.replace(/\{\{TASK_LINK:(task-[A-Za-z0-9_-]+)\}\}/g, (_, tid) => {
-        return `<a href="#" class="gc-task-link" data-task-id="${esc(tid)}" onclick="event.preventDefault();jumpToGroupChatTask('${esc(tid)}');return false;" title="点击跳转到该任务相关位置">[#${esc(tid)}]</a>`;
-      });
-      bodyHtml = _highlightMentions(bodyHtml);
-    }
-
-    if (isSystem) {
-      row.innerHTML = `
-        <div class="rp-msg-role system" style="justify-content:center">
-          <span class="gc-system-msg">${bodyHtml}</span>
-        </div>
-      `;
-    } else {
-      // ★ 如果发送者是员工，头像和名字可点击切换到该员工聊天
-      const _iconHtml = _senderEmp
-        ? `<span${_clickAttr}>${senderAvatar}</span>`
-        : `<span class="rp-msg-icon">${senderAvatar}</span>`;
-      const _nameHtml = _senderEmp
-        ? `<span${_nameClickAttr}>${esc(senderName)}</span>`
-        : `<span class="rp-msg-name">${esc(senderName)}</span>`;
-      row.innerHTML = `
-        <div class="rp-msg-role ${m.role}">
-          ${_iconHtml}
-          ${_nameHtml}${_fmtMsgTime(m)}
-        </div>
-        <div class="rp-msg-body">${bodyHtml}</div>
-      `;
-    }
-    inner.appendChild(row);
-  }
-
-  // 窗口化：顶部插入 sentinel + 挂载 scroll 监听（加载更早的历史）
-  if (_start > 0 && typeof window._insertHistorySentinel === 'function') {
-    window._insertHistorySentinel(inner, _start, () => {
-      if (typeof window._loadMoreHistory === 'function') {
-        window._loadMoreHistory(_renderGroupMessages);
+    // ★★★ 修复：检查 messages 非空（长度>0），防止后端异常时返回 messages:[] 清空前端已有的消息
+    if (data && data.session && data.session.messages && data.session.messages.length > 0) {
+      S.session = data.session;
+      S.messages = data.session.messages || [];
+      if (typeof _ensureDelegationDividersForMainSession === 'function') {
+        _ensureDelegationDividersForMainSession(pm);
       }
-    });
-  }
-  if (typeof window._attachHistoryScrollListener === 'function') {
-    window._attachHistoryScrollListener(_renderGroupMessages);
-  }
-
-  // 粘底滚动：用户在底部时才跟随新消息；用户向上滚动（包括点击"加载更早"）后不打断位置
-  // 注意：_loadMoreHistory 会自行恢复 scrollTop，此处的粘底调用不会干扰它（_loading 期间会提前 return）
-  if (typeof window._scrollMsgAreaIfSticky === 'function' && !(_rpWindow && _rpWindow._loading)) {
-    window._scrollMsgAreaIfSticky();
-  }
+      if (typeof _renderRpMessages === 'function') _renderRpMessages();
+      if (typeof _scrollMsgAreaIfSticky === 'function') _scrollMsgAreaIfSticky();
+    }
+  }).catch(e => {
+    console.warn('[PM] 刷新PM聊天失败:', e);
+  });
 }
+
+/**
+ * ★ SSE error/apperror 后的刷新逻辑（3路径降级，与 done 处理一致）
+ *   路径 1: 从 /api/session 获取 session 数据
+ *   路径 2: 固化 live DOM + 将积累内容写入 S.messages
+ */
+async function _refreshAfterStreamEnd(pmSessionId, streamingRow) {
+  // 路径 1：从后端拉取
+  if (pmSessionId && _isPMChatOpen()) {
+    try {
+      const sessData = await api(`/api/session?session_id=${encodeURIComponent(pmSessionId)}`);
+      // ★★★ 异步守卫：await 期间用户可能已切换到其他员工聊天
+      if (!_isPMChatOpen()) {
+        console.log('[PM] _refreshAfterStreamEnd 丢弃：用户已切换到其他员工聊天');
+        return;
+      }
+      if (sessData && sessData.session && sessData.session.messages && sessData.session.messages.length > 0) {
+        S.session = sessData.session;
+        S.messages = sessData.session.messages || [];
+        if (typeof _ensureDelegationDividersForMainSession === 'function') {
+          const pm = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+          if (pm) _ensureDelegationDividersForMainSession(pm);
+        }
+        if (streamingRow) { streamingRow.remove(); }
+        if (typeof _renderRpMessages === 'function') _renderRpMessages();
+        if (typeof _scrollMsgAreaToBottom === 'function') _scrollMsgAreaToBottom();
+        return;
+      }
+    } catch(e) {
+      console.warn('[PM] _refreshAfterStreamEnd path1 失败:', e);
+    }
+  }
+  // 路径 2：保留 streaming DOM（不做额外操作，卡片已在调用方固化）
+}
+
+
 
 /**
  * 点击任务链接（如 #task-xxx）时的跳转逻辑：
  *  - 总群面板中点击：跳转到对应员工的聊天框，定位到该任务消息
  *  - 员工聊天框中点击委派前缀链接：跳转到总群对应消息（原有行为）
  *
- * 判断依据：若总群面板正在打开，视为"从总群点击"→ 跳转到员工聊天框
- *           否则视为"从员工聊天框点击"→ 跳转到总群
+ * 判断依据：若当前在PM（isPM）聊天框中，视为"从PM点击"→ 跳转到员工聊天框
+ *           否则视为"从员工聊天框点击"→ 跳转到PM聊天框
  */
 async function jumpToGroupChatTask(taskId) {
   if (!taskId) return;
-  const fromGroupChat = typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen;
-  console.log('[任务跳转] taskId=', taskId, 'fromGroupChat=', fromGroupChat);
+  const pmEmp = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+  const isCoordinatorChat = pmEmp && typeof EMPLOYEE_STORE !== 'undefined'
+    && EMPLOYEE_STORE.selectedId === pmEmp.id;
+  console.log('[任务跳转] taskId=', taskId, 'isCoordinatorChat=', isCoordinatorChat);
 
-  // ── 路径 A：从总群点击 → 跳转到员工聊天框 ──
-  if (fromGroupChat) {
+  // ── 路径 A：从PM聊天框点击 → 跳转到员工聊天框 ──
+  if (isCoordinatorChat) {
     // 1) 从 taskId 找到员工
     let empId = null;
     if (typeof DelegationVM !== 'undefined') {
@@ -546,33 +438,23 @@ async function jumpToGroupChatTask(taskId) {
     return;
   }
 
-  // ── 路径 B：从员工聊天框点击 → 跳转到总群（原有行为） ──
-  console.log('[跳转总群] taskId=', taskId);
+  // ── 路径 B：从员工聊天框点击 → 跳转到PM聊天框 ──
+  console.log('[跳转PM] taskId=', taskId);
 
-  // 步骤 1：确保总群打开
-  if (!GROUP_CHAT_STATE.isOpen) {
-    try {
-      await openGroupChat();
-    } catch(e) {
-      console.warn('[跳转总群] 打开总群失败:', e);
-      return;
-    }
-  } else {
-    // 已打开：确保消息是最新的
-    try {
-      let ws = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '';
-      if (ws === '__default__') ws = GROUP_CHAT_STATE.workspace || '';
-      if (ws) {
-        await loadGroupChat(ws);
-        _renderGroupMessages();
+  if (pmEmp) {
+    selectEmployee(pmEmp.id, true, taskId);
+    let _retryCount = 0;
+    const _retryScroll = () => {
+      const found = _scrollToEmployeeTask(taskId);
+      if (!found && _retryCount < 5) {
+        _retryCount++;
+        setTimeout(_retryScroll, 400);
       }
-    } catch(_) {}
+    };
+    setTimeout(_retryScroll, 400);
+  } else {
+    if (typeof showToast === 'function') showToast('未设置PM');
   }
-
-  // 步骤 2：在下一帧寻找目标行（等待 DOM 渲染完成）
-  requestAnimationFrame(() => {
-    _scrollToGroupChatTask(taskId);
-  });
 }
 
 /** 在总群 DOM 中定位并高亮指定 taskId 对应的消息 */
@@ -758,7 +640,7 @@ async function sendGroupMessage(text) {
   let ws = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : (S.session?.workspace || '');
   // 兼容 __default__：回退到 session 或默认工作区
   if (!ws || ws === '__default__') {
-    ws = S.session?.workspace || GROUP_CHAT_STATE.workspace || '';
+    ws = S.session?.workspace || _getCurrentWorkspace() || '';
   }
   console.log(`[${PM_NAME}] sendGroupMessage, ws=`, ws);
   if (!ws) {
@@ -782,55 +664,94 @@ async function sendGroupMessage(text) {
   //   - 不含 @ → PM专员直接AI对话（无论自动协作是否开启）
 
   // 立即在聊天区显示用户消息（不等 API 返回）
-  GROUP_CHAT_STATE.messages.push({
-    role: 'user',
-    content: finalText,
-    _sender: '你',
-    _ts: Date.now() / 1000,
-  });
-  _renderGroupMessages();
+  const userEcho = { role: 'user', content: finalText, _ts: Date.now() / 1000 };
+  S.messages.push(userEcho);
+  if (typeof _renderRpMessages === 'function') {
+    _renderRpMessages();
+  }
+  if (typeof _scrollMsgAreaToBottom === 'function') {
+    _scrollMsgAreaToBottom();
+  }
 
   // ★ 路径 A：不含 @ 的普通消息 → PM专员直接AI对话
   if (!hasMention) {
     console.log(`[${PM_NAME}] 无 @mention，走${PM_NAME}AI对话路径`);
-    if(typeof UAL!=='undefined') UAL.log('group-chat','pm-direct-chat',{textLen:finalText.length});
+    if(typeof UAL!=='undefined') UAL.log('pm-delegation','pm-direct-chat',{textLen:finalText.length});
 
     // 直接启动PM专员AI对话（/api/chat/start 会自动把 user message 加入 session）
     await _startPMDirectChat(finalText, ws);
     return;
   }
 
-  // ★ 路径 B：含 @ 的消息 → 走委派任务流程
+  // ★ 路径 B：含 @ 的消息 → 走委派任务流程（直接在前端解析 @mention 并委派）
   try {
-    console.log(`[${PM_NAME}] sendGroupMessage: calling /api/group-chat/send...`);
-    const data = await api('/api/group-chat/send', {
-      method: 'POST',
-      body: JSON.stringify({
-        workspace: ws,
-        message: finalText,
-        sender_name: '你',
-      }),
-    });
-    console.log(`[${PM_NAME}] sendGroupMessage response:`, JSON.stringify(data).slice(0, 200));
-
-    if (data.ok) {
-      // 用服务端数据刷新（替换本地临时消息）
-      await loadGroupChat(ws);
-      if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
-
-      // 如果有 @mention，委派任务给对应员工
-      if (data.mentions && data.mentions.length) {
-        console.log(`[${PM_NAME}] mentions:`, data.mentions);
-        for (const mention of data.mentions) {
-          _dispatchTaskToEmployee(mention.name, finalText, mention.task_id);
+    console.log(`[${PM_NAME}] sendGroupMessage: 解析 @mentions 并委派...`);
+    const mentions = parse_mentions_local(finalText);
+    const validMentions = [];
+    for (const name of mentions) {
+      if (typeof EMPLOYEE_STORE !== 'undefined') {
+        const emp = EMPLOYEE_STORE.employees.find(e => e.name === name);
+        if (emp) {
+          const taskId = `task-${Date.now().toString(36)}-${validMentions.length}-${Math.random().toString(36).slice(2, 6)}`;
+          validMentions.push({ name, task_id: taskId });
         }
-      } else {
-        console.log(`[${PM_NAME}] 无 mentions`);
+      }
+    }
+
+    // 将消息添加到 PM session（作为 user 消息记录）
+    const pmSessionId = _getPMSessionId();
+    if (pmSessionId) {
+      try {
+        await api('/api/session/message', {
+          method: 'POST',
+          body: JSON.stringify({
+            session_id: pmSessionId,
+            role: 'user',
+            content: finalText,
+            timestamp: Date.now() / 1000,
+          }),
+        });
+        console.log(`[${PM_NAME}] 消息已持久化到 session ${pmSessionId}`);
+      } catch (e) {
+        console.warn(`[${PM_NAME}] 消息持久化失败:`, e);
+        showToast('消息发送成功，但保存到会话失败，切换后可能丢失');
       }
     } else {
-      const errMsg = data.error || data.message || '未知错误';
-      showToast(`发送失败: ${errMsg}`);
-      console.warn(`[${PM_NAME}] send failed:`, data);
+      console.warn(`[${PM_NAME}] pmSessionId 为空，无法持久化消息`);
+    }
+
+    if (validMentions.length) {
+      console.log(`[${PM_NAME}] mentions:`, validMentions);
+      for (const mention of validMentions) {
+        _dispatchTaskToEmployee(mention.name, finalText, mention.task_id);
+        // ★ 在 PM 专员的 S.messages 中添加委派分隔线 + 委派任务 user 消息，
+        //   使 _ensureDelegationDividers 能识别并渲染委派分隔线，
+        //   用户切回 PM 聊天时也能看到委派记录
+        const taskPrefix = `[PM 委派任务 #${mention.task_id}]`;
+        const taskLabel = finalText.replace(new RegExp(`@${mention.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*`, 'g'), '').trim() || '请执行任务';
+        const taskUserMsg = { role: 'user', content: `${taskPrefix} ${taskLabel}`, _ts: Date.now() / 1000, _taskId: mention.task_id };
+        S.messages.push(taskUserMsg);
+        // 持久化到 PM session
+        if (pmSessionId) {
+          try {
+            await api('/api/session/message', {
+              method: 'POST',
+              body: JSON.stringify({
+                session_id: pmSessionId,
+                role: 'user',
+                content: `${taskPrefix} ${taskLabel}`,
+                timestamp: Date.now() / 1000,
+              }),
+            });
+          } catch (_) {}
+        }
+      }
+      // 刷新渲染以显示委派分隔线
+      if (typeof _renderRpMessages === 'function') _renderRpMessages();
+      if (typeof _scrollMsgAreaToBottom === 'function') _scrollMsgAreaToBottom();
+    } else {
+      console.log(`[${PM_NAME}] 无有效 mentions`);
+      showToast('未找到匹配的员工');
     }
   } catch(e) {
     showToast('发送失败: ' + e.message);
@@ -849,7 +770,7 @@ async function _startPMDirectChat(userMessage, workspace) {
   }
   _pmStreamBusy = true;
 
-  const sessionId = GROUP_CHAT_STATE.sessionId;
+  const sessionId = _getPMSessionId();
   if (!sessionId) {
     showToast(`${PM_NAME}会话未初始化`);
     _pmStreamBusy = false;
@@ -914,8 +835,8 @@ async function _startPMDirectChat(userMessage, workspace) {
 }
 
 /**
- * 通过 SSE 流式接收 PM 专员的回复并渲染到总群面板。
- * 完成后将回复存入总群 session 并刷新。
+ * 通过 SSE 流式接收 PM 专员的回复并渲染到聊天面板。
+ * 完成后刷新 PM session。
  */
 function _streamPMReply(streamId, workspace, thinkingEl) {
   return new Promise((resolve) => {
@@ -925,8 +846,14 @@ function _streamPMReply(streamId, workspace, thinkingEl) {
     );
 
     let accumulatedText = '';
+    let accumulatedReasoning = '';  // ★ 追踪 reasoning 事件的内容
     let assistantRow = null;
     let bodyEl = null;
+    let thinkingCard = null;  // ★ 思考卡片 DOM
+    let toolCards = [];       // ★ 工具调用卡片列表
+
+    // ★ 获取 PM 的 sessionId（供 done 刷新路径使用）
+    const _pmSessionId = _getPMSessionId();
 
     // 渲染辅助：创建/获取PM回复的消息行
     function ensureRow() {
@@ -938,17 +865,35 @@ function _streamPMReply(streamId, workspace, thinkingEl) {
       if (!inner) return;
 
       assistantRow = document.createElement('div');
-      assistantRow.className = 'rp-msg-row gc-msg-row';
+      assistantRow.className = 'rp-msg-row rp-turn';
       assistantRow.dataset.role = 'assistant';
       assistantRow.innerHTML = `
         <div class="rp-msg-role assistant">
           <span class="rp-msg-icon">🤖</span>
           <span class="rp-msg-name">${PM_NAME}</span>
         </div>
-        <div class="rp-msg-body"></div>
+        <div class="rp-turn-segments"></div>
       `;
-      bodyEl = assistantRow.querySelector('.rp-msg-body');
+      bodyEl = assistantRow.querySelector('.rp-turn-segments');
       inner.appendChild(assistantRow);
+    }
+
+    // ★ 创建/获取思考卡片
+    function ensureThinkingCard() {
+      if (thinkingCard) return thinkingCard;
+      ensureRow();
+      if (!bodyEl) return null;
+      thinkingCard = document.createElement('div');
+      thinkingCard.className = 'rp-turn-thinking thinking-card open thinking-active';
+      thinkingCard.innerHTML = `
+        <div class="thinking-header" onclick="this.parentElement.classList.toggle('open')">
+          <span class="thinking-toggle">▼</span> 💭 思考过程
+        </div>
+        <div class="thinking-body"></div>
+      `;
+      // 插入到 segments 最前面
+      bodyEl.insertBefore(thinkingCard, bodyEl.firstChild);
+      return thinkingCard;
     }
 
     // rAF 节流渲染
@@ -958,12 +903,33 @@ function _streamPMReply(streamId, workspace, thinkingEl) {
       renderPending = true;
       requestAnimationFrame(() => {
         renderPending = false;
-        if (bodyEl) {
-          // 剥离思考标签后渲染
-          const display = _stripThinkingTags(accumulatedText);
-          bodyEl.innerHTML = typeof renderMd === 'function' ? renderMd(display) : esc(display).replace(/\n/g, '<br>');
-          if (typeof _scrollMsgAreaIfSticky === 'function') _scrollMsgAreaIfSticky();
+        // ★ 渲染思考卡片
+        if (accumulatedReasoning.trim() && thinkingCard) {
+          const thinkBody = thinkingCard.querySelector('.thinking-body');
+          if (thinkBody) {
+            thinkBody.innerHTML = typeof renderMd === 'function' ? renderMd(accumulatedReasoning) : esc(accumulatedReasoning).replace(/\n/g, '<br>');
+          }
         }
+        // ★ 渲染文本段
+        const textSeg = bodyEl?.querySelector('.rp-turn-text');
+        const display = _stripThinkingTags(accumulatedText);
+        if (display.trim() && bodyEl) {
+          if (!textSeg) {
+            const textDiv = document.createElement('div');
+            textDiv.className = 'rp-msg-body rp-turn-text';
+            bodyEl.appendChild(textDiv);
+          }
+          const textEl = bodyEl.querySelector('.rp-turn-text');
+          if (textEl) {
+            let renderedHtml = typeof renderMd === 'function' ? renderMd(display) : esc(display).replace(/\n/g, '<br>');
+            // ★ 应用 @mention 高亮（转换为可点击链接，点击后跳转到对应员工聊天框）
+            if (typeof _highlightMentions === 'function') {
+              renderedHtml = _highlightMentions(renderedHtml);
+            }
+            textEl.innerHTML = renderedHtml;
+          }
+        }
+        if (typeof _scrollMsgAreaIfSticky === 'function') _scrollMsgAreaIfSticky();
       });
     }
 
@@ -971,12 +937,12 @@ function _streamPMReply(streamId, workspace, thinkingEl) {
       try {
         const d = JSON.parse(e.data);
         const txt = d.text || '';
-        if (!txt) return;
+        // ★ 过滤空外观 token：某些 provider/模型在 tool_calls 前发送 "{}" / "{" / "}" 等
+        const _isEmptyLike = t => !t || /^[\s{}\[\]""]+$/.test(String(t).trim());
+        if (!txt || _isEmptyLike(txt)) return;
 
-        // 思考标签过滤（与 messages.js 一致）
         accumulatedText += txt;
 
-        // 有内容后显示消息行
         const display = _stripThinkingTags(accumulatedText);
         if (display.trim()) {
           ensureRow();
@@ -985,11 +951,34 @@ function _streamPMReply(streamId, workspace, thinkingEl) {
       } catch (_) {}
     });
 
+    // ★★★ reasoning 事件：累积思考内容并实时渲染思考卡片 ★★★
+    source.addEventListener('reasoning', e => {
+      try {
+        const d = JSON.parse(e.data);
+        const txt = d.text || '';
+        if (!txt) return;
+        accumulatedReasoning += txt;
+        ensureThinkingCard();
+        scheduleRender();
+      } catch (_) {}
+    });
+
     // ── AG-UI 精细化事件（PM 回复流）───────────────────────────────
     source.addEventListener('message_start', e => { try { scheduleRender(); } catch(_) {} });
     source.addEventListener('message_end', e => { try { scheduleRender(); } catch(_) {} });
-    source.addEventListener('thinking_start', e => { try { scheduleRender(); } catch(_) {} });
-    source.addEventListener('thinking_end', e => { try { scheduleRender(); } catch(_) {} });
+    source.addEventListener('thinking_start', e => {
+      try {
+        ensureThinkingCard();
+        if (thinkingCard) thinkingCard.classList.add('thinking-active', 'open');
+        scheduleRender();
+      } catch(_) {}
+    });
+    source.addEventListener('thinking_end', e => {
+      try {
+        if (thinkingCard) thinkingCard.classList.remove('thinking-active');
+        scheduleRender();
+      } catch(_) {}
+    });
     source.addEventListener('step_started', e => {
       try {
         const d = JSON.parse(e.data);
@@ -1003,39 +992,163 @@ function _streamPMReply(streamId, workspace, thinkingEl) {
       try { if (typeof setComposerStatus === 'function') setComposerStatus(''); } catch(_) {}
     });
 
+    // ★★★ tool 事件：创建工具调用卡片 ★★★
     source.addEventListener('tool', e => {
       try {
         const d = JSON.parse(e.data);
         ensureRow();
-        if (bodyEl && d.name) {
-          // 简单显示工具执行信息
-          const toolInfo = document.createElement('div');
-          toolInfo.className = 'gc-pm-tool-info';
-          toolInfo.textContent = `🔧 ${d.name}${d.preview ? ': ' + d.preview : ''}`;
-          bodyEl.appendChild(toolInfo);
-          if (typeof _scrollMsgAreaIfSticky === 'function') _scrollMsgAreaIfSticky();
+        if (!bodyEl || !d.name) return;
+
+        const toolCard = document.createElement('div');
+        toolCard.className = 'rp-turn-tool-card tool-card open';
+        const phase = d.phase || 'started';
+        const phaseLabel = phase === 'started' ? '⏳ 执行中' : '✅ 完成';
+        const argsPreview = d.args ? (typeof d.args === 'string' ? d.args : JSON.stringify(d.args)).slice(0, 200) : '';
+        toolCard.innerHTML = `
+          <div class="tool-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="tool-toggle">▼</span> 🔧 ${esc(d.name)} <span class="tool-phase">${phaseLabel}</span>
+            ${d.preview ? `<span class="tool-preview" style="color:var(--muted);font-size:11px;margin-left:6px">${esc(d.preview)}</span>` : ''}
+          </div>
+          <div class="tool-body">
+            ${argsPreview ? `<div class="tool-args" style="font-size:12px;color:var(--muted);white-space:pre-wrap;max-height:120px;overflow:auto">${esc(argsPreview)}</div>` : ''}
+          </div>
+        `;
+        toolCard._toolName = d.name;
+        toolCard._toolCallId = d.tool_call_id || '';
+        bodyEl.appendChild(toolCard);
+        toolCards.push(toolCard);
+        if (typeof _scrollMsgAreaIfSticky === 'function') _scrollMsgAreaIfSticky();
+      } catch (_) {}
+    });
+
+    // ★★★ tool_end 事件：更新工具卡片状态 ★★★
+    source.addEventListener('tool_end', e => {
+      try {
+        const d = JSON.parse(e.data);
+        const tcId = d.tool_call_id || '';
+        const card = toolCards.find(c => c._toolCallId === tcId);
+        if (card) {
+          const phaseEl = card.querySelector('.tool-phase');
+          if (phaseEl) phaseEl.textContent = '✅ 完成';
         }
       } catch (_) {}
     });
 
-    source.addEventListener('done', async () => {
+    // ★★★ tool_result 事件：显示工具结果 ★★★
+    source.addEventListener('tool_result', e => {
+      try {
+        const d = JSON.parse(e.data);
+        const tcId = d.tool_call_id || '';
+        const card = toolCards.find(c => c._toolCallId === tcId);
+        if (card) {
+          const body = card.querySelector('.tool-body');
+          if (body && d.result) {
+            const resultStr = typeof d.result === 'string' ? d.result : JSON.stringify(d.result);
+            const truncated = resultStr.length > 500 ? resultStr.slice(0, 500) + '...' : resultStr;
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'tool-result';
+            resultDiv.style.cssText = 'font-size:12px;margin-top:4px;padding:4px 8px;background:var(--surface-2);border-radius:4px;white-space:pre-wrap;max-height:150px;overflow:auto';
+            resultDiv.textContent = truncated;
+            body.appendChild(resultDiv);
+          }
+          const phaseEl = card.querySelector('.tool-phase');
+          if (phaseEl) phaseEl.textContent = '✅ 完成';
+        }
+      } catch (_) {}
+    });
+
+    // ★★★ done 事件：3路径刷新，与 _attachLiveStreamToChat 保持一致 ★★★
+    source.addEventListener('done', async e => {
       source.close();
-      console.log(`[${PM_NAME}] SSE done, textLen=`, accumulatedText.length);
+      console.log(`[${PM_NAME}] SSE done, textLen=`, accumulatedText.length, 'reasoningLen=', accumulatedReasoning.length);
 
       // 移除思考中占位（如果还存在）
       if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
 
-      // 最终渲染
-      const displayResult = _stripThinkingTags(accumulatedText.trim());
-      if (bodyEl && displayResult) {
-        bodyEl.innerHTML = typeof renderMd === 'function' ? renderMd(displayResult) : esc(displayResult).replace(/\n/g, '<br>');
+      // ★ 路径 1（最优）：直接使用 done 事件自带的 session 数据
+      let _refreshed = false;
+      try {
+        const doneData = JSON.parse(e.data || '{}');
+        const doneSession = doneData && doneData.session;
+        // ★★★ 异步守卫：done 事件到达时用户可能已切到其他员工聊天，此时严禁写入 S.messages
+        if (doneSession && doneSession.messages && doneSession.messages.length > 0 && doneSession.session_id === _pmSessionId && _isPMChatOpen()) {
+          S.session = doneSession;
+          S.messages = doneSession.messages || [];
+          if (typeof _ensureDelegationDividersForMainSession === 'function') {
+            const pm = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+            if (pm) _ensureDelegationDividersForMainSession(pm);
+          }
+          // 移除 streaming DOM
+          if (assistantRow) { assistantRow.remove(); assistantRow = null; bodyEl = null; }
+          if (typeof _renderRpMessages === 'function') _renderRpMessages();
+          if (typeof _scrollMsgAreaToBottom === 'function') _scrollMsgAreaToBottom();
+          _refreshed = true;
+          console.log(`[${PM_NAME}] done path1: 刷新成功, msgCount=`, S.messages.length);
+        } else if (doneSession && !_isPMChatOpen()) {
+          // 用户已切走，仅标记已处理，避免路径2/3继续执行覆盖其他员工聊天
+          _refreshed = true;
+          console.log(`[${PM_NAME}] done path1: 用户已切走，跳过写入 S.messages`);
+        }
+      } catch(_err) {
+        console.warn(`[${PM_NAME}] done path1: 解析失败:`, _err);
       }
 
-      // 刷新总群消息（后端 session 已包含 AI 回复）
-      try {
-        await loadGroupChat(workspace);
-        if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
-      } catch (_) {}
+      // ★ 路径 2（降级）：从后端 /api/session 拉取
+      if (!_refreshed && _isPMChatOpen() && _pmSessionId) {
+        try {
+          const sessData = await api(`/api/session?session_id=${encodeURIComponent(_pmSessionId)}`);
+          // ★★★ 异步守卫：await 期间用户可能已切走
+          if (!_isPMChatOpen()) {
+            console.log(`[${PM_NAME}] done path2: 用户已切走，跳过写入 S.messages`);
+            _refreshed = true;
+          } else if (sessData && sessData.session && sessData.session.messages && sessData.session.messages.length > 0) {
+            S.session = sessData.session;
+            S.messages = sessData.session.messages || [];
+            if (typeof _ensureDelegationDividersForMainSession === 'function') {
+              const pm = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+              if (pm) _ensureDelegationDividersForMainSession(pm);
+            }
+            if (assistantRow) { assistantRow.remove(); assistantRow = null; bodyEl = null; }
+            if (typeof _renderRpMessages === 'function') _renderRpMessages();
+            if (typeof _scrollMsgAreaToBottom === 'function') _scrollMsgAreaToBottom();
+            _refreshed = true;
+            console.log(`[${PM_NAME}] done path2: 刷新成功, msgCount=`, S.messages.length);
+          }
+        } catch(err) {
+          console.warn(`[${PM_NAME}] done path2: /api/session 失败:`, err);
+        }
+      }
+
+      // ★ 路径 3（兜底）：保留 streaming DOM + 将积累内容写入 S.messages
+      if (!_refreshed) {
+        // 固化思考卡片
+        if (thinkingCard) {
+          thinkingCard.classList.remove('thinking-active', 'open');
+        }
+        // 固化工具卡片
+        toolCards.forEach(c => {
+          const phaseEl = c.querySelector('.tool-phase');
+          if (phaseEl) phaseEl.textContent = '✅ 完成';
+        });
+        // 最终文本渲染
+        const displayResult = _stripThinkingTags(accumulatedText.trim());
+        if (bodyEl) {
+          const textEl = bodyEl.querySelector('.rp-turn-text');
+          if (textEl && displayResult) {
+            textEl.innerHTML = typeof renderMd === 'function' ? renderMd(displayResult) : esc(displayResult).replace(/\n/g, '<br>');
+          }
+        }
+        // 将积累的内容写入 S.messages（兜底保证不丢失）
+        const _hasAsstMsg = S.messages.some(m => m.role === 'assistant' && m._ts && Date.now() / 1000 - m._ts < 30);
+        if (!_hasAsstMsg) {
+          const _msg = { role: 'assistant', content: displayResult || '', _ts: Date.now() / 1000 };
+          if (accumulatedReasoning.trim()) _msg.reasoning = accumulatedReasoning.trim();
+          S.messages.push(_msg);
+          if (typeof _renderRpMessages === 'function') _renderRpMessages();
+          if (typeof _scrollMsgAreaToBottom === 'function') _scrollMsgAreaToBottom();
+        }
+        console.log(`[${PM_NAME}] done path3: 兜底, kept streaming DOM`);
+      }
 
       _pmStreamBusy = false;
       resolve();
@@ -1046,17 +1159,30 @@ function _streamPMReply(streamId, workspace, thinkingEl) {
       if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
       console.warn(`[${PM_NAME}] SSE error`);
 
-      // 尝试从 session 获取结果
-      _pmStreamBusy = false;
-      loadGroupChat(workspace).then(() => {
-        if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
-      }).catch(() => {});
-      resolve();
+      // 固化思考卡片
+      if (thinkingCard) thinkingCard.classList.remove('thinking-active', 'open');
+      // 固化工具卡片
+      toolCards.forEach(c => {
+        const phaseEl = c.querySelector('.tool-phase');
+        if (phaseEl) phaseEl.textContent = '✅ 完成';
+      });
+
+      // ★ error 路径也尝试3路径刷新
+      _refreshAfterStreamEnd(_pmSessionId, assistantRow).then(() => {
+        _pmStreamBusy = false;
+        resolve();
+      });
     });
 
     source.addEventListener('apperror', e => {
       source.close();
       if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
+      // 固化卡片
+      if (thinkingCard) thinkingCard.classList.remove('thinking-active', 'open');
+      toolCards.forEach(c => {
+        const phaseEl = c.querySelector('.tool-phase');
+        if (phaseEl) phaseEl.textContent = '✅ 完成';
+      });
       let errMsg = '未知错误';
       try { const d = JSON.parse(e.data); errMsg = d.message || d.hint || errMsg; } catch (_) {}
       showToast(`${PM_NAME}回复出错: ${errMsg}`);
@@ -1116,7 +1242,7 @@ async function _dispatchTaskToEmployee(empName, taskContent, taskId, opts = {}) 
   // 构建 task 消息（去除 @名字 部分，保留任务内容）
   const taskMsg = taskContent.replace(new RegExp(`@${empName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*`, 'g'), '').trim();
 
-  // ★ 若是 orchestrate 模式，构造可用团队成员清单供协调员查阅
+  // ★ 若是 orchestrate 模式，构造可用团队成员清单供PM查阅
   let orchestrateBlock = '';
   if (opts.orchestrate && typeof EMPLOYEE_STORE !== 'undefined') {
     const teammates = (EMPLOYEE_STORE.employees || [])
@@ -1127,7 +1253,7 @@ async function _dispatchTaskToEmployee(empName, taskContent, taskId, opts = {}) 
     orchestrateBlock = `
 
 ---
-🧭 **协作模式 · 你是此任务的协调员（Orchestrator）**
+🧭 **协作模式 · 你是此任务的PM（Orchestrator）**
 
 你的核心职责是**规划 + 分工 + 汇总**，而不是亲自完成所有细节。
 
@@ -1144,7 +1270,7 @@ ${teammates || '- （当前无其他可用成员，你可独立完成）'}
 **禁止**：仅自己做完所有事而不调用 \`delegate_task\` 分工（违反协作原则）；或只规划不执行（空谈）。`;
   }
 
-  const fullTaskMsg = `[总群委派任务 #${taskId}]
+  const fullTaskMsg = `[PM 委派任务 #${taskId}]
 ${taskMsg || '请执行任务'}
 
 ---
@@ -1159,7 +1285,7 @@ ${taskMsg || '请执行任务'}
 以上要求对所有委派任务强制生效。${orchestrateBlock}`;
 
   let ws = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : (S.session?.workspace || '');
-  if (ws === '__default__') ws = S.session?.workspace || GROUP_CHAT_STATE.workspace || '';
+  if (ws === '__default__') ws = S.session?.workspace || _getCurrentWorkspace() || '';
 
   // ★★★ 方案 B：创建 Task 对象并入队。队列由 DelegationVM 统一调度，
   //    员工空闲时立即启动；否则等待前一个任务结束。
@@ -1226,21 +1352,17 @@ ${taskMsg || '请执行任务'}
         task.status = 'cancelled';
         if (typeof DelegationVM !== 'undefined' && DelegationVM._persistTask) DelegationVM._persistTask(task);
       }
-      // 通知总群任务已被用户取消
+      // 通知PM session 任务已被用户取消
       if (ws) {
         try {
-          await api('/api/group-chat/result', {
-            method: 'POST',
-            body: JSON.stringify({
-              workspace: ws,
-              employee_name: emp.name,
-              task_id: taskId,
-              result: '⏹ 任务已被用户取消',
-              requester_name: '你',
-            }),
+          await _postResultToPMSession({
+            workspace: ws,
+            employee_name: emp.name,
+            task_id: taskId,
+            result: '⏹ 任务已被用户取消',
+            requester_name: '你',
           });
-          await loadGroupChat(ws);
-          if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+          if (_isPMChatOpen()) _renderGroupMessages();
         } catch (_) {}
       }
       // UI：若该员工卡片 _activeTaskId 还指向该任务，清理
@@ -1258,16 +1380,16 @@ ${taskMsg || '请执行任务'}
     showToast(`已加入「${empName}」的任务队列（第 ${pos} 位）`);
     if (ws) {
       try {
-        await api('/api/group-chat/send', {
-          method: 'POST',
-          body: JSON.stringify({
-            workspace: ws,
-            message: `📋 任务 {{TASK_LINK:${taskId}}} 已加入 **${empName}** 的任务队列（第 ${pos} 位），等当前任务完成后自动开始`,
-            sender_name: '系统',
-          }),
-        });
-        await loadGroupChat(ws);
-        if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+        await _addPMSessionMessage(`📋 任务 #${taskId} 已加入 **${empName}** 的任务队列（第 ${pos} 位），等当前任务完成后自动开始`, '系统');
+        if (_isPMChatOpen()) _renderGroupMessages();
+      } catch (_) {}
+    }
+  } else if (pos === 1) {
+    // ★ 立即启动 → 在PM聊天中显示委派状态
+    if (ws) {
+      try {
+        await _addPMSessionMessage(`📋 已委派任务给 **${empName}**：${taskMsg ? taskMsg.slice(0, 60) : taskId}`, '系统');
+        if (_isPMChatOpen()) _renderGroupMessages();
       } catch (_) {}
     }
   }
@@ -1285,8 +1407,8 @@ ${taskMsg || '请执行任务'}
  */
 function _tryAttachLiveStreamToRpPanel(emp, task) {
   if (!emp || !task || !task.streamId) return false;
-  // 总群面板打开时不追加（防止覆盖总群内容）
-  if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) return false;
+  // PM聊天面板打开时不追加（防止覆盖PM内容）
+  if (_isPMChatOpen()) return false;
   // 检查员工聊天面板是否已打开且指向该员工
   if (typeof EMPLOYEE_STORE === 'undefined' || EMPLOYEE_STORE.selectedId !== emp.id) return false;
   if (typeof window._rpView !== 'undefined' && window._rpView !== 'chat') return false;
@@ -1295,11 +1417,18 @@ function _tryAttachLiveStreamToRpPanel(emp, task) {
 
   // 在聊天面板中添加委派消息 + 任务分隔标记（如果还没有）
   if (typeof S !== 'undefined' && S.messages) {
-    const taskPrefix = `[总群委派任务 #${task.id}]`;
+    const taskPrefix = `[PM 委派任务 #${task.id}]`;
     const hasDivider = S.messages.some(m => m._taskDivider && m._taskId === task.id);
+    const hasTaskMsg = S.messages.some(m =>
+      m.role === 'user' && String(m.content || '').includes(taskPrefix)
+    );
+    // ★ 顺序：先 push 任务 user 消息，再 push divider（顺序：原话 → [PM 委派任务] → 📋 委派任务）
+    if (!hasTaskMsg && task.taskContent) {
+      S.messages.push({ role: 'user', content: task.taskContent, _ts: Date.now() / 1000, _taskId: task.id });
+    }
     if (!hasDivider) {
       const activeLabelRaw = task.taskContent
-        ? task.taskContent.replace(/^\[总群委派任务 #[^\]]+\]\s*/, '').split('\n').find(l => l.trim() && !l.startsWith('---') && !l.startsWith('⚠️')) || ''
+        ? task.taskContent.replace(/^\[PM 委派任务 #[^\]]+\]\s*/, '').split('\n').find(l => l.trim() && !l.startsWith('---') && !l.startsWith('⚠️')) || ''
         : '';
       const activeLabelShort = activeLabelRaw.length > 60 ? activeLabelRaw.slice(0, 60) + '…' : activeLabelRaw;
       S.messages.push({
@@ -1311,12 +1440,6 @@ function _tryAttachLiveStreamToRpPanel(emp, task) {
         _taskLabel: activeLabelShort,
         _ts: task.createdAt / 1000,
       });
-    }
-    const hasTaskMsg = S.messages.some(m =>
-      m.role === 'user' && String(m.content || '').includes(taskPrefix)
-    );
-    if (!hasTaskMsg && task.taskContent) {
-      S.messages.push({ role: 'user', content: task.taskContent, _ts: Date.now() / 1000, _taskId: task.id });
     }
     if (typeof _renderRpMessages === 'function') _renderRpMessages();
   }
@@ -1602,26 +1725,22 @@ function _pollGroupChatStreamEnd(task, delegatedTo, job) {
             });
           } else {
             try {
-              await api('/api/group-chat/result', {
-                method: 'POST',
-                body: JSON.stringify({
-                  workspace: task.workspace,
-                  employee_name: task.empName,
-                  task_id: task.id,
-                  result: displayResult,
-                  requester_name: task.requesterName || '你',
-                }),
+              await _postResultToPMSession({
+                workspace: task.workspace,
+                employee_name: task.empName,
+                task_id: task.id,
+                result: displayResult,
+                requester_name: task.requesterName || '你',
               });
             } catch(e) {
-              console.warn('[总群] 轮询回传结果失败:', e);
+              console.warn('[PM] 轮询回传结果失败:', e);
             }
           }
         }
 
-        // 刷新总群消息
+        // 刷新PM消息
         try {
-          await loadGroupChat(task.workspace);
-          if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+          if (_isPMChatOpen()) _renderGroupMessages();
         } catch(e) {}
 
         // 推进队列
@@ -1661,7 +1780,9 @@ function _watchEmployeeStream(task, job) {
   source.addEventListener('token', e => {
     try {
       const d = JSON.parse(e.data);
-      task.accumulatedText += d.text;
+      // ★ 过滤空外观 token：某些 provider/模型在 tool_calls 前发送 "{}" / "{" / "}" 等
+      const _isEmptyLike = t => !t || /^[\s{}\[\]""]+$/.test(String(t).trim());
+      if (!_isEmptyLike(d.text)) task.accumulatedText += d.text;
     } catch(_) {}
   });
 
@@ -1695,18 +1816,11 @@ function _watchEmployeeStream(task, job) {
           _delegatedTo = targetName;
           task.delegatedTo = targetName;
           if (task.workspace) {
-            api('/api/group-chat/send', {
-              method: 'POST',
-              body: JSON.stringify({
-                workspace: task.workspace,
-                message: `**${task.empName}** 正在将任务委派给 **${targetName}**...`,
-                sender_name: task.empName,
-              }),
-            }).catch(() => {});
+            _addPMSessionMessage(`**${task.empName}** 正在将任务委派给 **${targetName}**...`, task.empName).catch(() => {});
           }
         }
       } else if (d.name === 'send_group_message') {
-        // ★ 员工通过 send_group_message 向总群发消息，若包含 @mentions 则自动委派任务
+        // ★ 员工通过 send_group_message 向PM发消息，若包含 @mentions 则自动委派任务
         const msgText = (d.args && d.args.message) || '';
         const mentionedNames = (msgText && typeof parse_mentions_local === 'function')
           ? parse_mentions_local(msgText) : [];
@@ -1719,9 +1833,7 @@ function _watchEmployeeStream(task, job) {
           }
         }
         if (task.workspace) {
-          loadGroupChat(task.workspace).then(() => {
-            if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
-          }).catch(() => {});
+          if (_isPMChatOpen()) _renderGroupMessages();
         }
       }
     } catch(_) {}
@@ -1753,15 +1865,12 @@ function _watchEmployeeStream(task, job) {
         });
       } else {
         try {
-          await api('/api/group-chat/result', {
-            method: 'POST',
-            body: JSON.stringify({
-              workspace: task.workspace,
-              employee_name: task.empName,
-              task_id: task.id,
-              result: displayResult,
-              requester_name: task.requesterName || '你',
-            }),
+          await _postResultToPMSession({
+            workspace: task.workspace,
+            employee_name: task.empName,
+            task_id: task.id,
+            result: displayResult,
+            requester_name: task.requesterName || '你',
           });
         } catch(e) {
           console.warn('回传结果失败:', e);
@@ -1769,10 +1878,9 @@ function _watchEmployeeStream(task, job) {
       }
     }
 
-    // Always refresh group chat messages
+    // Always refresh PM messages
     try {
-      await loadGroupChat(task.workspace);
-      if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+      if (_isPMChatOpen()) _renderGroupMessages();
     } catch(e) {
       console.warn('刷新总群消息失败:', e);
     }
@@ -1818,15 +1926,12 @@ function _watchEmployeeStream(task, job) {
     }
     if (emp) showToast(`员工「${task.empName}」执行出错: ${errMsg}`);
     if (task.workspace) {
-      api('/api/group-chat/result', {
-        method: 'POST',
-        body: JSON.stringify({
-          workspace: task.workspace,
-          employee_name: task.empName,
-          task_id: task.id,
-          result: `❌ 执行出错: ${errMsg}`,
-          requester_name: task.requesterName || '你',
-        }),
+      _postResultToPMSession({
+        workspace: task.workspace,
+        employee_name: task.empName,
+        task_id: task.id,
+        result: `❌ 执行出错: ${errMsg}`,
+        requester_name: task.requesterName || '你',
       }).catch(() => {});
     }
 
@@ -1853,23 +1958,23 @@ function _updateGroupDelegationBar() {
     return;
   }
 
-  console.log('[总群] _updateGroupDelegationBar called, isOpen=', GROUP_CHAT_STATE.isOpen, 'employees=', typeof EMPLOYEE_STORE !== 'undefined' ? EMPLOYEE_STORE.employees.length : 'N/A', 'selectedId=', typeof EMPLOYEE_STORE !== 'undefined' ? EMPLOYEE_STORE.selectedId : 'N/A');
+  console.log('[PM] _updateGroupDelegationBar called, isOpen=', _isPMChatOpen(), 'employees=', typeof EMPLOYEE_STORE !== 'undefined' ? EMPLOYEE_STORE.employees.length : 'N/A', 'selectedId=', typeof EMPLOYEE_STORE !== 'undefined' ? EMPLOYEE_STORE.selectedId : 'N/A');
 
   const parts = [];
 
-  // ★ 协调员（PM专员）链接 — 固定显示，自动协作开关变更时自动更新
+  // ★ PM 链接 — 固定显示，自动协作开关变更时自动更新
   const pmEmp = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
   if (pmEmp) {
     const pmName = pmEmp.name || PM_NAME;
-    parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-name gc-link rp-coordinator-link" onclick="selectEmployee('${pmEmp.id}')" title="打开${pmName}聊天">${pmName}</span>`);
+    parts.push(`<span class="rp-del-label">PM：</span><span class="rp-del-name gc-link rp-coordinator-link" onclick="selectEmployee('${pmEmp.id}')" title="打开${pmName}聊天">${pmName}</span>`);
   } else {
-    parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-label" style="opacity:.5">未设置</span>`);
+    parts.push(`<span class="rp-del-label">PM：</span><span class="rp-del-label" style="opacity:.5">未设置</span>`);
   }
 
   // 成员（PM专员打开时显示：按钮 + 下拉面板，支持层级展示）
-  if (GROUP_CHAT_STATE.isOpen) {
+  if (_isPMChatOpen()) {
     _refreshGroupMembers();
-    const members = GROUP_CHAT_STATE.members;
+    const members = _getAllMembers();
     if (members.length) {
       // 构建层级数据（供下拉面板使用）
       let hierarchy = [];
@@ -1935,8 +2040,8 @@ function _updateGroupDelegationBar() {
     }
   }
 
-  // 方案 B：总群模式下显示所有正在跑任务的员工的"取消"按钮
-  if (GROUP_CHAT_STATE.isOpen && typeof DelegationVM !== 'undefined' && DelegationVM.running) {
+  // 方案 B：PM模式下显示所有正在跑任务的员工的"取消"按钮
+  if (_isPMChatOpen() && typeof DelegationVM !== 'undefined' && DelegationVM.running) {
     const cancelBtns = [];
     try {
       for (const [empId, job] of DelegationVM.running.entries()) {
@@ -2342,21 +2447,15 @@ function _onMentionKeydown(e) {
 function _showMentionDropdown(query, inputEl) {
   let candidates;
 
-  if (GROUP_CHAT_STATE.isOpen) {
-    // 总群模式：可以 @ 任意成员
+  // ★ 总群概念已移除：在 PM PM聊天中可 @ 任意成员
+  const pmEmp = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+  const isPMChat = pmEmp && (typeof EMPLOYEE_STORE !== 'undefined') && EMPLOYEE_STORE.selectedId === pmEmp.id;
+  if (isPMChat) {
     _refreshGroupMembers();
-    candidates = GROUP_CHAT_STATE.members;
+    candidates = _getAllMembers();
   } else {
-    // ★ 仅协调员（isPM）可以 @ 员工，其他员工不允许 @
-    const empId = typeof EMPLOYEE_STORE !== 'undefined' ? EMPLOYEE_STORE.selectedId : null;
-    const pmEmp = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
-    if (pmEmp && empId === pmEmp.id) {
-      _refreshGroupMembers();
-      candidates = GROUP_CHAT_STATE.members;
-    } else {
-      // 非协调员：不显示 @ 补全
-      candidates = [];
-    }
+    // 非PM：不显示 @ 补全
+    candidates = [];
   }
 
   const filtered = candidates.filter(m => m.name.toLowerCase().includes(query));
@@ -2414,9 +2513,9 @@ function _insertMention(name, inputEl) {
 // 保存原始函数引用
 const _origUpdateDelegationBar = typeof _updateDelegationBar === 'function' ? _updateDelegationBar : null;
 
-// 覆盖 _updateDelegationBar 使其包含总群链接
+// 覆盖 _updateDelegationBar 使其包含PM链接
 function _updateDelegationBarWithGroupChat(emp) {
-  console.log('[总群] _updateDelegationBarWithGroupChat called, isOpen=', GROUP_CHAT_STATE.isOpen, 'emp=', emp?.name || null);
+  console.log('[PM] _updateDelegationBarWithGroupChat called, isOpen=', _isPMChatOpen(), 'emp=', emp?.name || null);
   const bar = $('rpDelegationBar');
   const info = $('rpDelegationInfo');
   if (!bar || !info) return;
@@ -2429,8 +2528,8 @@ function _updateDelegationBarWithGroupChat(emp) {
     return;
   }
 
-  // 总群打开时，走总群委派栏逻辑（不受 emp 为 null 影响）
-  if (GROUP_CHAT_STATE.isOpen) {
+  // PM聊天打开时，走PM委派栏逻辑（不受 emp 为 null 影响）
+  if (_isPMChatOpen()) {
     _updateGroupDelegationBar();
     return;
   }
@@ -2439,20 +2538,20 @@ function _updateDelegationBarWithGroupChat(emp) {
 
   const parts = [];
 
-  // ★ 协调员（PM专员）链接 — 固定显示，自动协作开关变更时自动更新
+  // ★ PM 链接 — 固定显示，自动协作开关变更时自动更新
   const pmEmp2 = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
   if (pmEmp2) {
     const pmName2 = pmEmp2.name || PM_NAME;
-    parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-name gc-link rp-coordinator-link" onclick="selectEmployee('${pmEmp2.id}')" title="打开${pmName2}聊天">${pmName2}</span>`);
+    parts.push(`<span class="rp-del-label">PM：</span><span class="rp-del-name gc-link rp-coordinator-link" onclick="selectEmployee('${pmEmp2.id}')" title="打开${pmName2}聊天">${pmName2}</span>`);
   } else {
-    parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-label" style="opacity:.5">未设置</span>`);
+    parts.push(`<span class="rp-del-label">PM：</span><span class="rp-del-label" style="opacity:.5">未设置</span>`);
   }
 
-  // ★ 协调员（PM专员）聊天模式下，显示成员下拉框按钮（与总群模式一致）
+  // ★ PM 聊天模式下，显示成员下拉框按钮（与总群模式一致）
   const isPMChat = pmEmp2 && emp.id === pmEmp2.id;
   if (isPMChat) {
     _refreshGroupMembers();
-    const members = GROUP_CHAT_STATE.members;
+    const members = _getAllMembers();
     if (members.length) {
       // 构建层级数据（供下拉面板使用）
       let hierarchy = [];
@@ -2582,7 +2681,7 @@ window.isEmpAutoCollabActive = isEmpAutoCollabActive;
 /**
  * 设置当前工作区激活自动协作+心跳的员工 ID
  * - null 表示关闭（无人激活）
- * - 自动同步 GROUP_CHAT_STATE.autoOrchestrate 和 HEARTBEAT_STATE.enabled
+ * - 自动同步 _autoOrchestrate 和 HEARTBEAT_STATE.enabled
  * - 自动更新卡片图标和头部按钮
  */
 function setActiveAutoCollabEmpId(empId) {
@@ -2599,7 +2698,7 @@ function setActiveAutoCollabEmpId(empId) {
 
   // 联动：自动协作和心跳始终绑定
   const shouldBeOn = !!empId;
-  GROUP_CHAT_STATE.autoOrchestrate = shouldBeOn;
+  _autoOrchestrate = shouldBeOn;
   localStorage.setItem('gc_auto_orchestrate', shouldBeOn ? '1' : '0');
   HEARTBEAT_STATE.enabled = shouldBeOn;
   localStorage.setItem('pm_heartbeat_enabled', shouldBeOn ? '1' : '0');
@@ -2631,7 +2730,7 @@ function setActiveAutoCollabEmpId(empId) {
   _updateEmpChatHeaderButtons();
   // 更新卡片图标（重新渲染卡片和列表以反映PM状态变化）
   _refreshAutoCollabCardIndicators(prevId, empId);
-  // ★ 刷新委派栏中的"协调员"显示
+  // ★ 刷新委派栏中的"PM"显示
   if (typeof _updateDelegationBar === 'function') {
     const selId = typeof EMPLOYEE_STORE !== 'undefined' ? EMPLOYEE_STORE.selectedId : null;
     const selEmp = selId && typeof getEmployee === 'function' ? getEmployee(selId) : null;
@@ -2679,8 +2778,8 @@ window.toggleEmpAutoCollab = toggleEmpAutoCollab;
 function _updateGcHeaderButtons() {
   const autoBtn = document.getElementById('gcAutoOrchBtn');
   if (autoBtn) {
-    autoBtn.classList.toggle('active', GROUP_CHAT_STATE.autoOrchestrate);
-    autoBtn.title = GROUP_CHAT_STATE.autoOrchestrate
+    autoBtn.classList.toggle('active', _autoOrchestrate);
+    autoBtn.title = _autoOrchestrate
       ? '自动协作+心跳已开启 - 点击关闭'
       : '点击开启自动协作+心跳';
   }
@@ -2804,7 +2903,7 @@ async function _onHeartbeatReceived(data) {
   if (!workspace || !completions.length) return;
 
   // 确保与当前工作区匹配
-  const currentWs = GROUP_CHAT_STATE.workspace || '';
+  const currentWs = _getCurrentWorkspace() || '';
   if (currentWs && workspace !== currentWs) {
     console.log('[心跳] 工作区不匹配，跳过:', workspace, '≠', currentWs);
     return;
@@ -2831,9 +2930,9 @@ async function _onHeartbeatReceived(data) {
  * 4. 解析回复中的 @mention 并自动委派
  */
 async function _triggerHeartbeatScheduling(workspace, completions) {
-  const sessionId = GROUP_CHAT_STATE.sessionId;
+  const sessionId = _getPMSessionId();
   if (!sessionId) {
-    console.warn('[心跳] 总群 session 未初始化，跳过');
+    console.warn('[心跳] PM session 未初始化，跳过');
     return;
   }
 
@@ -2903,7 +3002,7 @@ function _streamHeartbeatReply(streamId, workspace) {
 
     function ensureRow() {
       if (assistantRow) return;
-      if (!GROUP_CHAT_STATE.isOpen) return;  // 总群未打开则不渲染
+      if (!_isPMChatOpen()) return;  // PM聊天未打开则不渲染
 
       const inner = $('rpMsgInner');
       if (!inner) return;
@@ -2940,7 +3039,9 @@ function _streamHeartbeatReply(streamId, workspace) {
       try {
         const d = JSON.parse(e.data);
         const txt = d.text || '';
-        if (!txt) return;
+        // ★ 过滤空外观 token：某些 provider/模型在 tool_calls 前发送 "{}" / "{" / "}" 等
+        const _isEmptyLike = t => !t || /^[\s{}\[\]""]+$/.test(String(t).trim());
+        if (!txt || _isEmptyLike(txt)) return;
         accumulatedText += txt;
         const display = _stripThinkingTags(accumulatedText);
         if (display.trim()) {
@@ -2968,27 +3069,72 @@ function _streamHeartbeatReply(streamId, workspace) {
       try { if (typeof setComposerStatus === 'function') setComposerStatus(''); } catch(_) {}
     });
 
-    source.addEventListener('done', async () => {
+    source.addEventListener('done', async e => {
       source.close();
       console.log('[心跳] PM回复完成, textLen=', accumulatedText.length);
 
       const displayResult = _stripThinkingTags(accumulatedText.trim());
-
-      // 最终渲染
-      if (bodyEl && displayResult) {
-        bodyEl.innerHTML = typeof renderMd === 'function' ? renderMd(displayResult) : esc(displayResult).replace(/\n/g, '<br>');
-      }
+      const _pmSessionId = _getPMSessionId();
 
       // ★ 核心：解析 PM 回复中的 @mention 并自动委派任务
       if (displayResult) {
         await _processHeartbeatMentions(displayResult, workspace);
       }
 
-      // 刷新总群消息
+      // ★ 刷新PM消息：3路径降级（与 _streamPMReply 一致）
+      let _refreshed = false;
+      // 路径 1：使用 done 事件自带的 session 数据
       try {
-        await loadGroupChat(workspace);
-        if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
-      } catch (_) {}
+        const doneData = JSON.parse(e.data || '{}');
+        const doneSession = doneData && doneData.session;
+        // ★★★ 异步守卫：done 到达时用户可能已切到其他员工聊天，禁止写入 S.messages
+        if (doneSession && doneSession.messages && doneSession.messages.length > 0 && doneSession.session_id === _pmSessionId && _isPMChatOpen()) {
+          S.session = doneSession;
+          S.messages = doneSession.messages || [];
+          if (typeof _ensureDelegationDividersForMainSession === 'function') {
+            const pm = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+            if (pm) _ensureDelegationDividersForMainSession(pm);
+          }
+          if (assistantRow) { assistantRow.remove(); assistantRow = null; bodyEl = null; }
+          if (typeof _renderRpMessages === 'function') _renderRpMessages();
+          if (typeof _scrollMsgAreaToBottom === 'function') _scrollMsgAreaToBottom();
+          _refreshed = true;
+        } else if (doneSession && !_isPMChatOpen()) {
+          // 已切走 → 标记已处理，跳过 path2/3
+          _refreshed = true;
+          console.log('[心跳] done path1: 用户已切走，跳过写入 S.messages');
+        }
+      } catch(_) {}
+
+      // 路径 2：从 /api/session 拉取
+      if (!_refreshed && _isPMChatOpen() && _pmSessionId) {
+        try {
+          const sessData = await api(`/api/session?session_id=${encodeURIComponent(_pmSessionId)}`);
+          // ★★★ 异步守卫：await 期间用户可能已切走
+          if (!_isPMChatOpen()) {
+            console.log('[心跳] done path2: 用户已切走，跳过写入 S.messages');
+            _refreshed = true;
+          } else if (sessData && sessData.session && sessData.session.messages && sessData.session.messages.length > 0) {
+            S.session = sessData.session;
+            S.messages = sessData.session.messages || [];
+            if (typeof _ensureDelegationDividersForMainSession === 'function') {
+              const pm = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+              if (pm) _ensureDelegationDividersForMainSession(pm);
+            }
+            if (assistantRow) { assistantRow.remove(); assistantRow = null; bodyEl = null; }
+            if (typeof _renderRpMessages === 'function') _renderRpMessages();
+            if (typeof _scrollMsgAreaToBottom === 'function') _scrollMsgAreaToBottom();
+            _refreshed = true;
+          }
+        } catch(_) {}
+      }
+
+      // 路径 3：保留 streaming DOM（最终渲染）
+      if (!_refreshed) {
+        if (bodyEl && displayResult) {
+          bodyEl.innerHTML = typeof renderMd === 'function' ? renderMd(displayResult) : esc(displayResult).replace(/\n/g, '<br>');
+        }
+      }
 
       resolve();
     });
@@ -2997,10 +3143,10 @@ function _streamHeartbeatReply(streamId, workspace) {
       source.close();
       console.warn('[心跳] SSE error');
       // 尝试从 session 获取结果并处理 @mention
-      loadGroupChat(workspace).then(async () => {
-        if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+      loadPMSession(workspace).then(async (pmSession) => {
+        if (_isPMChatOpen()) _renderGroupMessages();
         // 尝试从最后的 assistant 消息中提取 @mention
-        const msgs = GROUP_CHAT_STATE.messages || [];
+        const msgs = (pmSession && pmSession.messages) || [];
         for (let i = msgs.length - 1; i >= 0; i--) {
           if (msgs[i].role === 'assistant' && msgs[i]._sender === PM_NAME) {
             const content = String(msgs[i].content || '');
@@ -3098,19 +3244,11 @@ async function _processHeartbeatMentions(pmReply, workspace) {
     }
   }
 
-  // 在总群中发送系统消息记录自动委派
+  // 在PM聊天中发送系统消息记录自动委派
   try {
     const dispatchNames = toDispatch.map(n => `@${n}`).join('、');
-    await api('/api/group-chat/send', {
-      method: 'POST',
-      body: JSON.stringify({
-        workspace,
-        message: `💓 心跳调度：${PM_NAME}已自动委派任务给 ${dispatchNames}`,
-        sender_name: '系统',
-      }),
-    });
-    await loadGroupChat(workspace);
-    if (GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
+    await _addPMSessionMessage(`💓 心跳调度：${PM_NAME}已自动委派任务给 ${dispatchNames}`, '系统');
+    if (_isPMChatOpen()) _renderGroupMessages();
   } catch (_) {}
 }
 
@@ -3126,13 +3264,11 @@ function initGroupChat() {
   // ★ 初始化心跳监听
   _initHeartbeatListener();
 
-  // 立即刷新委派栏，确保总群链接在页面初始加载时显示
+  // 立即刷新委派栏，确保PM链接在页面初始加载时显示
   // （initRightPanel 在 initGroupChat 之前执行，此时 _updateDelegationBar 还是原始版本）
   if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId && typeof getEmployee === 'function') {
     const emp = getEmployee(EMPLOYEE_STORE.selectedId);
     if (emp) _updateDelegationBar(emp);
-  } else if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) {
-    _updateGroupDelegationBar();
   }
 }
 
@@ -3167,13 +3303,6 @@ function syncEmpModelChip() {
   // 同步 provider chip
   syncEmpProviderChip();
   // Provider / Model 选择器始终显示（替代旧的全局模型选择器）
-  // 总群模式时隐藏（总群消息走委派流程，不直接选模型）
-  const isOpen = typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen;
-  const pWrap = document.getElementById('empProviderWrap');
-  const mWrap = document.getElementById('empModelWrap');
-  const hideStyle = isOpen ? 'none' : '';
-  if (pWrap) pWrap.style.display = hideStyle;
-  if (mWrap) mWrap.style.display = hideStyle;
   // ★ 联网搜索开关可见性联动
   if (typeof syncWebSearchToggle === 'function') syncWebSearchToggle();
 }

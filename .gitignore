@@ -29,3 +29,30 @@ Thumbs.db
 # Local reference clones — never committed
 docs/
 
+test_output_final.txt
+test_output.txt
+test_output2.txt
+test_output3.txt
+test_run_output.txt
+test_run2_output.txt
+test_run3_output.txt
+test_run4_output.txt
+test_run5_output.txt
+test_run6_output.txt
+test_run7_output.txt
+test_run8_output.txt
+test_run9_output.txt
+test_run10_output.txt
+test_run11_output.txt
+test_run12_output.txt
+test_run13_output.txt
+test_run14_output.txt
+test1_no_pm_tab.png
+test1_timeout.png
+knot_agui_debug.log
+test_error.png
+knot_agui_debug.log
+static/_tmp_fix_messages.py
+static/_tmp_fix2.py
+tests/test_pm_delegation_e2e.py
+tests/run_pm_test.py

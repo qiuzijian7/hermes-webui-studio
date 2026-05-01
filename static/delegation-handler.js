@@ -84,7 +84,7 @@
     if (!empId || typeof EMPLOYEE_STORE === 'undefined') return false;
     if (EMPLOYEE_STORE.selectedId !== empId) return false;
     if (typeof window._rpView !== 'undefined' && window._rpView !== 'chat') return false;
-    if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) return false;
+    // REMOVED: GROUP_CHAT_STATE.isOpen check — 总群概念已移除
     return true;
   }
 
@@ -93,6 +93,18 @@
     if (typeof S === 'undefined' || !S.messages) return;
     const taskId = task.id;
     const hasDivider = S.messages.some(m => m._taskDivider && m._taskId === taskId);
+    const hasTaskMsg = S.messages.some(m =>
+      m.role === 'user' && m._taskId === taskId
+    );
+    // ★ 顺序：先 push 任务 user 消息，再 push divider（顺序：原话 → [PM 委派任务] → 📋 委派任务）
+    if (!hasTaskMsg && task.taskContent) {
+      S.messages.push({
+        role: 'user',
+        content: task.taskContent,
+        _ts: Date.now() / 1000,
+        _taskId: taskId,
+      });
+    }
     if (!hasDivider) {
       const labelRaw = (task.taskContent || '').split('\n').find(l => l.trim()) || '';
       const labelShort = labelRaw.length > 60 ? labelRaw.slice(0, 60) + '…' : labelRaw;
@@ -104,17 +116,6 @@
         _taskStatus: 'running',
         _taskLabel: labelShort,
         _ts: Date.now() / 1000,
-      });
-    }
-    const hasTaskMsg = S.messages.some(m =>
-      m.role === 'user' && m._taskId === taskId
-    );
-    if (!hasTaskMsg && task.taskContent) {
-      S.messages.push({
-        role: 'user',
-        content: task.taskContent,
-        _ts: Date.now() / 1000,
-        _taskId: taskId,
       });
     }
     if (typeof _renderRpMessages === 'function') _renderRpMessages();

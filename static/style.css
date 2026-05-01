@@ -2843,7 +2843,7 @@ body.resizing{user-select:none;cursor:col-resize;}
   flex: 0 1 auto;
   flex-wrap: nowrap;
   white-space: nowrap;
-  overflow: hidden;
+  overflow: visible;
   text-overflow: ellipsis;
 }
 .rp-del-label {
@@ -2860,6 +2860,10 @@ body.resizing{user-select:none;cursor:col-resize;}
 }
 .rp-del-names {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  flex-shrink: 1;
 }
 .rp-del-sep {
   color: var(--border2);

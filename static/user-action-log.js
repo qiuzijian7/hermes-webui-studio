@@ -167,8 +167,9 @@
     _wrapFn('send', 'message', 'send', () => {
       const msg = document.getElementById('msg');
       const text = msg ? msg.value.trim() : '';
-      const isGroup = typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen;
-      return { textLen: text.length, textPreview: text.slice(0, 50), isGroupChat: isGroup };
+      const isPMChat = typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId && typeof getPMEmployee === 'function'
+        ? (getPMEmployee()?.id === EMPLOYEE_STORE.selectedId) : false;
+      return { textLen: text.length, textPreview: text.slice(0, 50), isCoordinatorChat: isPMChat };
     });
 
     // — 员工操作 —
@@ -194,8 +195,8 @@
     _wrapFn('closeRightPanel', 'panel', 'close-right-panel');
     _wrapFn('openEmployeeChat', 'panel', 'open-employee-chat', (empId, taskId) => ({ empId, taskId }));
 
-    // — 总群 & 委派 —
-    _wrapFn('sendGroupMessage', 'group-chat', 'send-message', (text) => ({
+    // — PM 委派 —
+    _wrapFn('sendGroupMessage', 'pm-delegation', 'send-message', (text) => ({
       textLen: text?.length, textPreview: (text || '').slice(0, 50),
     }));
     _wrapFn('_dispatchTaskToEmployee', 'delegation', 'dispatch', (empName, taskContent, taskId, opts) => ({

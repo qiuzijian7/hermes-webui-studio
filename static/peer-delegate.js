@@ -2,7 +2,7 @@
  * peer-delegate.js — 员工间任务分派（Peer-to-Peer Delegation）
  *
  * 场景：员工 A 在自己的聊天框里 @员工B 请 B 执行某任务。
- *   - B 立刻调用模型执行（复用总群的派发基础设施：队列、独立 session、SSE）
+ *   - B 立刻调用模型执行（复用PM的派发基础设施：队列、独立 session、SSE）
  *   - B 的思考过程、工具调用、输出在 B 的聊天框里显示（_tryAttachLiveStreamToRpPanel）
  *   - B 完成后，结果以"来自 @B 的任务 #xxx 执行结果"的形式回传 A 的聊天框
  *   - A 收到后由模型评估，决定是否继续迭代（正常的 agent loop）
@@ -107,8 +107,8 @@ ${result}
       //   - 再调 _attachLiveStreamToChat 接入 SSE 实时渲染 A 的回复
       const aIsActive = typeof EMPLOYEE_STORE !== 'undefined'
         && EMPLOYEE_STORE.selectedId === fromEmp.id
-        && (!window._rpView || window._rpView === 'chat')
-        && !(typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen);
+        && (!window._rpView || window._rpView === 'chat');
+      // REMOVED: GROUP_CHAT_STATE.isOpen check — 总群概念已移除
 
       let rpAttached = false;
       if (aIsActive && typeof S !== 'undefined' && S.messages
@@ -233,6 +233,7 @@ ${result}
     console.log('[peer-delegate] 发起 peer 派发', fromEmp.name, '→', toEmp.name, 'taskId=', taskId);
 
     // 在 A 的聊天框里本地 echo 一条"我委派给 B"的系统提示，便于用户理解
+    // ★ 同时持久化到 A 的后端 session，确保切换员工后消息不丢失
     try {
       if (typeof S !== 'undefined' && S.messages && fromEmp.sessionId === (S.session && S.session.session_id)) {
         S.messages.push({
@@ -244,6 +245,14 @@ ${result}
         });
         if (typeof _renderRpMessages === 'function') _renderRpMessages();
         else if (typeof renderMessages === 'function') renderMessages();
+        // ★ 持久化到后端 session（防止切换员工后消息消失）
+        if (fromEmp.sessionId && typeof api === 'function') {
+          try {
+            if (typeof _addPMSessionMessage === 'function') {
+              await _addPMSessionMessage(`🔗 已委派任务 #${taskId} 给 @${toEmp.name}，等待其结果后继续…`, '系统');
+            }
+          } catch(_) {}
+        }
       }
     } catch(_){}
 

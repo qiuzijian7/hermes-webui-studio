@@ -8,6 +8,7 @@ translating AG-UI events into Hermes internal SSE events
 API docs: https://knot.woa.com/apigw/api/v1/agents/agui/{agent_id}
 """
 import json
+import re
 import time
 
 import requests
@@ -218,6 +219,11 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
     # Track active tool calls for incremental args
     _active_tool_calls = {}  # tool_call_id → {name, args_buffer}
     _debug_log = []  # ★ 调试日志缓冲
+    # ★ 追踪完整的 tool_calls 和 tool result，用于保存结构化消息到 session
+    #   这样 done 后 _renderRpMessages 可以渲染思考过程和工具调用卡片
+    _completed_tool_calls = []  # [{id, name, args_str, result}]
+    _assistant_iterations = []  # [{reasoning, text, tool_calls}] — 每次 step 的完整迭代
+    _removed_tool_call_ids = set()  # ★ 被 remove-tool 事件标记移除的 tool_call_id
 
     try:
         _line_count = 0
@@ -312,9 +318,18 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
                 # ★★★ 如果 raw_event 中没有 content，尝试从顶层 delta 字段获取
                 if not text:
                     text = msg.get("delta", "")
+                # ★ 过滤空外观 token：某些 provider/模型（如 GLM）在 tool_calls 前发送
+                #   content="{}" / "{" / "}" / "[]" / '""' 等，不应推送到前端
+                if text and re.match(r'^[\s{}\[\]"]+$', text.strip()):
+                    _debug_log.append(f'  >>> TEXT_MESSAGE_CONTENT filtered empty-like: {repr(text)}')
+                    text = ""
                 _debug_log.append(f'  >>> TEXT_MESSAGE_CONTENT matched! text={repr(text[:100])} full_text_len={len(full_text)}')
                 if text:
                     full_text += text
+                    # ★ 追踪到当前迭代（若无迭代则自动创建——兼容无 StepStarted 事件的情况）
+                    if not _assistant_iterations:
+                        _assistant_iterations.append({'reasoning': '', 'text': '', 'tool_calls': []})
+                    _assistant_iterations[-1]['text'] += text
                     put('token', {'text': text})
 
             elif _evt("TextMessageEnd", "TEXT_MESSAGE_END"):
@@ -335,9 +350,17 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
                 # ★★★ 如果 raw_event 中没有 content，尝试从顶层 delta 字段获取
                 if not text:
                     text = msg.get("delta", "")
+                # ★ 过滤空外观 token（同 TEXT_MESSAGE_CONTENT 逻辑）
+                if text and re.match(r'^[\s{}\[\]"]+$', text.strip()):
+                    _debug_log.append(f'  >>> THINKING_TEXT_MESSAGE_CONTENT filtered empty-like: {repr(text)}')
+                    text = ""
                 _debug_log.append(f'  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text={repr(text[:100])} full_reasoning_len={len(full_reasoning)}')
                 if text:
                     full_reasoning += text
+                    # ★ 追踪到当前迭代（若无迭代则自动创建——兼容无 StepStarted 事件的情况）
+                    if not _assistant_iterations:
+                        _assistant_iterations.append({'reasoning': '', 'text': '', 'tool_calls': []})
+                    _assistant_iterations[-1]['reasoning'] += text
                     put('reasoning', {'text': text})
 
             elif _evt("ThinkingTextMessageEnd", "THINKING_TEXT_MESSAGE_END"):
@@ -356,6 +379,14 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
                     'name': tool_name,
                     'args_buffer': args_str or "",
                 }
+                # ★ 追踪到当前迭代的 tool_calls
+                if not _assistant_iterations:
+                    _assistant_iterations.append({'reasoning': '', 'text': '', 'tool_calls': []})
+                _assistant_iterations[-1]['tool_calls'].append({
+                    'id': tool_call_id,
+                    'name': tool_name,
+                    'args': raw_event.get("args", {}),
+                })
                 put('tool', {
                     'name': tool_name,
                     'preview': '[AG-UI Tool] ' + tool_name,
@@ -377,6 +408,20 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
             elif _evt("ToolCallEnd", "TOOL_CALL_END"):
                 tool_call_id = raw_event.get("tool_call_id", "")
                 tc_info = _active_tool_calls.pop(tool_call_id, {})
+                # ★ 记录完整的 tool call（供保存到 session messages 使用）
+                _completed_tool_calls.append({
+                    'id': tool_call_id,
+                    'name': tc_info.get('name', 'unknown_tool'),
+                    'args_str': tc_info.get('args_buffer', ''),
+                })
+                # ★ 更新迭代追踪中的 args（用完整累积的 args 替换初始值）
+                for _iter in _assistant_iterations:
+                    for _tc in _iter.get('tool_calls', []):
+                        if _tc.get('id') == tool_call_id:
+                            try:
+                                _tc['args'] = json.loads(tc_info.get('args_buffer', '{}'))
+                            except Exception:
+                                _tc['args'] = tc_info.get('args_buffer', {})
                 put('tool_end', {
                     'tool_call_id': tool_call_id,
                     'name': tc_info.get('name', ''),
@@ -384,10 +429,23 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
                 })
 
             elif _evt("ToolCallResult", "TOOL_CALL_RESULT"):
-                put('tool_result', {
-                    'tool_call_id': raw_event.get("tool_call_id", ""),
-                    'result': raw_event.get("result", ""),
-                })
+                tool_call_id = raw_event.get("tool_call_id", "")
+                result = raw_event.get("result", "")
+                # ★ 关联 tool result 到对应的 tool call
+                for tc in _completed_tool_calls:
+                    if tc['id'] == tool_call_id:
+                        tc['result'] = result
+                        break
+                # ★ 过滤空外观的 tool_result（如 "{}" / "[]" / '""'），
+                #   避免前端在 tool card 下方显示孤立的 "{}" 文本
+                _rs_str = result if isinstance(result, str) else json.dumps(result)
+                if not _rs_str or re.match(r'^[\s{}\[\]"]+$', _rs_str.strip()):
+                    _debug_log.append(f'  >>> TOOL_CALL_RESULT filtered empty-like: {repr(result)}')
+                else:
+                    put('tool_result', {
+                        'tool_call_id': tool_call_id,
+                        'result': result,
+                    })
 
             # ── 1.3 Status sync: RunError ──────────────────────────────────
             elif _evt("RunError", "RUN_ERROR"):
@@ -406,6 +464,10 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
             # ── 1.4 Step lifecycle events ──────────────────────────────────
             elif _evt("StepStarted", "STEP_STARTED"):
                 step_name = raw_event.get("step_name", "")
+                # ★ AG-UI 迭代边界：call_llm step → 新迭代开始
+                #   execute_tool step 属于当前迭代（不新建）
+                if step_name == 'call_llm':
+                    _assistant_iterations.append({'reasoning': '', 'text': '', 'tool_calls': []})
                 put('step_started', {
                     'step_name': step_name,
                     'message_id': raw_event.get("message_id", ""),
@@ -439,8 +501,14 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
 
             # ── 1.6 Custom events (e.g. remove-tool) ─────────────────────
             elif _evt("Custom", "CUSTOM"):
-                # Knot 特有的自定义事件（如 remove-tool），忽略即可
-                pass
+                # ★ Knot 特有的自定义事件：remove-tool 表示平台决定移除某个 tool call
+                #   被 remove 的 tool call 不应出现在最终保存的 assistant 消息中
+                _custom_type = raw_event.get("type", "") if isinstance(raw_event, dict) else ""
+                if _custom_type == "remove-tool":
+                    _removed_tc_id = raw_event.get("tool_call_id", "")
+                    if _removed_tc_id:
+                        _removed_tool_call_ids.add(_removed_tc_id)
+                        _debug_log.append(f'remove-tool: {_removed_tc_id}')
 
             # ★ 未匹配的事件类型，记录到调试日志
             if not _matched:
@@ -483,24 +551,113 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
         except Exception:
             pass
 
-    # Save assistant message to session
+    # ★★★ 保存结构化消息到 session（含 tool_calls、reasoning、tool result）★★★
+    #   旧实现只保存了扁平的 assistant content 字符串，导致 _renderRpMessages
+    #   无法渲染思考卡片和工具调用卡片——刷新后全部消失。
+    #   新实现按 AG-UI 协议逐迭代保存：
+    #     - 有 tool_calls 的迭代 → assistant msg（含 tool_calls）+ tool result msgs
+    #     - 纯文本迭代 → assistant msg（含 reasoning 和 content）
     try:
         from api.models import get_session
         s = get_session(session_id)
         if s:
-            assistant_content = full_text
-            if full_reasoning and full_text:
-                assistant_content = full_reasoning + "\n\n" + full_text
-            elif full_reasoning:
-                assistant_content = full_reasoning
-            s.messages.append({
-                'role': 'assistant',
-                'content': assistant_content,
-                '_ts': time.time(),
-            })
+            _now = time.time()
+            # ★★★ 调试日志：记录迭代追踪数据
+            print(f'[knot-agui] SAVE: iterations={len(_assistant_iterations)} completed_tcs={len(_completed_tool_calls)} full_text_len={len(full_text)} full_reasoning_len={len(full_reasoning)}', flush=True)
+            for _iidx, _iter in enumerate(_assistant_iterations):
+                _reasoning = _iter.get('reasoning', '').strip()
+                _text = _iter.get('text', '').strip()
+                _tcs = _iter.get('tool_calls', [])
+                print(f'[knot-agui] SAVE: iter[{_iidx}] reasoning_len={len(_reasoning)} text_len={len(_text)} tcs={len(_tcs)}', flush=True)
+            # ★ 将每个迭代保存为结构化的 assistant + tool 消息
+            for _iter in _assistant_iterations:
+                _reasoning = _iter.get('reasoning', '').strip()
+                _text = _iter.get('text', '').strip()
+                # ★ 过滤空外观文本（只由括号/引号/空白组成）
+                if _text and re.match(r'^[\s{}\[\]"]+$', _text):
+                    _text = ''
+                # ★ 过滤掉被 remove-tool 标记移除的 tool calls
+                _tcs = [tc for tc in _iter.get('tool_calls', [])
+                        if tc.get('id', '') not in _removed_tool_call_ids]
+                if not _reasoning and not _text and not _tcs:
+                    continue
+                # 构建 assistant 消息
+                _asst_msg = {
+                    'role': 'assistant',
+                    'content': _text or '',
+                    '_ts': _now,
+                }
+                if _reasoning:
+                    _asst_msg['reasoning'] = _reasoning
+                # ★ OpenAI 格式的 tool_calls
+                if _tcs:
+                    _asst_msg['tool_calls'] = []
+                    for _tc in _tcs:
+                        _args_val = _tc.get('args', {})
+                        if isinstance(_args_val, str):
+                            try:
+                                _args_val = json.loads(_args_val)
+                            except Exception:
+                                _args_val = {'raw': _args_val}
+                        _asst_msg['tool_calls'].append({
+                            'id': _tc.get('id', ''),
+                            'type': 'function',
+                            'function': {
+                                'name': _tc.get('name', 'unknown_tool'),
+                                'arguments': json.dumps(_args_val, ensure_ascii=False),
+                            },
+                        })
+                s.messages.append(_asst_msg)
+                # ★ 保存 tool result 消息（配对到 tool_call_id）
+                for _tc in _tcs:
+                    _tcid = _tc.get('id', '')
+                    if not _tcid:
+                        continue
+                    _result = ''
+                    for _ctc in _completed_tool_calls:
+                        if _ctc['id'] == _tcid:
+                            _result = _ctc.get('result', '')
+                            break
+                    if not _result:
+                        _result = '(no result)'
+                    # 序列化非字符串结果
+                    if not isinstance(_result, str):
+                        try:
+                            _result = json.dumps(_result, ensure_ascii=False)
+                        except Exception:
+                            _result = str(_result)
+                    # 截断过长结果
+                    if len(_result) > 8000:
+                        _result = _result[:8000] + '...(truncated)'
+                    s.messages.append({
+                        'role': 'tool',
+                        'tool_call_id': _tcid,
+                        'content': str(_result),
+                        '_ts': _now,
+                    })
+            # ★ 兜底：如果没有追踪到迭代数据（如纯文本模型），保存传统格式
+            if not _assistant_iterations and (full_text or full_reasoning):
+                assistant_content = full_text
+                _msg = {
+                    'role': 'assistant',
+                    'content': assistant_content,
+                    '_ts': _now,
+                }
+                if full_reasoning:
+                    _msg['reasoning'] = full_reasoning
+                s.messages.append(_msg)
             s.save()
-    except Exception:
-        pass
+            # ★★★ 调试：保存后验证 s.messages 的结构
+            _saved_summary = []
+            for _sm in s.messages:
+                _sr = _sm.get('role', '?')
+                _sh_r = 'reasoning' in _sm and bool(_sm.get('reasoning'))
+                _sh_tc = 'tool_calls' in _sm and bool(_sm.get('tool_calls'))
+                _sc_len = len(str(_sm.get('content', '')))
+                _saved_summary.append(f'{_sr}(c={_sc_len},reasoning={_sh_r},tc={_sh_tc})')
+            print(f'[knot-agui] SAVE DONE: total msgs in session={len(s.messages)} summary=[{", ".join(_saved_summary)}]', flush=True)
+    except Exception as _save_err:
+        print(f'[knot-agui] SAVE EXCEPTION: {_save_err}', flush=True)
 
     # ★ 写入调试日志到文件
     try:
@@ -527,18 +684,42 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
         except:
             pass
 
-    # Send done event
+    # ★★★ Send done event with REAL session data (not empty arrays) ★★★
+    #   旧实现发送 messages:[] 和 tool_calls:[]，导致前端 _attachLiveStreamToChat
+    #   的 done handler Path 1 失败，Path 2 虽然能拿到 session 数据但消息不含
+    #   结构化 tool_calls/reasoning → _renderRpMessages 渲染不出思考/工具卡片。
+    _done_session = {
+        'session_id': session_id,
+        'messages': [],
+        'model': model,
+        'tool_calls': [],
+    }
+    try:
+        from api.models import get_session as _gs
+        _done_sess = _gs(session_id)
+        if _done_sess:
+            from api.helpers import redact_session_data
+            _raw = _done_sess.compact() | {'messages': _done_sess.messages, 'tool_calls': getattr(_done_sess, 'tool_calls', [])}
+            _done_session = redact_session_data(_raw)
+            # ★★★ 调试日志：记录 done event 中的 session 数据结构
+            _msg_summary = []
+            for _dm in _done_session.get('messages', []):
+                _r = _dm.get('role', '?')
+                _has_reasoning = 'reasoning' in _dm and bool(_dm.get('reasoning'))
+                _has_tc = 'tool_calls' in _dm and bool(_dm.get('tool_calls'))
+                _c_len = len(str(_dm.get('content', '')))
+                _msg_summary.append(f'{_r}(c={_c_len},reasoning={_has_reasoning},tc={_has_tc})')
+            print(f'[knot-agui] DONE session: sid={session_id} msgs={len(_done_session.get("messages",[]))} summary=[{", ".join(_msg_summary)}]', flush=True)
+        else:
+            print(f'[knot-agui] DONE session: get_session returned None for sid={session_id}', flush=True)
+    except Exception as _done_err:
+        print(f'[knot-agui] DONE session: exception={_done_err}', flush=True)
     usage = {
         'input_tokens': 0,
         'output_tokens': len(full_text),
     }
     put('done', {
-        'session': {
-            'session_id': session_id,
-            'messages': [],
-            'model': model,
-            'tool_calls': [],
-        },
+        'session': _done_session,
         'usage': usage,
         '_knot_conversation_id': received_conversation_id,
     })

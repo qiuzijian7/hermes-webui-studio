@@ -51,18 +51,19 @@ function _scrollMsgAreaToBottom() {
   if (!el) return;
   const snap = () => {
     if (!document.body.contains(el)) return;
-    try {
-      el.scrollTo({ top: el.scrollHeight, behavior: 'instant' });
-    } catch (_) {
-      el.scrollTop = el.scrollHeight;
-    }
+    // 使用 scrollTop 赋值比 scrollTo 更可靠（避免 behavior 冲突）
+    el.scrollTop = el.scrollHeight;
     _rpStickyState.sticky = true;
   };
+  // 立即执行一次（若 DOM 已就绪）
   snap();
+  // 多次延迟确保 DOM 渲染和布局计算完成
   requestAnimationFrame(snap);
-  setTimeout(snap, 60);
-  setTimeout(snap, 160);
-  setTimeout(snap, 320);
+  requestAnimationFrame(() => requestAnimationFrame(snap));
+  setTimeout(snap, 50);
+  setTimeout(snap, 150);
+  setTimeout(snap, 300);
+  setTimeout(snap, 600);
 }
 // 导出供 messages.js / group-chat.js 在用户发送消息后调用
 window._scrollMsgAreaToBottom = _scrollMsgAreaToBottom;
@@ -176,7 +177,7 @@ window._loadMoreHistory = _loadMoreHistory;
 /** 挂载滚动监听：用户滚到顶部 < _RP_NEAR_TOP_PX 时自动加载上一页。 */
 function _attachHistoryScrollListener(rerenderFn) {
   if (_rpWindow.scrollAttached) {
-    _rpWindow._activeRerender = rerenderFn; // 更新回调以指向当前视图（员工/总群）
+    _rpWindow._activeRerender = rerenderFn; // 更新回调以指向当前视图
     return;
   }
   const el = document.getElementById('rpMessages');
@@ -235,9 +236,8 @@ function _setRightPanelView(view) {
       titleEl.textContent = hasEmployees ? '选择一位员工开始对话' : '还没有员工可对话';
     }
     if (hintEl) {
-      const _pmName = typeof PM_NAME !== 'undefined' ? PM_NAME : 'PM专员';
       hintEl.textContent = hasEmployees
-        ? `在画布上点击员工卡片，或点击顶部"${_pmName}"进入群聊`
+        ? `在画布上点击员工卡片，或点击顶部"PM"开始对话`
         : '点击右上角"添加员工"创建你的第一个 AI 助手';
     }
   }
@@ -296,9 +296,8 @@ function closeRightPanel() {
   EMPLOYEE_STORE.selectedId = null;
   localStorage.removeItem('hermes-webui-selected-employee');
   document.querySelectorAll('.emp-card').forEach(c => c.classList.remove('emp-selected'));
-  // 关闭总群模式
-  if (typeof GROUP_CHAT_STATE !== 'undefined') GROUP_CHAT_STATE.isOpen = false;
-  // 恢复总群隐藏的头部按钮
+  // PM模式已移除独立面板（PM聊天 = PM 员工聊天框）
+  // 恢复头部按钮
   const btnEditPrompt = $('btnEditPrompt');
   if (btnEditPrompt) btnEditPrompt.style.display = '';
   const btnCondense = $('btnCondenseSkill');
@@ -333,19 +332,8 @@ async function openEmployeeChat(empId, taskId) {
     try { dockFocusPanel('chat'); } catch (_) {}
   }
 
-  // ★ 用户显式点击员工卡片 / 调用 openEmployeeChat 时：关闭总群模式
-  //   原先这里为"防竞态"直接 return，但会导致"切换总群↔员工"时员工聊天无法刷新。
-  //   改为：显式关闭总群 + 停总群轮询 + 继续走员工聊天流程。
-  //   注意：不在这里清空 rpMsgInner —— 下面 _renderRpMessages 自己会清并重绘，
-  //         提前清空会在 await 卡顿时造成"长时间空白"的视觉感。
-  if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) {
-    console.log('[openEmployeeChat] 关闭总群模式，切换到员工聊天:', emp.name);
-    GROUP_CHAT_STATE.isOpen = false;
-    // 停止总群轮询（若存在）
-    if (typeof _stopGroupChatPolling === 'function') {
-      try { _stopGroupChatPolling(); } catch (_) {}
-    }
-  }
+  // 用户显式点击员工卡片 / 调用 openEmployeeChat 时：继续走员工聊天流程
+  // REMOVED: 总群模式关闭逻辑 — 总群概念已移除
 
   // ★★★ 合并加载该员工所有委派任务的 session 消息 + 主 session 消息
   //   无论是否指定 taskId，都加载主 session + 所有已完成委派任务的 session，合并显示
@@ -406,11 +394,7 @@ async function openEmployeeChat(empId, taskId) {
         model: emp.model || $('modelSelect')?.value || '',
         workspace: currentWs || undefined,
       }) });
-      // ★ 异步完成后再次检查总群状态（防止竞态条件）
-      if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) {
-        console.log('[openEmployeeChat] 异步创建会话完成，但总群已打开，跳过渲染');
-        return;
-      }
+      // 异步完成后继续渲染（总群概念已移除，无需竞态检查）
       if (data.session) {
         emp.sessionId = data.session.session_id;
         _saveEmployees();
@@ -434,10 +418,22 @@ async function openEmployeeChat(empId, taskId) {
     // ★ 加载主 session + 异步合并所有委派任务 session 的消息
     try {
       const data = await api(`/api/session?session_id=${encodeURIComponent(targetSessionId)}`);
-      if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) return;
+      // 总群概念已移除，无需竞态检查
       if (data.session) {
         S.session = data.session;
         S.messages = data.session.messages || [];
+        // ★★★ 2026-04-30 诊断日志：切换员工后后端返回的消息摘要
+        try {
+          const _bkSummary = (data.session.messages || []).map((m, idx) => {
+            const _r = m.role || '?';
+            const _hasR = !!(m.reasoning);
+            const _hasTc = !!(m.tool_calls && m.tool_calls.length);
+            const _tcid = m.tool_call_id ? `,tcid=${String(m.tool_call_id).slice(0, 10)}` : '';
+            const _cLen = String(m.content || '').length;
+            return `#${idx}:${_r}(c=${_cLen}${_hasR?',r':''}${_hasTc?`,tc=${m.tool_calls.length}`:''}${_tcid})`;
+          });
+          console.log('[openEmployeeChat] ★ 后端返回 messages count=', (data.session.messages||[]).length, 'summary=', _bkSummary);
+        } catch(_) {}
         // 同步模型/token 信息
         if (data.session.model && data.session.model !== emp.model) {
           emp.model = data.session.model;
@@ -468,7 +464,7 @@ async function openEmployeeChat(empId, taskId) {
     // ★ 异步加载该员工所有委派任务的 session 消息，追加到 S.messages
     await _loadAllDelegatedTaskMessages(emp);
 
-    // ★ 2026-04-27 方案 C 兜底：扫描 S.messages 中所有 [总群委派任务 #task-xxx] 前缀的
+    // ★ 2026-04-27 方案 C 兜底：扫描 S.messages 中所有 [PM 委派任务 #task-xxx] 前缀的
     //   user 消息，为每个 taskId 在该消息之前插入 _taskDivider 分隔符。
     //   方案 C 下 task.sessionId === emp.sessionId，所有委派消息都在主 session 里，
     //   _loadAllDelegatedTaskMessages 的 `task.sessionId !== emp.sessionId` 守卫会
@@ -477,8 +473,13 @@ async function openEmployeeChat(empId, taskId) {
     //   （dispatch 失败/中断所致），前端补渲 ghost 消息，避免"点了链接啥也看不到"。
     _ensureDelegationDividersForMainSession(emp);
 
-    // 切换员工/打开聊天：重置渲染窗口到"最近一页"，避免一次性渲染全部历史造成卡顿
-    _resetRenderWindow('employee', S.session?.session_id || emp.id);
+    // REMOVED: 总群消息合并逻辑 — 总群概念已移除，委派消息直接存储在 PM session 中
+    // 不再需要从 GROUP_CHAT_STATE 合并消息
+
+    // ★ 每次打开员工面板都重置渲染窗口，自动滚动到最新消息
+    // _resetRenderWindow 设置 startIdx=-1，_renderRpMessages 内部 _computeWindowStart 会自动计算正确位置
+    const _newKey = (S.session && S.session.session_id) || emp.id || '';
+    _resetRenderWindow('employee', _newKey);
     _renderRpMessages();
     // 切换员工/打开聊天：强制滚到底（看到最新消息），并重置粘底标记
     _scrollMsgAreaToBottom();
@@ -599,14 +600,24 @@ async function openEmployeeChat(empId, taskId) {
     'S.messages.length=', S.messages?.length, 'emp._activeTaskId=', emp._activeTaskId);
 
   if (activeTask && (activeTask.status === 'pending' || activeTask.status === 'running')) {
-    // ★ 先添加任务分隔标记（如果还没有）
-    const taskPrefix = `[总群委派任务 #${activeTask.id}]`;
+    // ★ 顺序：先 push 任务 user 消息，再 push divider（divider 显示在任务消息之后）
+    const taskPrefix = `[PM 委派任务 #${activeTask.id}]`;
     const hasDivider = S.messages.some(m =>
       m._taskDivider && m._taskId === activeTask.id
     );
+    // 先追加任务 user 消息（如果 session 消息中还没有）
+    const hasTaskMsg = S.messages.some(m =>
+      m.role === 'user' && String(m.content || '').includes(taskPrefix)
+    );
+    if (!hasTaskMsg && activeTask.taskContent) {
+      const taskMsg = { role: 'user', content: activeTask.taskContent, _ts: Date.now() / 1000, _taskId: activeTask.id };
+      S.messages.push(taskMsg);
+      console.log('[openEmployeeChat] 已手动追加 taskContent user 消息 for', activeTask.id);
+    }
+    // 再追加 divider（如果还没有）
     if (!hasDivider) {
       const activeLabelRaw = activeTask.taskContent
-        ? activeTask.taskContent.replace(/^\[总群委派任务 #[^\]]+\]\s*/, '').split('\n').find(l => l.trim() && !l.startsWith('---') && !l.startsWith('⚠️')) || ''
+        ? activeTask.taskContent.replace(/^\[PM 委派任务 #[^\]]+\]\s*/, '').split('\n').find(l => l.trim() && !l.startsWith('---') && !l.startsWith('⚠️')) || ''
         : '';
       const activeLabelShort = activeLabelRaw.length > 60 ? activeLabelRaw.slice(0, 60) + '…' : activeLabelRaw;
       S.messages.push({
@@ -619,15 +630,6 @@ async function openEmployeeChat(empId, taskId) {
         _ts: activeTask.createdAt / 1000,
       });
       console.log('[openEmployeeChat] 已添加 _taskDivider for', activeTask.id);
-    }
-    // 如果 session 消息中没有这条委派消息（后端可能还没持久化），前端侧手动追加
-    const hasTaskMsg = S.messages.some(m =>
-      m.role === 'user' && String(m.content || '').includes(taskPrefix)
-    );
-    if (!hasTaskMsg && activeTask.taskContent) {
-      const taskMsg = { role: 'user', content: activeTask.taskContent, _ts: Date.now() / 1000, _taskId: activeTask.id };
-      S.messages.push(taskMsg);
-      console.log('[openEmployeeChat] 已手动追加 taskContent user 消息 for', activeTask.id);
     }
     console.log('[openEmployeeChat] 渲染 active 任务, streamId=', activeTask.streamId, hasDivider ? '(divider已存在)' : '(新增divider)', hasTaskMsg ? '(taskMsg已存在)' : '(新增taskMsg)');
     _renderRpMessages();
@@ -724,26 +726,58 @@ async function _loadAllDelegatedTaskMessages(emp) {
   // 按创建时间排序（先完成的排在前面）
   loadableTasks.sort((a, b) => a.createdAt - b.createdAt);
 
-  // 异步加载每个任务的 session 消息
+  // ★★★ 2026-04-30 修复: 外部任务消息应"前置"到 S.messages，而不是追加
+  //     理由: 外部任务代表更早的历史（独立 session），主 session 是当前"活跃"数据。
+  //     如果追加到末尾，渲染窗口 slice(-30) 会落到外部任务尾部，
+  //     丢失主 session 尾部的思考/工具卡 —— 这正是"切换员工后再切回，
+  //     思考过程和工具调用消失"的根因。
+  //     同时也与 _mergeDoneSessionPreservingForeignTasks (foreignMsgs 前置)
+  //     保持一致的顺序语义。
+  const _foreignBlock = [];  // 收集所有外部任务消息（暂存，最后统一前置）
   for (const task of loadableTasks) {
     try {
       const data = await api(`/api/session?session_id=${encodeURIComponent(task.sessionId)}`);
       if (!data.session || !data.session.messages) continue;
 
       const taskMsgs = data.session.messages;
-      // 检查是否已有该任务的消息（避免重复）
-      const taskPrefix = `[总群委派任务 #${task.id}]`;
-      const alreadyHas = S.messages.some(m =>
+      // 检查 S.messages 或 _foreignBlock 是否已有该任务的消息（避免重复）
+      const taskPrefix = `[PM 委派任务 #${task.id}]`;
+      const _hasInMain = S.messages.some(m =>
         m.role === 'user' && String(m.content || '').includes(taskPrefix)
       );
-      if (alreadyHas) continue;
+      const _hasInForeign = _foreignBlock.some(m =>
+        m.role === 'user' && String(m.content || '').includes(taskPrefix)
+      );
+      if (_hasInMain || _hasInForeign) continue;
 
-      // ★ 插入任务分隔标记消息
+      // ★ 顺序：先 push [PM 委派任务 #xxx] user 消息，再 push divider，最后 push 其他消息
+      //   最终顺序：[PM 委派任务 ...] user → 📋 委派任务 divider → assistant/tool 消息
       const taskLabelRaw = task.taskContent
-        ? task.taskContent.replace(/^\[总群委派任务 #[^\]]+\]\s*/, '').split('\n').find(l => l.trim() && !l.startsWith('---') && !l.startsWith('⚠️')) || ''
+        ? task.taskContent.replace(/^\[PM 委派任务 #[^\]]+\]\s*/, '').split('\n').find(l => l.trim() && !l.startsWith('---') && !l.startsWith('⚠️')) || ''
         : '';
       const taskLabelShort = taskLabelRaw.length > 60 ? taskLabelRaw.slice(0, 60) + '…' : taskLabelRaw;
-      S.messages.push({
+
+      // 先把 [PM 委派任务 #xxx] 开头的 user 消息挑出来 push 在前
+      const otherMsgs = [];
+      for (const m of taskMsgs) {
+        if (m.role === 'system') continue;  // 跳过 system 消息
+        const _c = typeof m.content === 'string' ? m.content : '';
+        if (m.role === 'user' && _c.startsWith(`[PM 委派任务 #${task.id}]`)) {
+          // 防御重复
+          const _mc = _c.trim();
+          const _mr = String(m.reasoning || '').trim();
+          const _exists = _foreignBlock.some(sm =>
+            sm._taskId === task.id && sm.role === m.role &&
+            String(sm.content || '').trim() === _mc &&
+            String(sm.reasoning || '').trim() === _mr
+          );
+          if (!_exists) _foreignBlock.push({ ...m, _taskId: task.id });
+        } else {
+          otherMsgs.push(m);
+        }
+      }
+      // 然后 push divider
+      _foreignBlock.push({
         role: 'system',
         content: `📋 委派任务 #${task.id}`,
         _taskDivider: true,
@@ -753,15 +787,12 @@ async function _loadAllDelegatedTaskMessages(emp) {
         _ts: task.createdAt / 1000,
       });
 
-      // 追加任务 session 的消息（保留 tool 消息用于配对）
-      for (const m of taskMsgs) {
-        // 跳过 system 消息（避免与主 session 的 system 消息混淆）
-        if (m.role === 'system') continue;
-        // 防御重复：仅当 S.messages 中已存在"同 _taskId 且内容完全相同"的消息才跳过
-        // 之前的实现会跨 taskId 检查，导致用户在多个不同委派任务中发了相同问题时，后面的任务消息被错误吞掉
+      // 最后 push 其他（assistant / tool）消息
+      for (const m of otherMsgs) {
+        // 防御重复：同一批 _foreignBlock 内同 _taskId+content+reasoning 去重
         const _mc = String(m.content || '').trim();
         const _mr = String(m.reasoning || '').trim();
-        const _exists = S.messages.some(sm =>
+        const _exists = _foreignBlock.some(sm =>
           sm._taskId === task.id &&
           sm.role === m.role &&
           String(sm.content || '').trim() === _mc &&
@@ -769,16 +800,22 @@ async function _loadAllDelegatedTaskMessages(emp) {
         );
         if (_exists) continue;
         // 为消息打上 _taskId 标记，便于渲染时关联
-        S.messages.push({ ...m, _taskId: task.id });
+        _foreignBlock.push({ ...m, _taskId: task.id });
       }
     } catch (e) {
       console.warn('[openEmployeeChat] 加载委派任务 session 失败:', task.id, e);
     }
   }
+
+  // ★ 将外部任务消息统一前置到 S.messages（主 session 保持在末尾）
+  if (_foreignBlock.length > 0) {
+    console.log('[_loadAllDelegatedTaskMessages] 前置', _foreignBlock.length, '条外部任务消息到 S.messages 头部');
+    S.messages = _foreignBlock.concat(S.messages);
+  }
 }
 
 /**
- * ★ 2026-04-27 方案 C 兜底：扫描 S.messages 中所有带 "[总群委派任务 #task-xxx]"
+ * ★ 2026-04-27 方案 C 兜底：扫描 S.messages 中所有带 "[PM 委派任务 #task-xxx]"
  * 前缀的 user 消息，为每一个 taskId（且尚未插入 divider 的）在该消息之前插入
  * 一条 _taskDivider 分隔消息。
  *
@@ -791,7 +828,7 @@ async function _loadAllDelegatedTaskMessages(emp) {
  *
  * 策略：不改原有函数（保留它对"独立 session"路径的处理），在主 session 消息
  * 加载后单独做一次"基于文本的"分隔符兜底补渲：
- *   1. 遍历 S.messages，匹配 role=user 且 content 以 "[总群委派任务 #task-xxx]"
+ *   1. 遍历 S.messages，匹配 role=user 且 content 以 "[PM 委派任务 #task-xxx]"
  *      开头的消息，抽出 taskId；
  *   2. 若 S.messages 中尚无 _taskDivider && _taskId===taskId，则构造一条
  *      divider 消息并插入到该 user 消息之前；
@@ -804,7 +841,7 @@ async function _loadAllDelegatedTaskMessages(emp) {
 /**
  * ★ 2026-04-27 方案 C 兜底：为方案 C 下（task.sessionId===emp.sessionId）的
  * 委派任务补渲"分隔符"，并处理 ghost task（任务登记在 localStorage 但后端
- * session 里找不到对应的 "[总群委派任务 #xxx] ..." 用户消息）。
+ * session 里找不到对应的 "[PM 委派任务 #xxx] ..." 用户消息）。
  *
  * 背景：
  *   A) 方案 C 下，_loadAllDelegatedTaskMessages 的 `task.sessionId !== emp.sessionId`
@@ -818,7 +855,7 @@ async function _loadAllDelegatedTaskMessages(emp) {
  *      链接跳到员工聊天，**什么都看不到**，以为系统"吞"了任务。
  *
  * 策略（两阶段）：
- *   Phase 1：扫描 S.messages，为所有带 "[总群委派任务 #task-xxx]" 前缀的 user
+ *   Phase 1：扫描 S.messages，为所有带 "[PM 委派任务 #task-xxx]" 前缀的 user
  *            消息补插 _taskDivider（taskStatus 从 DelegationVM/持久化映射读）。
  *   Phase 2：遍历 localStorage 持久化映射，找该员工的 task；若 Phase 1 没覆盖
  *            到（即 S.messages 里没有该任务的用户消息），则前端主动追加一条
@@ -830,6 +867,91 @@ async function _loadAllDelegatedTaskMessages(emp) {
  *   @param {object} [emp] 当前员工对象；用于 Phase 2 过滤该员工的任务。
  *                         不传时跳过 Phase 2（保持向后兼容）。
  */
+/**
+ * ★ 2026-04-30 修复：done 事件"历史任务消息丢失"bug
+ *
+ * 背景：员工主 session（emp.sessionId）上跑完一个委派任务 done 后，
+ *   后端返回的 doneSession.messages 只包含主 session 的消息。
+ *   但打开员工聊天框时，`_loadDelegationTaskMessages` 可能已经把
+ *   "其他独立 session（task.sessionId !== emp.sessionId）的历史任务消息"
+ *   注入到 S.messages（带 _taskId = 其他 tid 标记）。
+ *   若直接 S.messages = doneSession.messages 会把这些历史数据冲掉，
+ *   用户会看到"思考过程和工具调用都消失"。
+ *
+ * 策略：从旧 S.messages 中提取所有"外部任务"消息（_taskId 存在 且 != currentTaskId
+ *   且 taskId 不是 task-xxx 格式（说明是独立 session 加载来的历史），或 _taskId
+ *   在 doneSession.messages 中找不到对应消息且不是 currentTaskId）；
+ *   以 doneSession.messages 为主干，将这些外部任务消息按原顺序插入合适位置。
+ *
+ * 为了简洁和鲁棒，本实现采用"分组合并"：
+ *   1) 把旧 S.messages 按"连续 _taskId 块"和"主干消息"分段
+ *   2) 主干以 doneSession.messages 替换
+ *   3) 外部任务块按其原始相对位置（相对于下一个主干 anchor）恢复到新数组
+ *
+ * 为了最小风险，这里用更简单的做法：
+ *   - foreignChunks = 旧 S.messages 中 _taskId 存在 且 _taskId != currentTaskId
+ *     且该 _taskId 的消息在 doneSession.messages 中不存在（按 _taskId 归属判断）
+ *   - 将 foreignChunks 追加到 doneSession.messages 之前（放到历史区），
+ *     由 _ensureDelegationDividersForMainSession 随后按 [PM 委派任务 #xxx] 前缀
+ *     补 divider。
+ *
+ * @param {Array} newMsgs     后端返回的 session.messages
+ * @param {string} currentTaskId  本次 done 的委派任务 id（task-xxx）
+ * @returns {Array} 合并后的新 S.messages
+ */
+function _mergeDoneSessionPreservingForeignTasks(newMsgs, currentTaskId) {
+  try {
+    if (!Array.isArray(newMsgs)) return Array.isArray(S.messages) ? S.messages : [];
+    const oldMsgs = Array.isArray(S.messages) ? S.messages : [];
+    if (oldMsgs.length === 0) return newMsgs.slice();
+
+    // 1) 收集 newMsgs 中出现过的 _taskId（仅 task-xxx 格式；无标记的视为主干）
+    //    以及通过消息内容前缀 [PM 委派任务 #task-xxx] 推断出的 taskId
+    const newTaskIds = new Set();
+    for (const m of newMsgs) {
+      if (!m) continue;
+      if (m._taskId) newTaskIds.add(m._taskId);
+      const c = typeof m.content === 'string' ? m.content : '';
+      const mm = c.match(/^\[PM 委派任务 #(task-[A-Za-z0-9_-]+)\]/);
+      if (mm) newTaskIds.add(mm[1]);
+    }
+
+    // 2) 从 oldMsgs 提取"外部任务消息"：
+    //    - 有 _taskId
+    //    - _taskId !== currentTaskId
+    //    - _taskId 不出现在 newTaskIds（即后端主 session 里没有，属于独立 session 加载的历史数据）
+    //    - 排除 _delegationLive/_delegationTool 这类临时占位（避免把已结束的 live 旧态复活）
+    //    ★ 注意：_taskDivider 消息（divider）必须保留，否则 _ensureDelegationDividers 会重复插入
+    const foreignMsgs = [];
+    for (const m of oldMsgs) {
+      if (!m) continue;
+      // ★ 保留 divider 消息（_taskDivider: true），不依赖 _taskId 过滤
+      if (m._taskDivider && m._taskId) {
+        foreignMsgs.push(m);
+        continue;
+      }
+      if (!m._taskId) continue;
+      if (m._taskId === currentTaskId) continue;
+      if (newTaskIds.has(m._taskId)) continue;
+      // 跳过 live 占位（会在下一轮任务中重建）
+      if (m._delegationLive) continue;
+      foreignMsgs.push(m);
+    }
+
+    if (foreignMsgs.length === 0) {
+      return newMsgs.slice();
+    }
+
+    console.log('[_mergeDoneSession] 保留', foreignMsgs.length, '条外部任务消息（独立 session 历史），currentTaskId=', currentTaskId);
+    // 3) 将外部任务消息前置（它们代表更早的历史），主 session 消息紧随其后
+    //    _ensureDelegationDividersForMainSession 会按 [PM 委派任务 #xxx] 前缀补 divider
+    return foreignMsgs.concat(newMsgs);
+  } catch (err) {
+    console.warn('[_mergeDoneSession] 合并失败，回退到直接替换:', err);
+    return Array.isArray(newMsgs) ? newMsgs.slice() : (S.messages || []);
+  }
+}
+
 function _ensureDelegationDividersForMainSession(emp) {
   if (typeof S === 'undefined' || !Array.isArray(S.messages)) return;
   console.log('[_ensureDelegationDividers] 开始, emp=', emp?.name, 'S.messages.length=', S.messages.length);
@@ -847,14 +969,13 @@ function _ensureDelegationDividersForMainSession(emp) {
     const m = S.messages[i];
     if (!m || m.role !== 'user') continue;
     const content = typeof m.content === 'string' ? m.content : '';
-    if (!content.startsWith('[总群委派任务')) continue;
-    const match = content.match(/^\[总群委派任务 #(task-[A-Za-z0-9_-]+)\]/);
+    if (!content.startsWith('[PM 委派任务')) continue;
+    const match = content.match(/^\[PM 委派任务 #(task-[A-Za-z0-9_-]+)\]/);
     if (!match) continue;
     const taskId = match[1];
     seenTaskIdsInMessages.add(taskId);
-    if (existingDividerIds.has(taskId)) continue;
-    existingDividerIds.add(taskId);  // 防御同一 taskId 多次出现
-    // 推断任务状态：优先内存 Map → 持久化映射 → 默认 done
+    // ★ 推断任务状态：优先内存 Map → 持久化映射 → 默认 done
+    //   （必须在 continue 之前执行，否则已存在 divider 拿不到最新 status）
     let status = 'done';
     try {
       if (typeof DelegationVM !== 'undefined') {
@@ -865,14 +986,34 @@ function _ensureDelegationDividersForMainSession(emp) {
         status = persistMap[taskId].status;
       }
     } catch (_) {}
+    // ★ 修复：已存在的 divider 也要更新状态（任务完成后 status 会从 running→done）
+    if (existingDividerIds.has(taskId)) {
+      // 查找并更新已有 divider 的状态
+      for (const m of S.messages) {
+        if (m && m._taskDivider && m._taskId === taskId) {
+          if (m._taskStatus !== status) {
+            console.log('[_ensureDelegationDividers] 更新 divider 状态:', taskId, m._taskStatus, '→', status);
+            m._taskStatus = status;
+          }
+          break;
+        }
+      }
+      continue;
+    }
+    existingDividerIds.add(taskId);  // 防御同一 taskId 多次出现
     // 抽任务短标签：去掉前缀行 + 跳过空行/样板行，取首条有效内容
     const labelRaw = content
-      .replace(/^\[总群委派任务 #[^\]]+\]\s*/, '')
+      .replace(/^\[PM 委派任务 #[^\]]+\]\s*/, '')
       .split('\n')
       .find(l => l.trim() && !l.startsWith('---') && !l.startsWith('⚠️')) || '';
     const labelShort = labelRaw.length > 60 ? labelRaw.slice(0, 60) + '…' : labelRaw;
     // 为该 user 消息打上 _taskId（若尚未有），便于渲染阶段定位
     if (!m._taskId) m._taskId = taskId;
+    // ★ 2026-05-01 修复：divider 的 _ts 必须严格继承对应 user 消息的时间戳（含 timestamp 兼容），
+    //   并加一个极小 epsilon 确保排序时紧跟 user 消息（_renderRpMessages 按 _ts 排序）。
+    //   否则 user 消息只有 timestamp 而无 _ts 时，divider 会 fallback 到 Date.now()/1000，
+    //   导致所有历史 divider 聚集到消息末尾（14 条 divider 堆积的根因）。
+    const _userTs = Number(m._ts) || Number(m.timestamp) || (Date.now() / 1000);
     const divider = {
       role: 'system',
       content: `📋 委派任务 #${taskId}`,
@@ -880,14 +1021,16 @@ function _ensureDelegationDividersForMainSession(emp) {
       _taskId: taskId,
       _taskStatus: status,
       _taskLabel: labelShort,
-      _ts: m._ts || (Date.now() / 1000),
+      _ts: _userTs + 0.001,
     };
     inserts.push({ idx: i, divider });
   }
   // 逆序插入保持原索引有效
+  // ★ divider 插在任务 user 消息**之后**（idx+1），
+  //   顺序为：你的原话 → [PM 委派任务 #xxx] 消息 → 📋 委派任务(状态)
   for (let k = inserts.length - 1; k >= 0; k--) {
     const { idx, divider } = inserts[k];
-    S.messages.splice(idx, 0, divider);
+    S.messages.splice(idx + 1, 0, divider);
   }
   if (inserts.length > 0) {
     console.log('[_ensureDelegationDividers] Phase 1 插入', inserts.length, '条 divider, taskIds=', inserts.map(i=>i.divider._taskId));
@@ -922,11 +1065,21 @@ function _ensureDelegationDividersForMainSession(emp) {
     const taskContent = meta.taskContent || '';
     // 抽短标签
     const labelRaw = taskContent
-      .replace(/^\[总群委派任务 #[^\]]+\]\s*/, '')
+      .replace(/^\[PM 委派任务 #[^\]]+\]\s*/, '')
       .split('\n')
       .find(l => l.trim() && !l.startsWith('---') && !l.startsWith('⚠️')) || '';
     const labelShort = labelRaw.length > 60 ? labelRaw.slice(0, 60) + '…' : labelRaw;
-    // ★ 追加 ghost divider（带 _taskGhost 标记，渲染层据此加警示）
+    // ★ 先追加 ghost user 消息（任务原话），再追加 ghost divider（带 _taskGhost 标记），
+    //   顺序为：[PM 委派任务 #xxx] 消息 → 📋 委派任务(状态)
+    // ★ 2026-05-01 修复：divider _ts 需 +epsilon，确保按时间戳排序时紧跟 user 消息之后
+    const _ghostTs = Number(meta.createdAt || Date.now()) / 1000;
+    S.messages.push({
+      role: 'user',
+      content: taskContent,
+      _taskId: tid,
+      _taskGhost: true,
+      _ts: _ghostTs,
+    });
     S.messages.push({
       role: 'system',
       content: `📋 委派任务 #${tid}`,
@@ -935,15 +1088,7 @@ function _ensureDelegationDividersForMainSession(emp) {
       _taskStatus: status,
       _taskLabel: labelShort,
       _taskGhost: true,
-      _ts: Number(meta.createdAt || Date.now()) / 1000,
-    });
-    // 追加 ghost user 消息（带 _taskGhost + _taskId，便于去重 / 跳转定位）
-    S.messages.push({
-      role: 'user',
-      content: taskContent,
-      _taskId: tid,
-      _taskGhost: true,
-      _ts: Number(meta.createdAt || Date.now()) / 1000,
+      _ts: _ghostTs + 0.001,
     });
     existingDividerIds.add(tid);
   }
@@ -1010,7 +1155,7 @@ function _startDelegatedRunningTaskPolling(emp) {
   for (const rt of runningTasks) {
     let lastMsgCount = 0;
     let polls = 0;
-    const taskPrefix = `[总群委派任务 #${rt.id}]`;
+    const taskPrefix = `[PM 委派任务 #${rt.id}]`;
 
     const iv = setInterval(async () => {
       polls++;
@@ -1159,6 +1304,69 @@ function _showThinkingPlaceholder(emp, task) {
 }
 
 /**
+ * 固化 live stream 的 DOM 元素（降级路径，当后端 session 刷新失败时使用）。
+ * 将思考段折叠、活动文本段渲染最终内容、移除临时 ID。
+ */
+function _solidifyLiveElements(liveRow, assistantText) {
+  const liveBody = document.getElementById('rpLiveStreamBody');
+  const seg = document.getElementById('rpLiveTurnSegments');
+
+  // 固化思考段（去掉 live 标记，折叠）
+  if (seg) {
+    const thinkCard = seg.querySelector('.rp-live-thinking-card');
+    if (thinkCard) thinkCard.classList.remove('open', 'rp-live-thinking-card');
+  }
+
+  // ★ _isEmptyLike：某些 provider 在 tool_calls 前返回 content="{}" / "{" / "}" 等，
+  //   不应渲染为可见文本（否则在工具卡片间显示空大括号）
+  const _isEmptyLike = t => {
+    if (!t) return true;
+    const s = String(t).trim();
+    if (!s) return true;
+    if (/^[\s{}\[\]""]+$/.test(s)) return true;
+    return false;
+  };
+  const _stripEmptyLike = t => {
+    let s = String(t).trim();
+    if (/^[\s{}\[\]""]+$/.test(s)) return '';
+    return s;
+  };
+
+  if (liveBody) {
+    const rawDisplayText = typeof _stripThinkingTags === 'function'
+      ? _stripThinkingTags(assistantText.trim())
+      : assistantText.trim();
+    const displayText = _stripEmptyLike(rawDisplayText);
+    if (displayText && !_isEmptyLike(displayText)) {
+      liveBody.innerHTML = renderMd(displayText);
+      liveBody.removeAttribute('id');
+    } else {
+      const hasThinking = /<think[\s\S]*?<\/think>/.test(assistantText);
+      if (hasThinking) {
+        let thinkContent = '';
+        const thinkMatch = assistantText.match(/<think([\s\S]*?)<\/think>/);
+        if (thinkMatch) thinkContent = thinkMatch[1].trim();
+        liveBody.innerHTML = thinkContent ? renderMd(thinkContent) : '<span style="color:var(--muted)">（无回复）</span>';
+        liveBody.removeAttribute('id');
+      } else {
+        liveBody.remove();
+        if (seg && !seg.children.length) {
+          const ph = document.createElement('div');
+          ph.className = 'rp-msg-body rp-turn-text';
+          ph.innerHTML = '<span style="color:var(--muted)">（无回复）</span>';
+          seg.appendChild(ph);
+        }
+      }
+    }
+  }
+  if (liveRow) {
+    liveRow.removeAttribute('id');
+    const innerSeg = liveRow.querySelector('#rpLiveTurnSegments');
+    if (innerSeg) innerSeg.removeAttribute('id');
+  }
+}
+
+/**
  * 当用户从总群跳转到正在执行任务的员工聊天框时，
  * 接入已有的 SSE 流实时渲染 token 输出。
  * 方案 A：基于 task 对象，状态隔离
@@ -1169,8 +1377,12 @@ function _attachLiveStreamToChat(emp, task) {
   const streamId = task.streamId;
   const capturedTaskId = task.id;
 
-  // ★ 总群打开时不追加流式消息（防止覆盖总群内容）
-  if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) return;
+  // 接管 SSE 流时，停止该员工的后台轮询——轮询每 2s 调 _renderRpMessages()
+  //   会清空 inner.innerHTML 再从 S.messages 重绘，但 SSE 流的实时内容不在
+  //   S.messages 中，导致制作人聊天框"所有内容消失"。
+  if (typeof _stopDelegatedRunningTaskPolling === 'function') {
+    try { _stopDelegatedRunningTaskPolling(emp.id); } catch(_) {}
+  }
 
   const inner = $('rpMsgInner');
   if (!inner) return;
@@ -1285,50 +1497,45 @@ function _attachLiveStreamToChat(emp, task) {
         }
       }
 
-      // ★ 不替换 S.session / S.messages —— 同 done 事件处理逻辑
-      // 把活动文本段替换为最终回复
+      // ★ 方案 C 修复（v2）：同 done 事件逻辑，从后端刷新 S.messages
+      //   超时路径无 SSE event data，只能走 /api/session + 兜底固化
+      const _sid = (task && task.sessionId) || emp.sessionId;
       const liveRow = $('rpLiveTurnRow');
-      const liveBody = $('rpLiveStreamBody');
-      const seg = $('rpLiveTurnSegments');
-
-      // 固化思考段（去掉 live 标记，折叠）
-      if (seg) {
-        const thinkCard = seg.querySelector('.rp-live-thinking-card');
-        if (thinkCard) thinkCard.classList.remove('open', 'rp-live-thinking-card');
-      }
-
-      if (liveBody) {
-        const displayText = typeof _stripThinkingTags === 'function'
-          ? _stripThinkingTags(assistantText.trim())
-          : assistantText.trim();
-        if (displayText) {
-          liveBody.innerHTML = renderMd(displayText);
-          liveBody.removeAttribute('id');
-        } else {
-          // 如果剥离 thinking 后为空，但原始文本有内容（全是 thinking），则显示 thinking
-          const hasThinking = /<think>[\s\S]*?<\/think>/.test(assistantText);
-          if (hasThinking) {
-            let thinkContent = '';
-            const thinkMatch = assistantText.match(/<think>([\s\S]*?)<\/think>/);
-            if (thinkMatch) thinkContent = thinkMatch[1].trim();
-            liveBody.innerHTML = thinkContent ? renderMd(thinkContent) : '<span style="color:var(--muted)">（无回复）</span>';
-            liveBody.removeAttribute('id');
-          } else {
-            // 没有文本：移除占位 body；如果整个 turn 为空才提示"无回复"
-            liveBody.remove();
-            if (seg && !seg.children.length) {
-              const ph = document.createElement('div');
-              ph.className = 'rp-msg-body rp-turn-text';
-              ph.innerHTML = '<span style="color:var(--muted)">（无回复）</span>';
-              seg.appendChild(ph);
+      let _timeoutRefreshed = false;
+      if (_sid && S.session && S.session.session_id === _sid) {
+        try {
+          const sessData = await api(`/api/session?session_id=${encodeURIComponent(_sid)}`);
+          // ★★★ 修复：检查 messages 非空，防止清空已有消息
+          if (sessData && sessData.session && sessData.session.messages && sessData.session.messages.length > 0) {
+            S.session = sessData.session;
+            // ★ 2026-04-30 修复：合并保留外部任务消息
+            S.messages = _mergeDoneSessionPreservingForeignTasks(sessData.session.messages, capturedTaskId);
+            if (typeof _ensureDelegationDividersForMainSession === 'function') {
+              _ensureDelegationDividersForMainSession(emp);
             }
+            if (liveRow) liveRow.remove();
+            if (typeof _renderRpMessages === 'function') _renderRpMessages();
+            if (typeof _scrollMsgAreaToBottom === 'function') _scrollMsgAreaToBottom();
+            _timeoutRefreshed = true;
           }
+        } catch(e) {
+          console.warn('[超时轮询] /api/session 失败:', e);
         }
       }
-      if (liveRow) {
-        liveRow.removeAttribute('id');  // 移除临时 ID
-        const innerSegs = liveRow.querySelector('#rpLiveTurnSegments');
-        if (innerSegs) innerSegs.removeAttribute('id');
+      if (!_timeoutRefreshed) {
+        _solidifyLiveElements(liveRow, assistantText);
+        // ★ 兜底：将积累文本写入 S.messages
+        const _tpfx = `[PM 委派任务 #${capturedTaskId}]`;
+        const _hasAsst = S.messages.some(m => m.role === 'assistant' && m._taskId === capturedTaskId);
+        if (!_hasAsst && assistantText.trim()) {
+          const _dt = typeof _stripThinkingTags === 'function'
+            ? _stripThinkingTags(assistantText.trim()) : assistantText.trim();
+          if (_dt) {
+            S.messages.push({ role: 'assistant', content: _dt, _ts: Date.now() / 1000, _taskId: capturedTaskId });
+            if (typeof _renderRpMessages === 'function') _renderRpMessages();
+            if (typeof _scrollMsgAreaToBottom === 'function') _scrollMsgAreaToBottom();
+          }
+        }
       }
 
       // 回传结果到总群（传入闭包捕获的 taskId 避免丢失）
@@ -1399,10 +1606,33 @@ function _attachLiveStreamToChat(emp, task) {
       }
 
       // 文本段
+      // ★ _isEmptyLike：某些 provider 在 tool_calls 前返回 content="{}" / "{" / "}" 等，
+      //   不应渲染为可见文本（否则在工具卡片间显示空大括号）
+      const _isEmptyLike = t => {
+        if (!t) return true;
+        const s = String(t).trim();
+        if (!s) return true;
+        if (/^[\s{}\[\]""]+$/.test(s)) return true;
+        return false;
+      };
+      // ★ _stripEmptyLike：如果整个字符串只由括号/引号/空白组成则返回空，否则保留原始内容
+      const _stripEmptyLike = t => {
+        let s = String(t).trim();
+        if (/^[\s{}\[\]""]+$/.test(s)) return '';
+        return s;
+      };
+      const cleanedText = _stripEmptyLike(text);
       let currentBody = segments.querySelector('#rpLiveStreamBody');
-      if (text) {
-        if (currentBody) currentBody.innerHTML = renderMd(text);
-      } else if (!text && assistantText.length > 0 && !thinking) {
+      if (cleanedText && !_isEmptyLike(cleanedText)) {
+        if (currentBody) {
+          let renderedHtml = renderMd(cleanedText);
+          // ★ 应用 @mention 高亮（转换为可点击链接，点击后跳转到对应员工聊天框）
+          if (typeof _highlightMentions === 'function') {
+            renderedHtml = _highlightMentions(renderedHtml);
+          }
+          currentBody.innerHTML = renderedHtml;
+        }
+      } else if ((!cleanedText || _isEmptyLike(cleanedText)) && assistantText.length > 0 && !thinking) {
         // ★ 如果有 step 状态，显示步骤名称而非 "Thinking…"
         const stepLabel = _rpCurrentStep === 'call_llm' ? '🧠 调用模型…' :
                           _rpCurrentStep === 'execute_tool' ? '🔧 执行工具…' : 'Thinking…';
@@ -1419,9 +1649,24 @@ function _attachLiveStreamToChat(emp, task) {
   }
 
 
+  // ★ 过滤空外观 token：某些 provider/模型（如 GLM）在 tool_calls 前发送
+  //   "{}" / "{" / "}" 等作为 content，不应累积到 assistantText，
+  //   否则会在工具卡片间渲染出空大括号。
+  //   扩展规则：单独的大括号/方括号字符、成对括号（含中间空白）、空引号
+  const _isEmptyLikeToken = t => {
+    if (!t) return true;
+    const s = String(t).trim();
+    if (!s) return true;
+    // 只由括号/引号/空白字符组成的 token 视为"空外观"
+    if (/^[\s{}\[\]""]+$/.test(s)) return true;
+    return false;
+  };
+
   source.addEventListener('token', e => {
     try {
       const d = JSON.parse(e.data);
+      // ★ 过滤空外观 token（"{}" / "{" / "}" / "[]" / '""' 等），不累积到 assistantText
+      if (_isEmptyLikeToken(d.text)) return;
       assistantText += d.text;
       // 同步回任务对象，保持全局单一事实源
       task.accumulatedText = assistantText;
@@ -1518,6 +1763,10 @@ function _attachLiveStreamToChat(emp, task) {
         const toolCards = segments.querySelectorAll('.rp-turn-tool');
         const lastCard = toolCards[toolCards.length - 1];
         if (lastCard) {
+          const resultText = typeof d.result === 'string' ? d.result : JSON.stringify(d.result);
+          // ★ 过滤空外观 result（如 "{}" / "[]" / '""'）避免在 tool card 下方显示无意义内容
+          const _trimmed = (resultText || '').trim();
+          if (!_trimmed || /^[\s{}\[\]""]+$/.test(_trimmed)) return;
           let resultEl = lastCard.querySelector('.tool-card-result');
           if (!resultEl) {
             resultEl = document.createElement('div');
@@ -1525,7 +1774,6 @@ function _attachLiveStreamToChat(emp, task) {
             resultEl.style.cssText = 'font-size:12px;color:var(--muted);margin-top:4px;padding:4px 8px;background:rgba(255,255,255,.03);border-radius:4px;max-height:120px;overflow:auto;';
             lastCard.appendChild(resultEl);
           }
-          const resultText = typeof d.result === 'string' ? d.result : JSON.stringify(d.result);
           resultEl.textContent = resultText.length > 500 ? resultText.slice(0, 500) + '...' : resultText;
         }
       }
@@ -1578,22 +1826,17 @@ function _attachLiveStreamToChat(emp, task) {
     try {
       const d = JSON.parse(e.data);
 
-      // ★ 检测 delegate_task 和 send_group_message 事件，同步到总群
+      // ★ 检测 delegate_task 和 send_group_message 事件，同步到PM
       if (d.name === 'delegate_task') {
         const targetName = (d.args && d.args.employee_name) || '';
         if (targetName && task.workspace) {
           task.delegatedTo = targetName;
-          api('/api/group-chat/send', {
-            method: 'POST',
-            body: JSON.stringify({
-              workspace: task.workspace,
-              message: `**${task.empName}** 正在将任务委派给 **${targetName}**...`,
-              sender_name: task.empName,
-            }),
-          }).catch(() => {});
+          if (typeof _addPMSessionMessage === 'function') {
+            _addPMSessionMessage(`**${task.empName}** 正在将任务委派给 **${targetName}**...`, task.empName).catch(() => {});
+          }
         }
       } else if (d.name === 'send_group_message') {
-        // ★ 员工通过 send_group_message 向总群发消息，若包含 @mentions 则自动委派任务
+        // ★ 员工通过 send_group_message 向PM发消息，若包含 @mentions 则自动委派任务
         const msgText = (d.args && d.args.message) || '';
         const mentionedNames = (msgText && typeof parse_mentions_local === 'function')
           ? parse_mentions_local(msgText) : [];
@@ -1607,12 +1850,9 @@ function _attachLiveStreamToChat(emp, task) {
             }
           }
         }
-        if (task.workspace) {
-          if (typeof loadGroupChat === 'function') {
-            loadGroupChat(task.workspace).then(() => {
-              if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen && typeof _renderGroupMessages === 'function') _renderGroupMessages();
-            }).catch(() => {});
-          }
+        // 总群概念已移除：结果消息直接回传到PM session
+        if (task.workspace && typeof loadPMSession === 'function') {
+          loadPMSession(task.workspace).catch(() => {});
         }
       }
 
@@ -1634,16 +1874,32 @@ function _attachLiveStreamToChat(emp, task) {
       }
 
       // 步骤 1：固化当前文本段
+      // ★ _isEmptyLike：某些 provider 在 tool_calls 前返回 content="{}" / "{" / "}" 等，
+      //   不应渲染为可见文本（否则在工具卡片间显示空大括号）
+      const _isEmptyLike = t => {
+        if (!t) return true;
+        const s = String(t).trim();
+        if (!s) return true;
+        if (/^[\s{}\[\]""]+$/.test(s)) return true;
+        return false;
+      };
+      // ★ _stripEmptyLike：如果整个字符串只由括号/引号/空白组成则返回空，否则保留原始内容
+      const _stripEmptyLike = t => {
+        let s = String(t).trim();
+        if (/^[\s{}\[\]""]+$/.test(s)) return '';
+        return s;
+      };
       const currentBody = segments.querySelector('#rpLiveStreamBody');
       if (currentBody) {
-        const finalText = typeof _stripThinkingTags === 'function'
+        const rawFinalText = typeof _stripThinkingTags === 'function'
           ? _stripThinkingTags(assistantText)
           : assistantText;
-        if (finalText && finalText.trim()) {
+        const finalText = _stripEmptyLike(rawFinalText);
+        if (finalText && !_isEmptyLike(finalText)) {
           currentBody.innerHTML = renderMd(finalText);
           currentBody.removeAttribute('id');  // 固化为历史段
         } else {
-          // 空段（只有 thinking 占位）：直接移除
+          // 空段（只有 thinking 占位 / 空外观内容如 "{}"）：直接移除
           currentBody.remove();
         }
       }
@@ -1685,64 +1941,128 @@ function _attachLiveStreamToChat(emp, task) {
       }
     }
 
-    // ★ 不替换 S.session / S.messages —— 委派任务用的是独立 session，
-    //   替换会导致聊天框被清空（因为委派 session 只有那一轮对话）
-    //   直接更新活动文本段为最终回复即可
-
-    // 把活动文本段替换为最终回复
+    // ★ 方案 C 修复（v2）：委派任务完成后，刷新 S.messages 保持一致性
+    //   v1：重新调 /api/session 获取后端数据（有网络延迟/竞态风险）
+    //   v2：优先从 done 事件自带的 session 数据刷新（SSE 已包含完整 messages），
+    //       降级才走 /api/session 拉取；再降级走 _solidifyLiveElements。
+    //   旧逻辑仅"固化 live DOM 元素"但不更新 S.messages，导致后续任何
+    //   _renderRpMessages() 调用（轮询/切换员工/切回聊天框）都会清空 DOM
+    //   后从 S.messages 重绘，而 S.messages 不含委派内容→"所有内容消失"。
+    const _sid = (task && task.sessionId) || emp.sessionId;
     const liveRow = $('rpLiveTurnRow');
-    const liveBody = $('rpLiveStreamBody');
-    const seg = $('rpLiveTurnSegments');
+    let _refreshed = false;
 
-    // 固化思考段（去掉 live 标记，折叠）
-    if (seg) {
-      const thinkCard = seg.querySelector('.rp-live-thinking-card');
-      if (thinkCard) thinkCard.classList.remove('open', 'rp-live-thinking-card');
+    // ★ 路径 1（最优）：直接使用 done 事件自带的 session 数据
+    try {
+      const doneData = JSON.parse(e.data || '{}');
+      const doneSession = doneData && doneData.session;
+      // ★★★ 调试：记录 done event 的 session 数据结构
+      if (doneSession) {
+        const _msgSummary = (doneSession.messages || []).map((m, idx) => {
+          const _r = m.role || '?';
+          const _hasR = !!(m.reasoning);
+          const _hasTc = !!(m.tool_calls && m.tool_calls.length);
+          const _cLen = String(m.content || '').length;
+          const _cPreview = String(m.content || '').replace(/\s+/g, ' ').slice(0, 40);
+          return `#${idx}:${_r}(c=${_cLen}${_hasR?',r':''}${_hasTc?',tc':''})"${_cPreview}"`;
+        });
+        console.log('[_attachLiveStreamToChat] ★ done path1: sid=', doneSession.session_id, '_sid=', _sid, 'match=', doneSession.session_id === _sid, 'msgCount=', (doneSession.messages||[]).length);
+        console.log('[_attachLiveStreamToChat] ★ done path1 messages=', _msgSummary);
+      } else {
+        console.log('[_attachLiveStreamToChat] ★ done path1: doneSession is null/undefined, doneData keys=', doneData ? Object.keys(doneData) : 'null');
+      }
+      // ★★★ 修复：检查 doneSession.messages 非空（长度>0），
+      //   防止后端异常时返回 messages:[] 清空前端已有的消息
+      if (doneSession && doneSession.messages && doneSession.messages.length > 0 && doneSession.session_id === _sid) {
+        S.session = doneSession;
+        // ★ 2026-04-30 修复：使用合并函数保留从独立 session 加载来的历史任务消息
+        //   避免直接 S.messages = doneSession.messages 冲掉那些数据
+        S.messages = _mergeDoneSessionPreservingForeignTasks(doneSession.messages, capturedTaskId);
+        if (typeof _ensureDelegationDividersForMainSession === 'function') {
+          _ensureDelegationDividersForMainSession(emp);
+        }
+        if (liveRow) liveRow.remove();
+        if (typeof _renderRpMessages === 'function') _renderRpMessages();
+        if (typeof _scrollMsgAreaToBottom === 'function') _scrollMsgAreaToBottom();
+        _refreshed = true;
+        console.log('[_attachLiveStreamToChat] done: 从 SSE event data 刷新成功, msgCount=', S.messages.length);
+      } else {
+        console.log('[_attachLiveStreamToChat] ★ done path1 SKIPPED: hasDoneSession=', !!doneSession, 'hasMessages=', !!(doneSession && doneSession.messages), 'sidMatch=', !!(doneSession && doneSession.session_id === _sid));
+      }
+    } catch(_err) {
+      console.warn('[_attachLiveStreamToChat] done: 解析 event data 失败:', _err);
     }
 
-    if (liveBody) {
-      const displayText = typeof _stripThinkingTags === 'function'
-        ? _stripThinkingTags(assistantText.trim())
-        : assistantText.trim();
-      if (displayText) {
-        liveBody.innerHTML = renderMd(displayText);
-        liveBody.removeAttribute('id');
-      } else {
-        // 如果剥离 thinking 后为空，但原始文本有内容（全是 thinking），则显示 thinking
-        const hasThinking = /<think>[\s\S]*?<\/think>/.test(assistantText);
-        if (hasThinking) {
-          // 提取 thinking 内容作为显示文本
-          let thinkContent = '';
-          const thinkMatch = assistantText.match(/<think>([\s\S]*?)<\/think>/);
-          if (thinkMatch) thinkContent = thinkMatch[1].trim();
-          liveBody.innerHTML = thinkContent ? renderMd(thinkContent) : '<span style="color:var(--muted)">（无回复）</span>';
-          liveBody.removeAttribute('id');
-        } else {
-          liveBody.remove();
-          if (seg && !seg.children.length) {
-            const ph = document.createElement('div');
-            ph.className = 'rp-msg-body rp-turn-text';
-            ph.innerHTML = '<span style="color:var(--muted)">（无回复）</span>';
-            seg.appendChild(ph);
+    // ★ 路径 2（降级）：从后端 /api/session 拉取
+    if (!_refreshed && _sid && S.session && S.session.session_id === _sid) {
+      console.log('[_attachLiveStreamToChat] ★ done path2: 尝试从 /api/session 刷新, _sid=', _sid);
+      try {
+        const sessData = await api(`/api/session?session_id=${encodeURIComponent(_sid)}`);
+        // ★★★ 修复：检查 messages 非空（长度>0），防止清空已有消息
+        if (sessData && sessData.session && sessData.session.messages && sessData.session.messages.length > 0) {
+          S.session = sessData.session;
+          // ★ 2026-04-30 修复：合并保留外部任务消息
+          S.messages = _mergeDoneSessionPreservingForeignTasks(sessData.session.messages, capturedTaskId);
+          // ★★★ 调试：记录路径2获取的消息结构
+          const _msgSummary2 = S.messages.map(m => {
+            const _r = m.role || '?';
+            const _hasR = !!(m.reasoning);
+            const _hasTc = !!(m.tool_calls && m.tool_calls.length);
+            const _cLen = String(m.content || '').length;
+            return `${_r}(c=${_cLen},reasoning=${_hasR},tc=${_hasTc})`;
+          });
+          console.log('[_attachLiveStreamToChat] ★ done path2: msgCount=', S.messages.length, 'summary=[', _msgSummary2.join(', '), ']');
+          if (typeof _ensureDelegationDividersForMainSession === 'function') {
+            _ensureDelegationDividersForMainSession(emp);
           }
+          if (liveRow) liveRow.remove();
+          if (typeof _renderRpMessages === 'function') _renderRpMessages();
+          if (typeof _scrollMsgAreaToBottom === 'function') _scrollMsgAreaToBottom();
+          _refreshed = true;
+          console.log('[_attachLiveStreamToChat] done: 从 /api/session 刷新成功, msgCount=', S.messages.length);
+        }
+      } catch(e) {
+        console.warn('[_attachLiveStreamToChat] done 刷新 session 失败，降级固化 live 元素:', e);
+      }
+    }
+
+    // ★ 路径 3（兜底）：固化 live DOM 元素 + 将积累文本写入 S.messages
+    if (!_refreshed) {
+      _solidifyLiveElements(liveRow, assistantText);
+      // ★ 兜底：如果 S.messages 中仍无本次任务的 assistant 回复，手动追加
+      //   避免 _renderRpMessages() 重绘时丢失所有内容
+      const taskPrefix = `[PM 委派任务 #${capturedTaskId}]`;
+      const hasTaskAssistant = S.messages.some(m =>
+        m.role === 'assistant' && m._taskId === capturedTaskId
+      );
+      if (!hasTaskAssistant && assistantText.trim()) {
+        const displayText = typeof _stripThinkingTags === 'function'
+          ? _stripThinkingTags(assistantText.trim()) : assistantText.trim();
+        if (displayText) {
+          S.messages.push({
+            role: 'assistant',
+            content: displayText,
+            _ts: Date.now() / 1000,
+            _taskId: capturedTaskId,
+          });
+          if (typeof _renderRpMessages === 'function') _renderRpMessages();
+          if (typeof _scrollMsgAreaToBottom === 'function') _scrollMsgAreaToBottom();
         }
       }
     }
-    if (liveRow) {
-      liveRow.removeAttribute('id');  // 移除临时 ID，避免后续冲突
-      const seg = liveRow.querySelector('#rpLiveTurnSegments');
-      if (seg) seg.removeAttribute('id');
-    }
 
     // ★ 回传结果到总群
-    _handleStreamEnd(emp, assistantText, capturedTaskId, task);
+    try {
+      console.log('[_attachLiveStreamToChat] 准备调用 _handleStreamEnd, taskId=', capturedTaskId, 'task?.workspace=', task?.workspace, 'emp.sessionId=', emp?.sessionId);
+      await _handleStreamEnd(emp, assistantText, capturedTaskId, task);
+      console.log('[_attachLiveStreamToChat] _handleStreamEnd 完成, taskId=', capturedTaskId);
+    } catch(e) {
+      console.warn('[_attachLiveStreamToChat] _handleStreamEnd 失败:', e);
+    }
 
-    // ★ 刷新总群消息（替代 _watchEmployeeStream 的职责）
+    // ★ 刷新PM消息（替代 _watchEmployeeStream 的职责）
     if (task.workspace) {
-      try {
-        await loadGroupChat(task.workspace);
-        if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) _renderGroupMessages();
-      } catch(_) {}
+      try { await loadGroupChat(task.workspace); } catch(_) {}
     }
 
     // ★ 推进 DelegationVM 队列（当从总群跳转过来时，_watchEmployeeStream 的 SSE
@@ -1753,7 +2073,7 @@ function _attachLiveStreamToChat(emp, task) {
     }
   });
 
-  source.addEventListener('error', () => {
+  source.addEventListener('error', async () => {
     console.log('[_attachLiveStreamToChat] error 事件, taskId=', capturedTaskId, '_streamEnded=', _streamEnded, '_intentionallyClosed=', !!source._intentionallyClosed);
     if(typeof UAL!=='undefined') UAL.log('stream','error',{taskId:capturedTaskId,intentionallyClosed:!!source._intentionallyClosed});
     if (_streamEnded) return;
@@ -1794,15 +2114,21 @@ function _attachLiveStreamToChat(emp, task) {
       const seg = liveRow.querySelector('#rpLiveTurnSegments');
       if (seg) seg.removeAttribute('id');
     }
-    // 流出错时回传已积累结果到总群
-    _handleStreamEnd(emp, assistantText, capturedTaskId, task);
+    // 流出错时回传已积累结果到PM session
+    try {
+      console.log('[_attachLiveStreamToChat] error路径：准备调用 _handleStreamEnd, taskId=', capturedTaskId);
+      await _handleStreamEnd(emp, assistantText, capturedTaskId, task);
+      console.log('[_attachLiveStreamToChat] error路径：_handleStreamEnd 完成');
+    } catch(e) {
+      console.warn('[_attachLiveStreamToChat] error路径：_handleStreamEnd 失败:', e);
+    }
     // ★ 推进 DelegationVM 队列（error 路径）
     if (typeof DelegationVM !== 'undefined' && capturedTaskId) {
       try { DelegationVM.completeJob(emp.id, capturedTaskId, 'error'); } catch(_) {}
     }
   });
 
-  source.addEventListener('apperror', () => {
+  source.addEventListener('apperror', async () => {
     if (_streamEnded) return;
     _streamEnded = true;
     source.close();
@@ -1827,8 +2153,14 @@ function _attachLiveStreamToChat(emp, task) {
       const seg = liveRow.querySelector('#rpLiveTurnSegments');
       if (seg) seg.removeAttribute('id');
     }
-    // 流出错时回传已积累结果到总群
-    _handleStreamEnd(emp, assistantText, capturedTaskId, task);
+    // 流出错时回传已积累结果到PM session
+    try {
+      console.log('[_attachLiveStreamToChat] apperror路径：准备调用 _handleStreamEnd, taskId=', capturedTaskId);
+      await _handleStreamEnd(emp, assistantText, capturedTaskId, task);
+      console.log('[_attachLiveStreamToChat] apperror路径：_handleStreamEnd 完成');
+    } catch(e) {
+      console.warn('[_attachLiveStreamToChat] apperror路径：_handleStreamEnd 失败:', e);
+    }
     // ★ 推进 DelegationVM 队列（apperror 路径）
     if (typeof DelegationVM !== 'undefined' && capturedTaskId) {
       try { DelegationVM.completeJob(emp.id, capturedTaskId, 'error'); } catch(_) {}
@@ -1874,17 +2206,18 @@ function _pollStreamCompletion(emp, streamId, onDone) {
  *  @param {object} [task] - 可选的 Task 对象（优先使用 task.sessionId，避免 emp.sessionId 被新任务覆盖）
  */
 async function _handleStreamEnd(emp, assistantText, taskId, task) {
-  if (typeof GROUP_CHAT_STATE === 'undefined') return;
+  console.log('[_handleStreamEnd] 开始, taskId=', taskId, 'emp.name=', emp?.name, 'task?.workspace=', task?.workspace, 'assistantText.len=', assistantText?.length);
   // ★ 优先使用任务自己的 workspace
   let ws = task && task.workspace ? task.workspace : '';
   if (!ws) {
     ws = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : (S.session?.workspace || '');
-    if (ws === '__default__') ws = GROUP_CHAT_STATE.workspace || S.session?.workspace || '';
+    if (ws === '__default__') ws = _currentCanvasWorkspace || S.session?.workspace || '';
   }
   if (!ws) return;
 
   // ★ 优先从任务的 sessionId 拉取（避免 emp.sessionId 已被新任务覆盖导致查错库）
   const sid = (task && task.sessionId) || emp.sessionId;
+  console.log('[_handleStreamEnd] ws=', ws, 'sid=', sid, 'task?.sessionId=', task?.sessionId, 'emp.sessionId=', emp?.sessionId);
 
   // ★ 优先从后端 session 获取完整的 assistant 回复（比 SSE 积累文本更可靠）
   let displayResult = '';
@@ -1929,30 +2262,40 @@ async function _handleStreamEnd(emp, assistantText, taskId, task) {
   }
 
   if (!displayResult) return;
+  console.log('[_handleStreamEnd] 准备回传，ws=', ws, 'displayResult.len=', displayResult.length, 'hasDelegationVM=', typeof DelegationVM !== 'undefined');
 
   // ★ 通过 DelegationVM 统一回传（内建去重守卫，sessionId 让后端聚合完整回复）
   if (typeof DelegationVM !== 'undefined') {
-    await DelegationVM.postResultOnce({
-      emp,
-      taskId: taskId || (task && task.id) || '',
-      result: displayResult,
-      workspace: ws,
-      sessionId: sid || '',
-      requesterName: (task && task.requesterName) || '你',
-    });
+    try {
+      console.log('[_handleStreamEnd] 调用 DelegationVM.postResultOnce...');
+      const postResult = await DelegationVM.postResultOnce({
+        emp,
+        taskId: taskId || (task && task.id) || '',
+        result: displayResult,
+        workspace: ws,
+        sessionId: sid || '',
+        requesterName: (task && task.requesterName) || '你',
+      });
+      console.log('[_handleStreamEnd] DelegationVM.postResultOnce 结果:', postResult);
+    } catch(e) {
+      console.warn('[_handleStreamEnd] DelegationVM.postResultOnce 失败:', e);
+    }
   } else {
     try {
-      await api('/api/group-chat/result', {
-        method: 'POST',
-        body: JSON.stringify({
+      if (typeof _postResultToPMSession === 'function') {
+        console.log('[_handleStreamEnd] 调用 _postResultToPMSession...');
+        await _postResultToPMSession({
           workspace: ws,
           employee_name: emp.name,
           task_id: taskId || (task && task.id) || '',
           result: displayResult,
           requester_name: (task && task.requesterName) || '你',
-        }),
-      });
-    } catch(_) {}
+        });
+        console.log('[_handleStreamEnd] _postResultToPMSession 完成');
+      }
+    } catch(e) {
+      console.warn('[_handleStreamEnd] _postResultToPMSession 失败:', e);
+    }
   }
 }
 
@@ -1975,13 +2318,25 @@ function _renderRpMessages() {
   const emptyChat = $('rpEmptyChat');
   if (!inner) return;
 
-  // ★ 总群打开时不渲染员工消息（防止覆盖总群内容）
-  if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) {
-    console.log('[_renderRpMessages] 总群打开中，跳过员工消息渲染');
-    return;
+  // ★★★ 调试：记录渲染时的消息结构 + 调用栈
+  const _callerStack = (new Error()).stack || '';
+  const _callerLine = _callerStack.split('\n').slice(2, 5).map(s => s.trim()).join(' ← ');
+  if (S.messages && S.messages.length > 0) {
+    const _rMsgSummary = S.messages.map(m => {
+      const _r = m.role || '?';
+      const _hasR = !!(m.reasoning);
+      const _hasTc = !!(m.tool_calls && m.tool_calls.length);
+      const _cLen = String(m.content || '').length;
+      const _isDiv = !!m._taskDivider;
+      const _tid = m._taskId ? `,tid=${String(m._taskId).slice(-8)}` : '';
+      return `${_r}(c=${_cLen},r=${_hasR?1:0},tc=${_hasTc?1:0},div=${_isDiv?1:0}${_tid})`;
+    });
+    console.log('[_renderRpMessages] ★ S.messages count=', S.messages.length, 'sid=', S.session?.session_id?.slice(-8), 'summary=[', _rMsgSummary.join(', '), ']');
+  } else {
+    console.log('[_renderRpMessages] ★ S.messages is EMPTY, sid=', S.session?.session_id?.slice(-8), 'caller=', _callerLine);
   }
 
-  // ★ 保留带 tool_calls 的 assistant 消息作为锚点（即使 content 为空）
+  // 保留带 tool_calls 的 assistant 消息作为锚点（即使 content 为空）
   //   这样工具卡片可以插入到对应 assistant 消息之后
   //   同时包含 _taskDivider 类型的 system 消息（任务分隔标记）
   const visWithIdx = [];
@@ -2003,12 +2358,35 @@ function _renderRpMessages() {
       let _cmpContent = String(msgContent(m) || '');
       _cmpContent = _cmpContent.replace(/<think>[\s\S]*?<\/think>\s*/g, '').replace(/<\/?think>/gi, '').trim();
       const _tid = m._taskId || '';
-      const key = `${m.role}|${_tid}|${_cmpContent}|${String(m.reasoning || '')}`;
+      // ★ 去重键包含 tool_calls 摘要，避免相同 role+content+reasoning 但不同 tool_calls 的消息被误去重
+      const _tcKey = hasTc ? m.tool_calls.map(tc => {
+        const fn = tc.function || {};
+        return `${fn.name || tc.name || ''}:${tc.id || ''}`;
+      }).join(',') : hasTu ? 'tu' : '';
+      const key = `${m.role}|${_tid}|${_cmpContent}|${String(m.reasoning || '')}|${_tcKey}`;
       if (_seenKeys.has(key)) continue;
       _seenKeys.add(key);
       visWithIdx.push({ m, rawIdx: i });
     }
   }
+
+  // ★ 按时间戳排序（确保消息按时间顺序排列：旧消息在前，新消息在后）
+  // ★ 2026-05-01 修复：缺少 _ts/timestamp 的消息仅按 rawIdx 排序，
+  //   避免 ts=0 导致这些消息被错误排到最前面。
+  //   只有双方都有 ts 时才按 ts 排序，否则退回 rawIdx。
+  visWithIdx.sort((a, b) => {
+    const tsA = Number(a.m._ts) || Number(a.m.timestamp) || 0;
+    const tsB = Number(b.m._ts) || Number(b.m.timestamp) || 0;
+    const hasA = !!(a.m._ts || a.m.timestamp);
+    const hasB = !!(b.m._ts || b.m.timestamp);
+    // 双方都有 ts → 按 ts 排，ts 相等时按 rawIdx
+    if (hasA && hasB) {
+      if (tsA !== tsB) return tsA - tsB;
+      return a.rawIdx - b.rawIdx;
+    }
+    // 一方或双方缺少 ts → 仅按 rawIdx 保持原始顺序
+    return a.rawIdx - b.rawIdx;
+  });
 
   if (emptyChat) emptyChat.style.display = visWithIdx.length ? 'none' : '';
   inner.innerHTML = '';
@@ -2018,6 +2396,14 @@ function _renderRpMessages() {
   // 这样即使切换员工/会话的代码路径没调用 _resetRenderWindow，也能正确显示最新一页
   const _total = visWithIdx.length;
   const _key = (S.session && S.session.session_id) || (EMPLOYEE_STORE && EMPLOYEE_STORE.selectedId) || '';
+  // ★ 2026-05-01 修复：新消息到达时，如果用户在底部则自动滚动到最新
+  const _container = document.getElementById('rpMessages');
+  const _isAtBottom = _container && (_container.scrollHeight - _container.scrollTop - _container.clientHeight <= 100);
+  if (_total > _rpWindow.total && _isAtBottom) {
+    // 新消息到达 + 用户在底部 → 自动滚动到最新
+    console.log('[_renderRpMessages] 新消息到达 + 用户在底部，自动滚动到最新：total=', _total, 'oldTotal=', _rpWindow.total);
+    _rpWindow.startIdx = -1;
+  }
   const _start = _computeWindowStart(_total, _key, 'employee');
   const _slice = visWithIdx.slice(_start);
 
@@ -2041,7 +2427,7 @@ function _renderRpMessages() {
         <div class="rp-task-divider-line"></div>
         <div class="rp-task-divider-label">
           <span class="rp-task-divider-icon">${statusIcon}</span>
-          <a href="#" class="gc-task-link" data-task-id="${esc(m._taskId || '')}" onclick="event.preventDefault();jumpToGroupChatTask('${esc(m._taskId || '')}');return false;" title="点击跳转到总群对应消息">${esc(m.content || '')}</a>${taskLabel}${statusHtml}${ghostHtml}
+          <a href="#" class="gc-task-link" data-task-id="${esc(m._taskId || '')}" onclick="event.preventDefault();jumpToGroupChatTask('${esc(m._taskId || '')}');return false;" title="点击跳转到PM聊天">${esc(m.content || '')}</a>${taskLabel}${statusHtml}${ghostHtml}
         </div>
         <div class="rp-task-divider-line"></div>
       `;
@@ -2061,7 +2447,7 @@ function _renderRpMessages() {
     // 顶层 reasoning 字段
     if (!thinkingText && m.reasoning) thinkingText = m.reasoning;
     // ★ 针对总群委派消息：折叠样板"执行要求"部分，只显示核心任务
-    if (m.role === 'user' && typeof content === 'string' && content.startsWith('[总群委派任务')) {
+    if (m.role === 'user' && typeof content === 'string' && content.startsWith('[PM 委派任务')) {
       const sepIdx = content.indexOf('\n---\n');
       if (sepIdx !== -1) {
         content = content.slice(0, sepIdx).trimEnd();
@@ -2097,14 +2483,43 @@ function _renderRpMessages() {
     if (isUser) {
       if (!String(content).trim()) continue;
       let bodyHtml;
-      // ★ 检测总群委派任务前缀，转为可点击链接跳转回总群
-      const taskMatch = String(content).match(/^\[总群委派任务 #(task-[A-Za-z0-9_-]+)\]/);
+      // ★ 检测PM委派任务前缀，转为可点击链接跳转回总群
+      const taskMatch = String(content).match(/^\[PM 委派任务 #(task-[A-Za-z0-9_-]+)\]/);
+      // ★ 2026-05-01：检测员工完成任务回传消息 `[员工名 完成任务 #task-xxx]\n结果`
+      //   这类消息 role=user 但实际是员工回传给 PM，渲染为"员工反馈"样式（区别于用户本人发言）
+      const contentStr = String(content);
+      const resultMatch = !taskMatch && contentStr.match(/^\[([^\]]+?)\s+完成任务\s+#(task-[A-Za-z0-9_-]+)\]\s*([\s\S]*)$/);
+      console.log('[renderRpMessages] resultMatch 检测: contentStr前100=', contentStr.slice(0,100), 'resultMatch=', resultMatch ? {empName:resultMatch[1],tid:resultMatch[2],bodyLen:resultMatch[3]?.length} : null);
       if (taskMatch) {
         const tid = taskMatch[1];
         const prefix = taskMatch[0];
         const rest = String(content).slice(prefix.length);
-        const prefixHtml = `<a href="#" class="gc-task-link" data-task-id="${esc(tid)}" onclick="event.preventDefault();jumpToGroupChatTask('${esc(tid)}');return false;" title="点击跳转到总群对应消息">${esc(prefix)}</a>`;
+        const prefixHtml = `<a href="#" class="gc-task-link" data-task-id="${esc(tid)}" onclick="event.preventDefault();jumpToGroupChatTask('${esc(tid)}');return false;" title="点击跳转到PM聊天">${esc(prefix)}</a>`;
         bodyHtml = prefixHtml + renderMd(rest);
+      } else if (resultMatch) {
+        // 员工完成任务回传：特殊样式（紫色/青色边框 + 员工名字 + 任务链接 + 完整内容 markdown）
+        const empName = resultMatch[1];
+        const tid = resultMatch[2];
+        const resultBody = resultMatch[3] || '';
+        console.log('[renderRpMessages] resultMatch 匹配成功: empName=', empName, 'tid=', tid, 'resultBody.len=', resultBody.length, 'rawIdx=', rawIdx);
+        const taskLinkHtml = `<a href="#" class="gc-task-link" data-task-id="${esc(tid)}" onclick="event.preventDefault();jumpToGroupChatTask('${esc(tid)}');return false;" title="查看任务详情" style="font-size:11px;color:var(--muted);margin-left:6px">#${esc(tid.slice(-12))}</a>`;
+        const row = document.createElement('div');
+        row.className = 'rp-msg-row rp-msg-task-result';
+        row.style.cssText = 'display:flex;flex-direction:column;margin:8px 12px 8px 0;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:0 8px 8px 0';
+        row.dataset.role = 'user';
+        row.dataset.msgIdx = rawIdx;
+        row.dataset.taskId = tid;
+        row.innerHTML = `
+          <div class="rp-msg-role assistant" style="color:#10b981;padding:4px 12px 0 12px">
+            <span class="rp-msg-icon">✅</span>
+            <span class="rp-msg-name" style="font-weight:600">${esc(empName)} 已完成</span>${taskLinkHtml}${_fmtMsgTime(m)}
+          </div>
+          <div class="rp-msg-body" style="padding:8px 12px;border-left:3px solid #10b981">${renderMd(resultBody)}</div>
+        `;
+        row.dataset.rawText = String(content).trim();
+        inner.appendChild(row);
+        console.log('[renderRpMessages] resultMatch 行已追加到 inner, inner.children.length=', inner.children.length);
+        continue;
       } else {
         bodyHtml = renderMd(String(content));
       }
@@ -2132,7 +2547,23 @@ function _renderRpMessages() {
     // ── Assistant 回合：连续的 assistant 消息合并到同一个 turn-row ──
     //   一次任务的完整回答可能包含多个 assistant 消息（每次 agent 迭代一个）
     //   将它们合并为一个"回合"，包含所有思考过程、文本和工具调用
-    const hasText = !!String(content).trim();
+    // ★ _isEmptyLike：某些 provider 在 assistant 只有 tool_calls 时返回 content="{}" / "{" / "}" 等，
+    //   这不应被视为有效文本内容，否则会在工具卡片之间渲染出空大括号
+    const _isEmptyLike = t => {
+      if (!t) return true;
+      const s = String(t).trim();
+      if (!s) return true;
+      if (/^[\s{}\[\]""]+$/.test(s)) return true;
+      return false;
+    };
+    // ★ _stripEmptyLike：如果整个字符串只由括号/引号/空白组成则返回空，否则保留原始内容
+    const _stripEmptyLike = t => {
+      let s = String(t).trim();
+      if (/^[\s{}\[\]""]+$/.test(s)) return '';
+      return s;
+    };
+    const strippedContent = _stripEmptyLike(content);
+    const hasText = !_isEmptyLike(strippedContent) && !!strippedContent;
     if (!thinkingText && !hasText && !hasToolCalls) continue;
 
     // ★ 检查上一行是否也是 assistant 的 turn-row，如果是则追加段；否则新建
@@ -2150,7 +2581,7 @@ function _renderRpMessages() {
       turnRow.className = 'rp-msg-row rp-turn';
       turnRow.dataset.role = 'assistant';
       turnRow.dataset.msgIdx = rawIdx;
-      const _tidMatch = hasText ? String(content).match(/#(task-[A-Za-z0-9_-]+)/) : null;
+      const _tidMatch = hasText ? strippedContent.match(/#(task-[A-Za-z0-9_-]+)/) : null;
       if (_tidMatch) turnRow.dataset.taskId = _tidMatch[1];
 
       const emp = getEmployee(EMPLOYEE_STORE.selectedId);
@@ -2177,9 +2608,14 @@ function _renderRpMessages() {
     if (hasText) {
       const bodyEl = document.createElement('div');
       bodyEl.className = 'rp-msg-body rp-turn-text';
-      bodyEl.innerHTML = renderMd(String(content));
+      let renderedHtml = renderMd(strippedContent);
+      // ★ 应用 @mention 高亮（转换为可点击链接，点击后跳转到对应员工聊天框）
+      if (typeof _highlightMentions === 'function') {
+        renderedHtml = _highlightMentions(renderedHtml);
+      }
+      bodyEl.innerHTML = renderedHtml;
       segments.appendChild(bodyEl);
-      if (!turnRow.dataset.rawText) turnRow.dataset.rawText = String(content).trim();
+      if (!turnRow.dataset.rawText) turnRow.dataset.rawText = strippedContent;
     }
 
     // 段：工具卡片（tool_calls + 配对的 tool 结果）
@@ -2221,13 +2657,31 @@ function _renderRpMessages() {
     }
   }
 
+  // ★★★ 调试：渲染完成后检查关键 DOM 元素
+  const _thinkingCards = inner.querySelectorAll('.thinking-card');
+  const _toolCards = inner.querySelectorAll('.rp-turn-tool');
+  const _userMsgs = inner.querySelectorAll('[data-role="user"]');
+  const _asstTurns = inner.querySelectorAll('.rp-turn[data-role="assistant"]');
+  console.log('[_renderRpMessages] ★ RENDERED: thinkingCards=', _thinkingCards.length, 'toolCards=', _toolCards.length, 'userMsgs=', _userMsgs.length, 'asstTurns=', _asstTurns.length, 'visWithIdx=', visWithIdx.length, 'windowStart=', _start, 'sliceLen=', _slice.length, 'caller=', _callerLine);
+
   // 窗口化：顶部插入 sentinel（若还有更早的历史未渲染）+ 挂载 scroll 监听
   if (_start > 0) {
     _insertHistorySentinel(inner, _start, () => _loadMoreHistory(_renderRpMessages));
   }
   _attachHistoryScrollListener(_renderRpMessages);
 
-  // 粘底滚动（用户在底部时才跟随新消息，手动向上滚动后不打断阅读）
+    // ★ 强制滚动到底（打开员工面板时保证看到最新消息）
+
+  requestAnimationFrame(() => {
+
+    const el = document.getElementById("rpMessages");
+
+    if (el) { el.scrollTop = el.scrollHeight; _rpStickyState.sticky = true; }
+
+  });
+
+  // 粘底滚动（用户在底部时才跟随新消息，手动向上滚动后不中断阅读）
+
   _scrollMsgAreaIfSticky();
 
   // 语法高亮
@@ -3078,13 +3532,13 @@ function _syncEmployeePromptToSession(emp) {
 
 // ── 委派关系信息条 ──────────────────────────────────────────────────────────
 function _updateDelegationBar(emp) {
-  console.log('[右面板] _updateDelegationBar(原始) called, emp=', emp?.name || null, 'isOpen=', typeof GROUP_CHAT_STATE !== 'undefined' ? GROUP_CHAT_STATE.isOpen : 'N/A');
+  console.log('[右面板] _updateDelegationBar called, emp=', emp?.name || null);
   const bar = $('rpDelegationBar');
   const info = $('rpDelegationInfo');
   if (!bar || !info) return;
 
-  // ★ 守卫：若任一成员下拉面板正打开，跳过刷新，避免销毁输入框 DOM 导致焦点丢失与中文输入被打断
-  const _ddGroup = document.getElementById('gcMembersDropdown');
+  // 守卫：若任一成员下拉面板正打开，跳过刷新，避免销毁输入框 DOM 导致焦点丢失与中文输入被打断
+  const _ddGroup = document.getElementById('pmMembersDropdown');
   const _ddEmpSubs = document.getElementById('empSubsDropdown');
   if ((_ddGroup && _ddGroup.style.display && _ddGroup.style.display !== 'none')
       || (_ddEmpSubs && _ddEmpSubs.style.display && _ddEmpSubs.style.display !== 'none')) {
@@ -3092,30 +3546,22 @@ function _updateDelegationBar(emp) {
   }
 
   // 总群打开时，走总群委派栏逻辑（不受 emp 为 null 影响）
-  if (typeof GROUP_CHAT_STATE !== 'undefined' && GROUP_CHAT_STATE.isOpen) {
-    if (typeof _updateGroupDelegationBar === 'function') {
-      _updateGroupDelegationBar();
-    } else {
-      bar.style.display = 'none';
-    }
-    return;
-  }
+  // REMOVED: GROUP_CHAT_STATE.isOpen check — 总群概念已移除
 
   if (!emp) { bar.style.display = 'none'; return; }
 
   const parts = [];
 
-  // ★ 协调员（PM专员）链接 — 固定显示，自动协作开关变更时自动更新
+  // PM链接 — 固定显示
   if (typeof getPMEmployee === 'function') {
     const pm = getPMEmployee();
     if (pm) {
       const pmName = pm.name || (typeof PM_NAME !== 'undefined' ? PM_NAME : 'PM专员');
-      parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-name gc-link rp-coordinator-link" onclick="selectEmployee('${pm.id}')" title="打开${esc(pmName)}聊天">${esc(pmName)}</span>`);
-      // ★ 协调员（PM专员）聊天模式下，显示成员下拉框按钮
+      parts.push(`<span class="rp-del-label">PM：</span><span class="rp-del-name rp-coordinator-link" onclick="selectEmployee('${pm.id}')" title="打开${esc(pmName)}聊天">${esc(pmName)}</span>`);
+      // PM聊天模式下，显示成员下拉框按钮
       const isPMChat = emp.id === pm.id;
-      if (isPMChat && typeof _refreshGroupMembers === 'function' && typeof GROUP_CHAT_STATE !== 'undefined') {
-        _refreshGroupMembers();
-        const members = GROUP_CHAT_STATE.members;
+      if (isPMChat && typeof EMPLOYEE_STORE !== 'undefined') {
+        const members = EMPLOYEE_STORE.employees || [];
         if (members.length) {
           let hierarchy = [];
           if (typeof getSubagentsOf === 'function') {
@@ -3149,25 +3595,25 @@ function _updateDelegationBar(emp) {
               return { id: m.id, name: m.name, role: m.role, avatar: mEmp ? mEmp.avatar : '', depth: 0 };
             });
           }
-          if (typeof window !== 'undefined') window._gcMemberHierarchy = hierarchy;
+          if (typeof window !== 'undefined') window._pmMemberHierarchy = hierarchy;
           const n = hierarchy.length;
           parts.push(
             `<span class="rp-del-label">成员：</span>` +
-            `<button type="button" class="gc-members-btn" id="gcMembersBtn" ` +
-            `onclick="_toggleGroupMembersDropdown(event)" aria-haspopup="listbox" aria-expanded="false" ` +
+            `<button type="button" class="pm-members-btn" id="pmMembersBtn" ` +
+            `onclick="_togglePMMembersDropdown(event)" aria-haspopup="listbox" aria-expanded="false" ` +
             `title="点击查看所有成员">` +
             `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
             `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>` +
             `</svg>` +
-            `<span class="gc-members-count">${n}</span>` +
-            `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="gc-members-chevron"><polyline points="6 9 12 15 18 9"/></svg>` +
+            `<span class="pm-members-count">${n}</span>` +
+            `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="pm-members-chevron"><polyline points="6 9 12 15 18 9"/></svg>` +
             `</button>` +
-            `<div class="gc-members-dropdown" id="gcMembersDropdown" role="listbox" style="display:none"></div>`
+            `<div class="pm-members-dropdown" id="pmMembersDropdown" role="listbox" style="display:none"></div>`
           );
         }
       }
     } else {
-      parts.push(`<span class="rp-del-label">协调员：</span><span class="rp-del-label" style="opacity:.5">未设置</span>`);
+      parts.push(`<span class="rp-del-label">PM：</span><span class="rp-del-label" style="opacity:.5">未设置</span>`);
     }
   }
 

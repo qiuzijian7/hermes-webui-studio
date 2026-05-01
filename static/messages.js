@@ -3,15 +3,14 @@
 function _isEmployeeRpMode(){
   return typeof EMPLOYEE_STORE!=='undefined'
     && EMPLOYEE_STORE.selectedId
-    && (!window._rpView || window._rpView==='chat')
-    && !(typeof GROUP_CHAT_STATE!=='undefined' && GROUP_CHAT_STATE.isOpen);
+    && (!window._rpView || window._rpView==='chat');
 }
 
 async function send(){
   const text=$('msg').value.trim();
   const pendingFiles=S.pendingFiles||[];
   if(!text&&!pendingFiles.length)return;
-  console.log('[send] called, S.busy=', S.busy, 'isOpen=', typeof GROUP_CHAT_STATE!=='undefined'?GROUP_CHAT_STATE.isOpen:'N/A');
+  console.log('[send] called, S.busy=', S.busy);
   // Slash command intercept -- local commands handled without agent round-trip
   if(text.startsWith('/')&&!pendingFiles.length&&executeCommand(text)){
     $('msg').value='';autoResize();hideCmdDropdown();return;
@@ -19,10 +18,12 @@ async function send(){
   // Don't send while an inline message edit is active
   if(document.querySelector('.msg-edit-area'))return;
 
-  // 总群模式：如果总群面板打开，走总群发送路径（不受 S.busy 限制）
-  if(typeof GROUP_CHAT_STATE!=='undefined'&&GROUP_CHAT_STATE.isOpen){
-    console.log('[send] 总群模式, isOpen=true, text=', text);
-    if(typeof UAL!=='undefined') UAL.log('message','send-to-group',{textLen:text.length,textPreview:text.slice(0,50)});
+  // PM专员聊天时的 @mention 委派检测
+  const pmEmp=(typeof getPMEmployee==='function')?getPMEmployee():null;
+  const isPMChat=pmEmp && EMPLOYEE_STORE.selectedId===pmEmp.id;
+  if(isPMChat && /@[\w\u4e00-\u9fff]+/.test(text)){
+    console.log('[send] PM @mention 委派, text=', text);
+    if(typeof UAL!=='undefined') UAL.log('message','send-to-coordinator',{textLen:text.length,textPreview:text.slice(0,50)});
     $('msg').value='';autoResize();hideCmdDropdown();
     await sendGroupMessage(text);
     return;
@@ -30,7 +31,7 @@ async function send(){
 
   // ★ Peer 派发拦截：在员工 A 的聊天框中 @员工B → 把任务派发给 B，
   //    B 的执行过程显示在 B 的聊天框；B 完成后结果回传到 A 的聊天框由 A 评估。
-  //    仅在"非总群 + 有选中员工 + 文本包含可解析的 @其他员工"时生效。
+  //    仅在"有选中员工 + 文本包含可解析的 @其他员工"时生效。
   if(text
      && typeof EMPLOYEE_STORE!=='undefined' && EMPLOYEE_STORE.selectedId
      && typeof parsePeerMentions==='function' && typeof dispatchPeerTask==='function'
@@ -47,6 +48,15 @@ async function send(){
         S.messages.push(userEcho);
         if(typeof _renderRpMessages==='function') _renderRpMessages();
         else if(typeof renderMessages==='function') renderMessages();
+        // 持久化到 A 的后端 session（防止切换员工后消息消失）
+        if(typeof api==='function' && _fromEmp.sessionId){
+          try {
+            await api('/api/session/message',{
+              method:'POST',
+              body:JSON.stringify({session_id:_fromEmp.sessionId,role:'user',content:text}),
+            });
+          }catch(_){}
+        }
       }catch(_){}
       // 去除 @mention 前缀，得到干净的任务内容
       let _cleanedTask=text;
@@ -337,8 +347,7 @@ async function send(){
   // ★ _isEmployeeRpMode 已提升为全局函数（文件顶部），这里不再需要局部定义
   function ensureAssistantRow(){
     if(assistantRow)return;
-    // ★ 总群打开时不追加员工消息行（防止覆盖总群内容）
-    if(typeof GROUP_CHAT_STATE!=='undefined'&&GROUP_CHAT_STATE.isOpen) return;
+    // 总群概念已移除：PM聊天 = PM 员工聊天框，正常渲染
     removeThinking();
     const tr=$('toolRunningRow');if(tr)tr.remove();
     const emp = typeof EMPLOYEE_STORE!=='undefined'?getEmployee(EMPLOYEE_STORE.selectedId):null;
@@ -404,8 +413,7 @@ async function send(){
   //   - 用于决定是否刷新 DOM（切换到其他 session 时只缓冲数据不渲染）
   //   - assistantText/_reasoningBuffer 依然累积，切回时 _scheduleRender 会显示全部
   function _isViewingOurSession(){
-    return !!(S.session && S.session.session_id===activeSid
-      && !(typeof GROUP_CHAT_STATE!=='undefined' && GROUP_CHAT_STATE.isOpen));
+    return !!(S.session && S.session.session_id===activeSid);
   }
 
   // 当用户切回本流所属 session 时，立刻补一次完整渲染
@@ -492,6 +500,13 @@ async function send(){
   }
 
   let _lastRenderTime=0;
+
+  // ★ AG-UI 精细化状态：thinking/message/step 的开始结束标记
+  //   提升为模块级变量，使 _scheduleRender 和 _wireSSE 都能访问
+  let _thinkingActive = false;   // thinking_start → true, thinking_end → false
+  let _messageActive = false;    // message_start → true, message_end → false
+  let _currentStep = '';         // step_started 设置, step_finished 清空
+
   function _scheduleRender(){
     if(_renderPending) return;
     // Throttle: skip if last render was less than 80ms ago (reduces CPU load
@@ -546,10 +561,15 @@ async function send(){
           thinkCard.classList.remove('open');
         }
         // 文本段
+        // ★ _isEmptyLike：某些 provider 在 tool_calls 前返回 content="{}"，
+        //   不应渲染为可见文本（否则在工具卡片间显示空大括号）
+        const _isEmptyLike = t => !t || /^[\s{}\[\]""]+$/.test(String(t).trim());
+        const _stripEmptyLike = t => { const s = String(t).trim(); return /^[\s{}\[\]""]+$/.test(s) ? '' : s; };
+        const cleanedText = _stripEmptyLike(text);
         let currentBody=segs.querySelector('#msgLiveStreamBody');
-        if(text){
-          if(currentBody) currentBody.innerHTML=renderMd(text);
-        } else if(!text && assistantText.length>0 && !thinking){
+        if(cleanedText && !_isEmptyLike(cleanedText)){
+          if(currentBody) currentBody.innerHTML=renderMd(cleanedText);
+        } else if((!cleanedText || _isEmptyLike(cleanedText)) && assistantText.length>0 && !thinking){
           // 纯占位（如 open tag 前缀匹配时）
           if(currentBody) currentBody.innerHTML='<span style="color:var(--muted);font-size:13px">Thinking\u2026</span>';
         } else if(!text && thinking){
@@ -587,10 +607,10 @@ async function send(){
 
   function _wireSSE(source){
     let _firstToken = true;
-    // ★ AG-UI 精细化状态：thinking/message/step 的开始结束标记
-    let _thinkingActive = false;   // thinking_start → true, thinking_end → false
-    let _messageActive = false;    // message_start → true, message_end → false
-    let _currentStep = '';         // step_started 设置, step_finished 清空
+    // ★ 新 SSE 流启动时，重置 AG-UI 状态（防止残留上一流的状态）
+    _thinkingActive = false;
+    _messageActive = false;
+    _currentStep = '';
     // ★ 看门狗：每 500ms 检查一次 assistantText 长度是否比上次渲染时的多，
     //   如果多了但 DOM 没被渲染（render 被异常卡住、或节流状态错乱），强制调度一次。
     //   这是防御性自愈：即使某条 SSE handler 挂了导致 _scheduleRender 没被调，
@@ -619,7 +639,11 @@ async function send(){
       try{
         // ★ 不再因 session 切换而丢弃 token —— 始终累积到 assistantText。
         //   用户切回此 session 时 hermes:session-switched 会触发补渲。
+        // ★ 过滤空外观 token：某些 provider/模型在 tool_calls 前发送 "{}" 作为 content，
+        //   不应累积到 assistantText，否则会在工具卡片间渲染出空大括号
+        const _isEmptyLikeToken = t => !t || /^[\s{}\[\]""]+$/.test(String(t).trim());
         const d=JSON.parse(e.data);
+        if(_isEmptyLikeToken(d && d.text)) return;
         assistantText+=(d && d.text) || '';
         // 第一个 token 时更新员工状态为工作中
         if(_firstToken&&typeof EMPLOYEE_STORE!=='undefined'&&EMPLOYEE_STORE.selectedId&&typeof setEmployeeStatus==='function'){
@@ -657,6 +681,7 @@ async function send(){
     source.addEventListener('message_start',e=>{
       try{
         const d=JSON.parse(e.data);
+        _messageActive = true;
         // 文本消息开始：可在此初始化状态或显示"正在回复…"占位
         if(_isViewingOurSession()){
           ensureAssistantRow();
@@ -667,6 +692,7 @@ async function send(){
     source.addEventListener('message_end',e=>{
       try{
         const d=JSON.parse(e.data);
+        _messageActive = false;
         // 文本消息结束：固化当前文本段，停止"正在回复…"状态
         if(_isViewingOurSession()){
           _scheduleRender();
@@ -830,8 +856,13 @@ async function send(){
           // 步骤 1：固化当前文本段
           const currentBody = segs.querySelector('#msgLiveStreamBody');
           if(currentBody){
-            const {text:finalText}=_extractThinkingAndText();
-            if(finalText && finalText.trim()){
+            const {text:rawFinalText}=_extractThinkingAndText();
+            // ★ _isEmptyLike：某些 provider 在 tool_calls 前返回 content="{}"，
+            //   不应渲染为可见文本（否则在工具卡片间显示空大括号）
+            const _isEmptyLike = t => !t || /^[\s{}\[\]""]+$/.test(String(t).trim());
+            const _stripEmptyLike = t => { const s = String(t).trim(); return /^[\s{}\[\]""]+$/.test(s) ? '' : s; };
+            const finalText = _stripEmptyLike(rawFinalText);
+            if(finalText && !_isEmptyLike(finalText)){
               currentBody.innerHTML = renderMd(finalText);
               currentBody.removeAttribute('id');
             } else {
@@ -983,8 +1014,13 @@ async function send(){
           // 固化活动文本段
           const liveBody = $('msgLiveStreamBody');
           if(liveBody){
-            const {thinking:finalThinking,text:finalText}=_extractThinkingAndText();
-            if(finalText && finalText.trim()){
+            // ★ _isEmptyLike：某些 provider 在 tool_calls 前返回 content="{}"，
+            //   不应渲染为可见文本
+            const _isEmptyLike = t => !t || /^[\s{}\[\]""]+$/.test(String(t).trim());
+            const _stripEmptyLike = t => { const s = String(t).trim(); return /^[\s{}\[\]""]+$/.test(s) ? '' : s; };
+            const {thinking:finalThinking,text:rawFinalText}=_extractThinkingAndText();
+            const finalText = _stripEmptyLike(rawFinalText);
+            if(finalText && !_isEmptyLike(finalText)){
               liveBody.innerHTML = renderMd(finalText);
               liveBody.removeAttribute('id');
             } else if(finalThinking && finalThinking.trim()){
