@@ -660,9 +660,11 @@ function setEmployeeStatus(id, status) {
   emp.status = status;
   emp.lastActiveAt = Date.now();
   _saveEmployees();
-  // 只更新对应卡片的状态，不全量重渲染
-  const card = document.querySelector(`.emp-card[data-id="${id}"]`);
-  if (card) _updateCardStatus(card, emp);
+  // ★ 更新所有匹配的卡片和列表项（画布 + 列表 + 右侧面板可能都有相同 data-id 的元素）
+  const cards = document.querySelectorAll(`.emp-card[data-id="${id}"]`);
+  cards.forEach(card => _updateCardStatus(card, emp));
+  const listItems = document.querySelectorAll(`.emp-list-item[data-id="${id}"]`);
+  listItems.forEach(item => _updateCardStatus(item, emp));
 }
 
 function selectEmployee(id, fromUser, taskId) {
@@ -747,9 +749,9 @@ function _getFilteredEmployees() {
   let list = EMPLOYEE_STORE.employees;
   // 状态筛选
   if (_empFilter === 'working') {
-    list = list.filter(e => e.status === 'working' || e.status === 'thinking');
+    list = list.filter(e => _computeEmpStatus(e) === 'working' || _computeEmpStatus(e) === 'thinking');
   } else if (_empFilter === 'idle') {
-    list = list.filter(e => e.status === 'idle' || e.status === 'offline');
+    list = list.filter(e => _computeEmpStatus(e) === 'idle' || _computeEmpStatus(e) === 'offline');
   }
   // 文字搜索
   if (_empSearchQuery) {
@@ -761,6 +763,21 @@ function _getFilteredEmployees() {
     });
   }
   return list;
+}
+
+/** 根据 DelegationVM + emp.status 计算员工的真实显示状态（与 _updateCardStatus 逻辑一致） */
+function _computeEmpStatus(emp) {
+  if (typeof DelegationVM !== 'undefined') {
+    const hasRunning = DelegationVM.running && DelegationVM.running.has && DelegationVM.running.has(emp.id);
+    const queue = DelegationVM.queues && DelegationVM.queues.get ? DelegationVM.queues.get(emp.id) : null;
+    const hasQueued = queue && queue.length > 0;
+    if (hasRunning || hasQueued) {
+      return (emp.status === 'thinking' || emp.status === 'working') ? emp.status : 'working';
+    }
+  }
+  if (emp.status === 'error') return 'error';
+  if (emp.status === 'idle' || emp.status === 'offline' || !emp.status) return emp.status || 'idle';
+  return 'idle'; // working/thinking 残留值 → idle
 }
 
 // ── 渲染 ──────────────────────────────────────────────────────────────────
@@ -804,7 +821,7 @@ function _buildCard(emp) {
   card.dataset.id = emp.id;
   card.draggable = true;
 
-  const st = STATUS_MAP[emp.status] || STATUS_MAP.idle;
+  const st = STATUS_MAP[_computeEmpStatus(emp)] || STATUS_MAP.idle;
   const skillsHtml = emp.skills.length
     ? emp.skills.slice(0, 3).map(s => `<span class="emp-skill-tag">${esc(s.name || s)}</span>`).join('') +
       (emp.skills.length > 3 ? `<span class="emp-skill-more">+${emp.skills.length - 3}</span>` : '')
@@ -869,9 +886,54 @@ function _buildCard(emp) {
 }
 
 function _updateCardStatus(card, emp) {
-  const st = STATUS_MAP[emp.status] || STATUS_MAP.idle;
+  // ★ 直接根据 DelegationVM 状态计算员工状态，而不是依赖 emp.status
+  let computedStatus = 'idle';
+  let statusFromDelegationVM = false;
+
+  if (typeof DelegationVM !== 'undefined') {
+    const hasRunning = DelegationVM.running && DelegationVM.running.has && DelegationVM.running.has(emp.id);
+    const queue = DelegationVM.queues && DelegationVM.queues.get ? DelegationVM.queues.get(emp.id) : null;
+    const hasQueued = queue && queue.length > 0;
+
+    if (hasRunning || hasQueued) {
+      computedStatus = (emp.status === 'thinking' || emp.status === 'working') ? emp.status : 'working';
+      statusFromDelegationVM = true;
+    }
+  }
+
+  // 如果无法从 DelegationVM 获取状态，则回退到 emp.status
+  if (!statusFromDelegationVM) {
+    // 只有 emp.status 是 safe 值（idle/error/null）时才使用它
+    if (emp.status === 'idle' || emp.status === 'error' || !emp.status) {
+      computedStatus = emp.status || 'idle';
+    } else {
+      // emp.status 是 'working'/'thinking' 等残留值 → 强制 idle
+      computedStatus = 'idle';
+    }
+  }
+
+  // 如果 emp.status 是 'error'，则优先显示错误状态
+  if (emp.status === 'error') {
+    computedStatus = 'error';
+  }
+
+  // ★ 将计算后的状态写回 emp.status，保持数据源一致性（影响过滤器、列表重渲染等）
+  if (emp.status !== computedStatus) {
+    emp.status = computedStatus;
+  }
+
+  // ★ 调试日志
+  if (emp.id === (typeof EMPLOYEE_STORE !== 'undefined' ? EMPLOYEE_STORE.selectedId : null)) {
+    console.log('[_updateCardStatus] emp.id=', emp.id,
+      'emp.status=', emp.status,
+      'hasRunning=', (typeof DelegationVM !== 'undefined' && DelegationVM.running && DelegationVM.running.has && DelegationVM.running.has(emp.id)),
+      'hasQueued=', (typeof DelegationVM !== 'undefined' && DelegationVM.queues && DelegationVM.queues.get ? (DelegationVM.queues.get(emp.id) || []).length > 0 : false),
+      '-> computedStatus=', computedStatus);
+  }
+
+  const st = STATUS_MAP[computedStatus] || STATUS_MAP.idle;
   const bar = card.querySelector('.emp-card-status-bar');
-  if (bar) bar.dataset.status = emp.status;
+  if (bar) bar.dataset.status = computedStatus;
   const dot = card.querySelector('.emp-status-dot');
   if (dot) {
     dot.style.background = st.dot;
@@ -880,7 +942,6 @@ function _updateCardStatus(card, emp) {
   const label = card.querySelector('.emp-status-label');
   if (label) {
     label.style.color = st.color;
-    // 方案 B：状态标签后追加"· 排队 N"
     let extra = '';
     if (typeof DelegationVM !== 'undefined' && typeof DelegationVM.getQueueLength === 'function') {
       try {
@@ -893,7 +954,12 @@ function _updateCardStatus(card, emp) {
   const avatar = card.querySelector('.emp-avatar');
   if (avatar) {
     avatar.style.background = st.bg;
-    avatar.dataset.status = emp.status;
+    avatar.dataset.status = computedStatus;
+  }
+  // ★ 列表模式头像（.emp-list-avatar）也需要更新背景色
+  const listAvatar = card.querySelector('.emp-list-avatar');
+  if (listAvatar) {
+    listAvatar.style.background = st.bg;
   }
 }
 

@@ -1376,23 +1376,10 @@ ${taskMsg || '请执行任务'}
 
   const pos = DelegationVM.enqueueJob(job);
   if (pos > 1) {
-    // 入队列等待 → 在总群发系统提示
+    // 入队列等待
     showToast(`已加入「${empName}」的任务队列（第 ${pos} 位）`);
-    if (ws) {
-      try {
-        await _addPMSessionMessage(`📋 任务 #${taskId} 已加入 **${empName}** 的任务队列（第 ${pos} 位），等当前任务完成后自动开始`, '系统');
-        if (_isPMChatOpen()) _renderGroupMessages();
-      } catch (_) {}
-    }
-  } else if (pos === 1) {
-    // ★ 立即启动 → 在PM聊天中显示委派状态
-    if (ws) {
-      try {
-        await _addPMSessionMessage(`📋 已委派任务给 **${empName}**：${taskMsg ? taskMsg.slice(0, 60) : taskId}`, '系统');
-        if (_isPMChatOpen()) _renderGroupMessages();
-      } catch (_) {}
-    }
   }
+  // 立即启动不再显示系统消息
 }
 
 /**
@@ -1849,7 +1836,6 @@ function _watchEmployeeStream(task, job) {
     // 更新员工 UI 状态（仅当 emp 当前指向本任务）
     const emp = (typeof getEmployee === 'function') ? getEmployee(task.empId) : null;
     if (emp && emp._activeTaskId === task.id) {
-      if (typeof setEmployeeStatus === 'function') setEmployeeStatus(emp.id, 'idle');
       emp._activeTaskId = null;
     }
 
@@ -1885,9 +1871,14 @@ function _watchEmployeeStream(task, job) {
       console.warn('刷新总群消息失败:', e);
     }
 
-    // 推进队列
-    if (job && typeof DelegationVM !== 'undefined') {
-      try { DelegationVM.completeJob(task.empId, task.id, 'done'); } catch(_) {}
+    // ★ 先推进队列（从 running 中移除当前任务，并可能启动下一个）
+    //   然后 completeJob 内部会调用 _refreshCardStatus，根据 running/queues 状态更新员工卡片
+    // ★ 修复：移除 job 条件限制，done 事件本身就应清理 running
+    console.log('[_watchEmployeeStream] done: 准备调用 completeJob, task.empId=', task?.empId, 'task.id=', task?.id, 'hasDelegationVM=', typeof DelegationVM !== 'undefined');
+    if (typeof DelegationVM !== 'undefined') {
+      try { DelegationVM.completeJob(task.empId, task.id, 'done'); } catch(e) {
+        console.warn('[_watchEmployeeStream] completeJob 失败:', e);
+      }
     }
   });
 

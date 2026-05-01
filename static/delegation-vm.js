@@ -194,11 +194,22 @@
     completeJob(empId, jobId, status) {
       if (!empId) return;
       const cur = this.running.get(empId);
-      if (cur && (!jobId || cur.id === jobId)) {
+      // ★ 修复：使用 == 而不是 ===，处理类型不匹配（字符串 vs 数字）
+      console.log('[DelegationVM.completeJob] 入参: empId=', empId, 'jobId=', jobId, 'running.has=', this.running.has(empId), 'cur?.id=', cur?.id);
+      if (cur && (!jobId || String(cur.id) === String(jobId) || cur.id == jobId)) {
+        console.log('[DelegationVM.completeJob] 匹配成功, empId=', empId, 'jobId=', jobId, 'cur.id=', cur.id);
         this.running.delete(empId);
         if (cur.task && status) {
           cur.task.status = status;
           _persistTask(cur.task);
+        }
+      } else {
+        console.warn('[DelegationVM.completeJob] 匹配失败, empId=', empId, 'jobId=', jobId, 'cur=', cur ? {id: cur.id, status: cur.task?.status} : 'null');
+        // ★ 额外：即使不匹配，如果 running 中有该 empId 的条目但 jobId 不匹配，
+        //   可能是旧的/错误的条目，强制清理（防止卡片永远显示 working）
+        if (cur && !jobId) {
+          console.warn('[DelegationVM.completeJob] jobId 为空，强制清理 running[', empId, ']');
+          this.running.delete(empId);
         }
       }
       // 取下一个
@@ -260,18 +271,46 @@
       }
       return false;
     },
-    /** 刷新员工卡片的状态条（状态 label 会显示排队数）*/
+    /** 刷新员工卡片的状态条（状态 label 会显示排队数）
+     *  ★ 逻辑说明：_updateCardStatus 已直接根据 DelegationVM.running/queues 动态计算状态，
+     *  所以这里只需更新 DOM，不再修改 emp.status（避免与 SSE 事件设置的状态冲突）
+     */
     _refreshCardStatus(empId) {
       if (!empId) return;
       try {
         const emp = (typeof getEmployee === 'function') ? getEmployee(empId) : null;
         if (!emp) return;
-        const card = document.querySelector(`.emp-card[data-id="${empId}"]`);
-        if (card && typeof _updateCardStatus === 'function') {
-          _updateCardStatus(card, emp);
+        
+        const hasRunning = this.running.has(empId);
+        const queue = this.queues.get(empId);
+        const hasQueued = queue && queue.length > 0;
+        
+        if (!hasRunning && !hasQueued && emp.status !== 'error') {
+          emp.status = 'idle';
         }
+
+        // ★ 调试日志
+        if (empId === (typeof EMPLOYEE_STORE !== 'undefined' ? EMPLOYEE_STORE.selectedId : null)) {
+          console.log('[_refreshCardStatus] empId=', empId,
+            'hasRunning=', hasRunning,
+            'hasQueued=', hasQueued,
+            'emp.status=', emp.status);
+        }
+
+        const cards = document.querySelectorAll(`.emp-card[data-id="${empId}"]`);
+        cards.forEach(card => {
+          if (typeof _updateCardStatus === 'function') {
+            _updateCardStatus(card, emp);
+          }
+        });
+        // ★ 同步更新列表模式元素
+        const listItems = document.querySelectorAll(`.emp-list-item[data-id="${empId}"]`);
+        listItems.forEach(item => {
+          if (typeof _updateCardStatus === 'function') {
+            _updateCardStatus(item, emp);
+          }
+        });
       } catch (_) {}
-      // 同时刷新委派栏（聊天框顶部的取消按钮）
       try {
         if (typeof EMPLOYEE_STORE !== 'undefined' && EMPLOYEE_STORE.selectedId === empId
             && typeof _updateDelegationBar === 'function') {
@@ -279,7 +318,6 @@
           _updateDelegationBar(emp);
         }
       } catch (_) {}
-      // REMOVED: 总群委派栏刷新 — 总群概念已移除
     },
 
     // ── 任务生命周期 ────────────────────────────────────────────────────────

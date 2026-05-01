@@ -1372,7 +1372,9 @@ function _solidifyLiveElements(liveRow, assistantText) {
  * 方案 A：基于 task 对象，状态隔离
  */
 function _attachLiveStreamToChat(emp, task) {
-  console.log('[_attachLiveStreamToChat] 开始, emp=', emp?.name, 'taskId=', task?.id, 'streamId=', task?.streamId, 'status=', task?.status);
+  const capturedEmpId = emp && emp.id;
+  const capturedEmpName = emp && emp.name;
+  console.log('[_attachLiveStreamToChat] 开始, emp=', capturedEmpName, 'empId=', capturedEmpId, 'taskId=', task?.id, 'streamId=', task?.streamId, 'status=', task?.status);
   if (!task || !task.streamId) return;
   const streamId = task.streamId;
   const capturedTaskId = task.id;
@@ -1438,6 +1440,11 @@ function _attachLiveStreamToChat(emp, task) {
 
   // 粘底滚动
   _scrollMsgAreaIfSticky();
+
+  // ★ 新增：SSE连接建立后，立即设置员工状态为 'thinking'
+  if (typeof setEmployeeStatus === 'function' && emp && emp.id) {
+    setEmployeeStatus(emp.id, 'thinking');
+  }
 
   // 连接 SSE 流
   const source = new EventSource(
@@ -1670,6 +1677,10 @@ function _attachLiveStreamToChat(emp, task) {
       assistantText += d.text;
       // 同步回任务对象，保持全局单一事实源
       task.accumulatedText = assistantText;
+      // ★ 新增：token 到达时，设置员工状态为 'working'
+      if (typeof setEmployeeStatus === 'function' && emp && emp.id) {
+        setEmployeeStatus(emp.id, 'working');
+      }
       _scheduleRender();
     } catch (_) {}
   });
@@ -1787,6 +1798,14 @@ function _attachLiveStreamToChat(emp, task) {
       const stepLabel = stepName === 'call_llm' ? '🧠 调用模型' :
                         stepName === 'execute_tool' ? '🔧 执行工具' : stepName;
       if (typeof setComposerStatus === 'function') setComposerStatus(stepLabel);
+      // ★ 新增：根据步骤类型更新员工状态
+      if (typeof setEmployeeStatus === 'function' && emp && emp.id) {
+        if (stepName === 'call_llm') {
+          setEmployeeStatus(emp.id, 'thinking');
+        } else if (stepName === 'execute_tool') {
+          setEmployeeStatus(emp.id, 'working');
+        }
+      }
       // ★ 在活动文本段显示步骤状态
       const liveBody = $('rpLiveStreamBody');
       if (liveBody && !liveBody.textContent.trim()) {
@@ -1929,17 +1948,40 @@ function _attachLiveStreamToChat(emp, task) {
     _streamEnded = true;
     source.close();
     if (task._chatSseSource === source) task._chatSseSource = null;
-    // ★ reasoning 与 token 已分离（_rpReasoningBuffer），无需再向 assistantText 追加 </think>
     clearTimeout(_streamTimeout);
-    // ★ 基于 task 状态判断（而非 emp 共享字段）
-    if (task.status === 'pending' || task.status === 'running') {
+    // ★ 修复：移除 task.status 条件限制，done 事件本身就意味着任务结束
+    //   无论 task.status 之前是什么值，都应该调用 completeJob
+    console.log('[_attachLiveStreamToChat] done: task.status=', task.status, 'capturedTaskId=', capturedTaskId, 'capturedEmpId=', capturedEmpId);
+    if (task.status !== 'done' && task.status !== 'error' && task.status !== 'cancelled') {
       task.status = 'done';
       if (typeof DelegationVM !== 'undefined' && DelegationVM._persistTask) DelegationVM._persistTask(task);
-      if (emp._activeTaskId === task.id) {
-        emp._activeTaskId = null;
-        if (typeof setEmployeeStatus === 'function') setEmployeeStatus(emp.id, 'idle');
-      }
     }
+    // 使用 capturedEmpId 获取员工对象，而不是依赖闭包变量 emp
+    const _empObj = (typeof getEmployee === 'function') ? getEmployee(capturedEmpId) : null;
+    if (_empObj && _empObj._activeTaskId === capturedTaskId) {
+      _empObj._activeTaskId = null;
+      console.log('[_attachLiveStreamToChat] 清除 _activeTaskId, empId=', capturedEmpId);
+    }
+    // ★ 先调用 completeJob 从 running 中移除任务（并启动排队任务）
+    //   然后 _refreshCardStatus 会根据 running+queues 状态正确计算员工状态
+    if (typeof DelegationVM !== 'undefined' && capturedTaskId && capturedEmpId) {
+      try {
+        console.log('[_attachLiveStreamToChat] 调用 completeJob, capturedEmpId=', capturedEmpId, 'capturedTaskId=', capturedTaskId);
+        DelegationVM.completeJob(capturedEmpId, capturedTaskId, task.status || 'done');
+      } catch(e) {
+        console.warn('[_attachLiveStreamToChat] completeJob 失败:', e);
+      }
+    } else {
+      console.warn('[_attachLiveStreamToChat] 未调用 completeJob, DelegationVM=', typeof DelegationVM, 'capturedTaskId=', capturedTaskId, 'capturedEmpId=', capturedEmpId);
+    }
+
+    // ★ 推进 DelegationVM 队列（当从总群跳转过来时，_watchEmployeeStream 的 SSE
+    //   已被 selectEmployee 关闭，_attachLiveStreamToChat 成为唯一消费者，
+    //   所以这里需要替代 _watchEmployeeStream 的 completeJob 职责）
+    // ★ 注意：already called completeJob above (line ~1958), so we skip here to avoid double-call
+    // if (typeof DelegationVM !== 'undefined' && capturedTaskId) {
+    //   try { DelegationVM.completeJob(emp.id, capturedTaskId, 'done'); } catch(_) {}
+    // }
 
     // ★ 方案 C 修复（v2）：委派任务完成后，刷新 S.messages 保持一致性
     //   v1：重新调 /api/session 获取后端数据（有网络延迟/竞态风险）
@@ -2095,6 +2137,10 @@ function _attachLiveStreamToChat(emp, task) {
       if (typeof DelegationVM !== 'undefined' && DelegationVM._persistTask) DelegationVM._persistTask(task);
       if (emp._activeTaskId === task.id) {
         emp._activeTaskId = null;
+        // ★ 新增：错误时更新员工状态为 'error'
+        if (typeof setEmployeeStatus === 'function' && emp.id) {
+          setEmployeeStatus(emp.id, 'error');
+        }
       }
     }
     // 把活动文本段标记为出错（保留已积累的文本）
@@ -2139,6 +2185,10 @@ function _attachLiveStreamToChat(emp, task) {
       if (typeof DelegationVM !== 'undefined' && DelegationVM._persistTask) DelegationVM._persistTask(task);
       if (emp._activeTaskId === task.id) {
         emp._activeTaskId = null;
+        // ★ 新增：错误时更新员工状态为 'error'
+        if (typeof setEmployeeStatus === 'function' && emp.id) {
+          setEmployeeStatus(emp.id, 'error');
+        }
       }
     }
     // 把活动文本段标记为出错

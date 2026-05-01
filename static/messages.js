@@ -325,9 +325,13 @@ async function send(){
       try{if(typeof _renderRpMessages==='function') _renderRpMessages();}catch(_){}
     } else { renderMessages(); }
     setBusy(false);setComposerStatus(`Error: ${e.message}`);
-    // 更新员工状态为出错（使用发送时记录的ID）
-    if(_sendEmpId && typeof setEmployeeStatus==='function'){
-      setEmployeeStatus(_sendEmpId,'error');
+    // ★ 先调用 completeJob 从 running 中移除任务，再刷新卡片状态
+    if(_sendEmpId && typeof DelegationVM!=='undefined' && DelegationVM.completeJob){
+      try { DelegationVM.completeJob(_sendEmpId, null, 'error'); } catch(_) {}
+    }
+    // ★ 使用 _refreshCardStatus 动态更新状态（根据队列状态）
+    if(_sendEmpId && typeof DelegationVM!=='undefined' && DelegationVM._refreshCardStatus){
+      DelegationVM._refreshCardStatus(_sendEmpId);
     }
     return;
   }
@@ -1070,9 +1074,13 @@ async function send(){
       }
       renderSessionList();setBusy(false);setStatus('');
       setComposerStatus('');
-      // 更新员工状态为空闲（使用发送时记录的ID，而非当前selectedId）
-      if(_sendEmpId && typeof setEmployeeStatus==='function'){
-        setEmployeeStatus(_sendEmpId,'idle');
+      // ★ 先调用 completeJob 从 running 中移除任务，再刷新卡片状态
+      if(_sendEmpId && typeof DelegationVM!=='undefined' && DelegationVM.completeJob){
+        try { DelegationVM.completeJob(_sendEmpId, null, 'done'); } catch(_) {}
+      }
+      // ★ 使用 _refreshCardStatus 动态更新状态（根据队列状态）
+      if(_sendEmpId && typeof DelegationVM!=='undefined' && DelegationVM._refreshCardStatus){
+        DelegationVM._refreshCardStatus(_sendEmpId);
       }
       playNotificationSound();
       sendBrowserNotification('Response complete',assistantText?assistantText.slice(0,100):'Task finished');
@@ -1229,11 +1237,16 @@ async function send(){
         catch(_){trackBackgroundError(activeSid,_errTitle,'Error');}
       }
       if(!S.session||!INFLIGHT[S.session.session_id]){setBusy(false);setComposerStatus('');}
-      // 更新员工状态为出错
-      if(_sendEmpId && typeof setEmployeeStatus==='function'){
-        setEmployeeStatus(_sendEmpId,'error');
+      // ★ 先调用 completeJob 从 running 中移除任务，再刷新卡片状态
+      if(_sendEmpId && typeof DelegationVM!=='undefined' && DelegationVM.completeJob){
+        try { DelegationVM.completeJob(_sendEmpId, null, 'error'); } catch(_) {}
+      }
+      // ★ 使用 _refreshCardStatus 动态更新状态（根据队列状态）
+      if(_sendEmpId && typeof DelegationVM!=='undefined' && DelegationVM._refreshCardStatus){
+        DelegationVM._refreshCardStatus(_sendEmpId);
       }
     });
+
 
     source.addEventListener('warning',e=>{
       // Non-fatal warning from server (e.g. fallback activated, retrying)
@@ -1286,9 +1299,13 @@ async function send(){
       }
       renderSessionList();
       if(!S.session||!INFLIGHT[S.session.session_id]){setBusy(false);setComposerStatus('');}
-      // 更新员工状态为空闲
-      if(_sendEmpId && typeof setEmployeeStatus==='function'){
-        setEmployeeStatus(_sendEmpId,'idle');
+      // ★ 先调用 completeJob 从 running 中移除任务，再刷新卡片状态
+      if(_sendEmpId && typeof DelegationVM!=='undefined' && DelegationVM.completeJob){
+        try { DelegationVM.completeJob(_sendEmpId, null, 'cancelled'); } catch(_) {}
+      }
+      // ★ 使用 _refreshCardStatus 动态更新状态（根据队列状态）
+      if(_sendEmpId && typeof DelegationVM!=='undefined' && DelegationVM._refreshCardStatus){
+        DelegationVM._refreshCardStatus(_sendEmpId);
       }
     });
   }
@@ -1313,9 +1330,13 @@ async function send(){
       }
     }
     if(!S.session||!INFLIGHT[S.session.session_id]){setBusy(false);setComposerStatus('');}
-    // 更新员工状态为出错
-    if(_sendEmpId && typeof setEmployeeStatus==='function'){
-      setEmployeeStatus(_sendEmpId,'error');
+    // ★ 先调用 completeJob 从 running 中移除任务，再刷新卡片状态
+    if(_sendEmpId && typeof DelegationVM!=='undefined' && DelegationVM.completeJob){
+      try { DelegationVM.completeJob(_sendEmpId, null, 'error'); } catch(_) {}
+    }
+    // ★ 使用 _refreshCardStatus 动态更新状态（根据队列状态）
+    if(_sendEmpId && typeof DelegationVM!=='undefined' && DelegationVM._refreshCardStatus){
+      DelegationVM._refreshCardStatus(_sendEmpId);
     }
   }
 

@@ -1279,7 +1279,9 @@ function renderEmployeeList() {
 
 /** 构建单个列表项 */
 function _buildListItem(emp) {
-  const st = (typeof STATUS_MAP !== 'undefined' ? STATUS_MAP[emp.status] : null) || { label: '空闲', color: 'var(--muted)', bg: 'rgba(255,255,255,.05)', dot: 'var(--muted)', animated: false };
+  const st = (typeof _computeEmpStatus === 'function' ? STATUS_MAP[_computeEmpStatus(emp)] : null)
+    || (typeof STATUS_MAP !== 'undefined' ? STATUS_MAP[emp.status] : null)
+    || { label: '空闲', color: 'var(--muted)', bg: 'rgba(255,255,255,.05)', dot: 'var(--muted)', animated: false };
   const item = document.createElement('div');
   item.className = 'emp-list-item' + (emp.id === EMPLOYEE_STORE.selectedId ? ' emp-list-selected' : '');
   item.dataset.id = emp.id;

@@ -1,1464 +1,1016 @@
 === Knot AG-UI Debug Log ===
 agent_id=9de3e080c2724179a549ebd15f00aaae model=deepseek-v3.1 session_id=04d5aa825672
-full_text_len=1298 full_reasoning_len=318
-line_count=1015
+full_text_len=1318 full_reasoning_len=219
+line_count=705
 conversation_id=d41490237af842d596d65ec5413f293c
 
-raw #1: data:{"type":"RUN_STARTED","timestamp":1777635686,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c"},"threadId":"d41490237af842d596d65ec5413f293c","runId":"f7792c57d10049a4a5f910ab75bdebe0"}
+raw #1: data:{"type":"RUN_STARTED","timestamp":1777644364,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c"},"threadId":"d41490237af842d596d65ec5413f293c","runId":"06854817e2ad471f8c32bb78d972bb43"}
 event: RUN_STARTED keys=['message_id', 'conversation_id']
-raw #3: data:{"type":"TOOL_CALL_START","timestamp":1777635686,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","tool_call_id":"94f3da06-5b15-4f8b-ad10-29d96b089765","name":"task_planning","ch_name":"任务规划中","display_name":"任务规划中","render_type":"
+raw #3: data:{"type":"TOOL_CALL_START","timestamp":1777644365,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","tool_call_id":"76366033-4a76-4f6e-bdca-324d188806b0","name":"task_planning","ch_name":"任务规划中","display_name":"任务规划中","render_type":"
 event: TOOL_CALL_START keys=['message_id', 'conversation_id', 'tool_call_id', 'name', 'ch_name', 'display_name', 'render_type', 'default_show', 'need_result', 'loading_display_type']
-raw #5: data:{"type":"TOOL_CALL_END","timestamp":1777635687,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","tool_call_id":"94f3da06-5b15-4f8b-ad10-29d96b089765"},"toolCallId":"94f3da06-5b15-4f8b-ad10-29d96b089765"}
+raw #5: data:{"type":"TOOL_CALL_END","timestamp":1777644365,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","tool_call_id":"76366033-4a76-4f6e-bdca-324d188806b0"},"toolCallId":"76366033-4a76-4f6e-bdca-324d188806b0"}
 event: TOOL_CALL_END keys=['message_id', 'conversation_id', 'tool_call_id']
-raw #7: data:{"type":"TOOL_CALL_RESULT","timestamp":1777635687,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","tool_call_id":"94f3da06-5b15-4f8b-ad10-29d96b089765","display_name":"任务规划完成"},"messageId":"f7792c57d10049a4a5f910ab75bdebe0","toolC
+raw #7: data:{"type":"TOOL_CALL_RESULT","timestamp":1777644365,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","tool_call_id":"76366033-4a76-4f6e-bdca-324d188806b0","display_name":"任务规划完成"},"messageId":"06854817e2ad471f8c32bb78d972bb43","toolC
 event: TOOL_CALL_RESULT keys=['message_id', 'conversation_id', 'tool_call_id', 'display_name']
   >>> TOOL_CALL_RESULT filtered empty-like: ''
-raw #9: data:{"type":"CUSTOM","timestamp":1777635687,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","type":"remove-tool","tool_call_id":"94f3da06-5b15-4f8b-ad10-29d96b089765"},"name":"remove-tool"}
+raw #9: data:{"type":"CUSTOM","timestamp":1777644365,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","type":"remove-tool","tool_call_id":"76366033-4a76-4f6e-bdca-324d188806b0"},"name":"remove-tool"}
 event: CUSTOM keys=['message_id', 'conversation_id', 'type', 'tool_call_id']
-remove-tool: 94f3da06-5b15-4f8b-ad10-29d96b089765
-raw #11: data:{"type":"STEP_STARTED","timestamp":1777635687,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","step_name":"call_llm"},"stepName":"call_llm"}
+remove-tool: 76366033-4a76-4f6e-bdca-324d188806b0
+raw #11: data:{"type":"STEP_STARTED","timestamp":1777644365,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","step_name":"call_llm"},"stepName":"call_llm"}
 event: STEP_STARTED keys=['message_id', 'conversation_id', 'step_name']
-raw #13: data:{"type":"TEXT_MESSAGE_START","timestamp":1777635689,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c"},"messageId":"f7792c57d10049a4a5f910ab75bdebe0","role":"assistant"}
+raw #13: data:{"type":"TEXT_MESSAGE_START","timestamp":1777644369,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c"},"messageId":"06854817e2ad471f8c32bb78d972bb43","role":"assistant"}
 event: TEXT_MESSAGE_START keys=['message_id', 'conversation_id']
-raw #15: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777635689,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","content":"我将"},"messageId":"f7792c57d10049a4a5f910ab75bdebe0","delta":"我将"}
+raw #15: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777644369,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","content":"我将"},"messageId":"06854817e2ad471f8c32bb78d972bb43","delta":"我将"}
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='我将' delta='我将' matched_so_far=True
   >>> TEXT_MESSAGE_CONTENT matched! text='我将' full_text_len=0
-raw #17: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777635689,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","content":"帮您"},"messageId":"f7792c57d10049a4a5f910ab75bdebe0","delta":"帮您"}
+raw #17: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777644369,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","content":"帮"},"messageId":"06854817e2ad471f8c32bb78d972bb43","delta":"帮"}
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='帮您' delta='帮您' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='帮您' full_text_len=2
-raw #19: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777635689,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","content":"完成PM"},"messageId":"f7792c57d10049a4a5f910ab75bdebe0","delta":"完成PM"}
+  >>> content='帮' delta='帮' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='帮' full_text_len=2
+raw #19: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777644369,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","content":"您完成PM"},"messageId":"06854817e2ad471f8c32bb78d972bb43","delta":"您完成PM"}
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='完成PM' delta='完成PM' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='完成PM' full_text_len=4
-raw #21: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777635689,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","content":"委派"},"messageId":"f7792c57d10049a4a5f910ab75bdebe0","delta":"委派"}
+  >>> content='您完成PM' delta='您完成PM' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='您完成PM' full_text_len=3
+raw #21: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777644369,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","content":"委派任务"},"messageId":"06854817e2ad471f8c32bb78d972bb43","delta":"委派任务"}
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='委派' delta='委派' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='委派' full_text_len=8
-raw #23: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777635689,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","content":"任务\""},"messageId":"f7792c57d10049a4a5f910ab75bdebe0","delta":"任务\""}
+  >>> content='委派任务' delta='委派任务' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='委派任务' full_text_len=8
+raw #23: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777644369,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","content":"\"test "},"messageId":"06854817e2ad471f8c32bb78d972bb43","delta":"\"test "}
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务"' delta='任务"' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务"' full_text_len=10
-raw #25: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777635689,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","content":"test "},"messageId":"f7792c57d10049a4a5f910ab75bdebe0","delta":"test "}
+  >>> content='"test ' delta='"test ' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='"test ' full_text_len=12
+raw #25: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777644369,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","content":"33\"。"},"messageId":"06854817e2ad471f8c32bb78d972bb43","delta":"33\"。"}
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='test ' delta='test ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='test ' full_text_len=13
-raw #27: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777635689,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","content":"26\"。"},"messageId":"f7792c57d10049a4a5f910ab75bdebe0","delta":"26\"。"}
+  >>> content='33"。' delta='33"。' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='33"。' full_text_len=18
+raw #27: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777644369,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","content":"首先让我获取"},"messageId":"06854817e2ad471f8c32bb78d972bb43","delta":"首先让我获取"}
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='26"。' delta='26"。' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='26"。' full_text_len=18
-raw #29: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777635689,"rawEvent":{"message_id":"f7792c57d10049a4a5f910ab75bdebe0","conversation_id":"d41490237af842d596d65ec5413f293c","content":"首先"},"messageId":"f7792c57d10049a4a5f910ab75bdebe0","delta":"首先"}
+  >>> content='首先让我获取' delta='首先让我获取' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='首先让我获取' full_text_len=22
+raw #29: data:{"type":"TEXT_MESSAGE_CONTENT","timestamp":1777644369,"rawEvent":{"message_id":"06854817e2ad471f8c32bb78d972bb43","conversation_id":"d41490237af842d596d65ec5413f293c","content":"knot服务器的"},"messageId":"06854817e2ad471f8c32bb78d972bb43","delta":"knot服务器的"}
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='首先' delta='首先' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='首先' full_text_len=22
+  >>> content='knot服务器的' delta='knot服务器的' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='knot服务器的' full_text_len=28
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='让我获取' delta='让我获取' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='让我获取' full_text_len=24
+  >>> content='工具描述' delta='工具描述' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='工具描述' full_text_len=36
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='knot' delta='knot' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='knot' full_text_len=28
+  >>> content='信息，看看' delta='信息，看看' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='信息，看看' full_text_len=40
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='服务器的工具' delta='服务器的工具' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='服务器的工具' full_text_len=32
+  >>> content='是否有可用的' delta='是否有可用的' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='是否有可用的' full_text_len=45
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='描述信息' delta='描述信息' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='描述信息' full_text_len=38
+  >>> content='文件操作工具' delta='文件操作工具' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='文件操作工具' full_text_len=51
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='。\n\n' delta='。\n\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='。\n\n' full_text_len=42
+  >>> TEXT_MESSAGE_CONTENT matched! text='。\n\n' full_text_len=57
 event: TEXT_MESSAGE_END keys=['message_id', 'conversation_id']
-event: THINKING_TEXT_MESSAGE_START keys=['message_id', 'conversation_id']
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n' delta='\n' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='\n' full_reasoning_len=0
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='根据' delta='根据' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='根据' full_reasoning_len=1
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='系统提醒' delta='系统提醒' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='系统提醒' full_reasoning_len=3
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='，我需要' delta='，我需要' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='，我需要' full_reasoning_len=7
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='先通过' delta='先通过' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='先通过' full_reasoning_len=11
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='g' delta='g' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='g' full_reasoning_len=14
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='rep_m' delta='rep_m' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='rep_m' full_reasoning_len=15
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='cp_t' delta='cp_t' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='cp_t' full_reasoning_len=20
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='ools和' delta='ools和' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='ools和' full_reasoning_len=24
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='fetch_m' delta='fetch_m' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='fetch_m' full_reasoning_len=29
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='cp_t' delta='cp_t' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='cp_t' full_reasoning_len=36
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='ools工具' delta='ools工具' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='ools工具' full_reasoning_len=40
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='获取M' delta='获取M' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='获取M' full_reasoning_len=46
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='CP Tools' delta='CP Tools' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='CP Tools' full_reasoning_len=49
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='的描述，' delta='的描述，' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='的描述，' full_reasoning_len=57
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='然后' delta='然后' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='然后' full_reasoning_len=61
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='才能使用' delta='才能使用' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='才能使用' full_reasoning_len=63
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='use_m' delta='use_m' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='use_m' full_reasoning_len=67
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='cp_t' delta='cp_t' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='cp_t' full_reasoning_len=72
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='ool。' delta='ool。' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='ool。' full_reasoning_len=76
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='让我先' delta='让我先' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='让我先' full_reasoning_len=80
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='搜索' delta='搜索' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='搜索' full_reasoning_len=83
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='k' delta='k' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='k' full_reasoning_len=85
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='not服务器' delta='not服务器' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='not服务器' full_reasoning_len=86
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='提供的' delta='提供的' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='提供的' full_reasoning_len=92
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='工具。\n' delta='工具。\n' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='工具。\n' full_reasoning_len=95
-event: THINKING_TEXT_MESSAGE_END keys=['message_id', 'conversation_id']
 event: TOOL_CALL_START keys=['message_id', 'conversation_id', 'tool_call_id', 'name', 'ch_name', 'display_name', 'render_type', 'default_show', 'need_result']
 event: TOOL_CALL_ARGS keys=['message_id', 'conversation_id', 'tool_call_id']
 event: TOOL_CALL_END keys=['message_id', 'conversation_id', 'tool_call_id']
 event: TOOL_CALL_RESULT keys=['message_id', 'conversation_id', 'tool_call_id', 'result', 'display_name']
   >>> TOOL_CALL_RESULT filtered empty-like: {}
-event: TEXT_MESSAGE_START keys=['message_id', 'conversation_id']
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n' delta='\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n' full_text_len=45
-event: TEXT_MESSAGE_END keys=['message_id', 'conversation_id']
 event: STEP_FINISHED keys=['message_id', 'conversation_id', 'step_name', 'token_usage']
 event: STEP_STARTED keys=['message_id', 'conversation_id', 'step_name']
 event: TEXT_MESSAGE_START keys=['message_id', 'conversation_id']
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='让我' delta='让我' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='让我' full_text_len=46
+  >>> TEXT_MESSAGE_CONTENT matched! text='让我' full_text_len=60
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='搜索所有' delta='搜索所有' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='搜索所有' full_text_len=48
+  >>> content='搜索' delta='搜索' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='搜索' full_text_len=62
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='可用的' delta='可用的' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='可用的' full_text_len=52
+  >>> content='所有' delta='所有' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='所有' full_text_len=64
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='MCP' delta='MCP' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='MCP' full_text_len=55
+  >>> content='可用的M' delta='可用的M' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='可用的M' full_text_len=66
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='工具，' delta='工具，' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='工具，' full_text_len=58
+  >>> content='CP工具，' delta='CP工具，' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='CP工具，' full_text_len=70
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='看看是否有' delta='看看是否有' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='看看是否有' full_text_len=61
+  >>> content='特别是查找是否有' delta='特别是查找是否有' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='特别是查找是否有' full_text_len=75
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任何可以' delta='任何可以' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任何可以' full_text_len=66
+  >>> content='文件操作相关的' delta='文件操作相关的' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='文件操作相关的' full_text_len=83
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='用于创建' delta='用于创建' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='用于创建' full_text_len=70
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='文件或' delta='文件或' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='文件或' full_text_len=74
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='文档的工具' delta='文档的工具' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='文档的工具' full_text_len=77
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='。\n\n\n\n\n\n\n\n' delta='。\n\n\n\n\n\n\n\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='。\n\n\n\n\n\n\n\n' full_text_len=82
+  >>> content='工具。\n\n' delta='工具。\n\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='工具。\n\n' full_text_len=90
 event: TEXT_MESSAGE_END keys=['message_id', 'conversation_id']
 event: TOOL_CALL_START keys=['message_id', 'conversation_id', 'tool_call_id', 'name', 'ch_name', 'display_name', 'render_type', 'default_show', 'need_result']
 event: TOOL_CALL_ARGS keys=['message_id', 'conversation_id', 'tool_call_id']
 event: TOOL_CALL_END keys=['message_id', 'conversation_id', 'tool_call_id']
 event: TOOL_CALL_RESULT keys=['message_id', 'conversation_id', 'tool_call_id', 'result', 'display_name']
   >>> TOOL_CALL_RESULT filtered empty-like: {}
-event: TEXT_MESSAGE_START keys=['message_id', 'conversation_id']
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n' delta='\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n' full_text_len=91
-event: TEXT_MESSAGE_END keys=['message_id', 'conversation_id']
 event: STEP_FINISHED keys=['message_id', 'conversation_id', 'step_name', 'token_usage']
 event: STEP_STARTED keys=['message_id', 'conversation_id', 'step_name']
 event: THINKING_TEXT_MESSAGE_START keys=['message_id', 'conversation_id']
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='\n' delta='\n' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='\n' full_reasoning_len=99
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='\n' full_reasoning_len=0
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='搜索结果显示' delta='搜索结果显示' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='搜索结果显示' full_reasoning_len=100
+  >>> content='搜索结果显示没有' delta='搜索结果显示没有' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='搜索结果显示没有' full_reasoning_len=1
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='没有可' delta='没有可' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='没有可' full_reasoning_len=106
+  >>> content='可用的文件' delta='可用的文件' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='可用的文件' full_reasoning_len=9
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='用的文件' delta='用的文件' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='用的文件' full_reasoning_len=109
+  >>> content='操作工具。' delta='操作工具。' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='操作工具。' full_reasoning_len=14
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='操作工具' delta='操作工具' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='操作工具' full_reasoning_len=113
+  >>> content='根据PM' delta='根据PM' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='根据PM' full_reasoning_len=19
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='。根据' delta='。根据' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='。根据' full_reasoning_len=117
+  >>> content='委派任务的' delta='委派任务的' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='委派任务的' full_reasoning_len=23
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='PM委' delta='PM委' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='PM委' full_reasoning_len=120
+  >>> content='执行要求：' delta='执行要求：' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='执行要求：' full_reasoning_len=28
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='派任务的' delta='派任务的' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='派任务的' full_reasoning_len=123
+  >>> content='\n1.' delta='\n1.' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='\n1.' full_reasoning_len=33
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='执行要求' delta='执行要求' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='执行要求' full_reasoning_len=127
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='：\n1' delta='：\n1' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='：\n1' full_reasoning_len=131
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='. ' delta='. ' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='. ' full_reasoning_len=134
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='禁止仅' delta='禁止仅' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='禁止仅' full_reasoning_len=136
+  >>> content=' 禁止仅' delta=' 禁止仅' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text=' 禁止仅' full_reasoning_len=36
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='输出承诺' delta='输出承诺' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='输出承诺' full_reasoning_len=139
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='输出承诺' full_reasoning_len=40
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='性短语' delta='性短语' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='性短语' full_reasoning_len=143
+  >>> content='性短语就' delta='性短语就' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='性短语就' full_reasoning_len=44
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='就结束' delta='就结束' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='就结束' full_reasoning_len=146
+  >>> content='结束\n2' delta='结束\n2' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='结束\n2' full_reasoning_len=48
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n2' delta='\n2' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='\n2' full_reasoning_len=149
+  >>> content='. 必须先' delta='. 必须先' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='. 必须先' full_reasoning_len=52
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='. ' delta='. ' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='. ' full_reasoning_len=151
+  >>> content='落地再' delta='落地再' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='落地再' full_reasoning_len=57
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='必须先落地' delta='必须先落地' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='必须先落地' full_reasoning_len=153
+  >>> content='汇报（' delta='汇报（' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='汇报（' full_reasoning_len=60
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='再汇报' delta='再汇报' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='再汇报' full_reasoning_len=158
+  >>> content='但当前没有' delta='但当前没有' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='但当前没有' full_reasoning_len=63
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='（但' delta='（但' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='（但' full_reasoning_len=161
+  >>> content='文件操作工具' delta='文件操作工具' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='文件操作工具' full_reasoning_len=68
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='当前没有' delta='当前没有' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='当前没有' full_reasoning_len=163
+  >>> content='）\n3.' delta='）\n3.' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='）\n3.' full_reasoning_len=74
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='文件操作' delta='文件操作' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='文件操作' full_reasoning_len=167
+  >>> content=' 辅助工具' delta=' 辅助工具' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text=' 辅助工具' full_reasoning_len=78
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='工具）\n' delta='工具）\n' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='工具）\n' full_reasoning_len=171
+  >>> content='失败时' delta='失败时' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='失败时' full_reasoning_len=83
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='3.' delta='3.' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='3.' full_reasoning_len=175
+  >>> content='果断切换（' delta='果断切换（' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='果断切换（' full_reasoning_len=86
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 辅助' delta=' 辅助' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text=' 辅助' full_reasoning_len=177
+  >>> content='文件操作工具' delta='文件操作工具' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='文件操作工具' full_reasoning_len=91
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='工具失败' delta='工具失败' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='工具失败' full_reasoning_len=180
+  >>> content='搜索已连续' delta='搜索已连续' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='搜索已连续' full_reasoning_len=97
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='时果断' delta='时果断' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='时果断' full_reasoning_len=184
+  >>> content='失败）\n\n由于' delta='失败）\n\n由于' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='失败）\n\n由于' full_reasoning_len=102
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='切换（' delta='切换（' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='切换（' full_reasoning_len=187
+  >>> content='没有可' delta='没有可' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='没有可' full_reasoning_len=109
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='文件操作' delta='文件操作' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='文件操作' full_reasoning_len=190
+  >>> content='用的文件操作' delta='用的文件操作' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='用的文件操作' full_reasoning_len=112
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='工具搜索' delta='工具搜索' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='工具搜索' full_reasoning_len=194
+  >>> content='工具，我需要' delta='工具，我需要' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='工具，我需要' full_reasoning_len=118
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='已连续' delta='已连续' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='已连续' full_reasoning_len=198
+  >>> content='基于已有' delta='基于已有' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='基于已有' full_reasoning_len=124
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='失败）\n\n' delta='失败）\n\n' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='失败）\n\n' full_reasoning_len=201
+  >>> content='知识完成任务' delta='知识完成任务' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='知识完成任务' full_reasoning_len=128
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='由于没有' delta='由于没有' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='由于没有' full_reasoning_len=206
+  >>> content='，提供' delta='，提供' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='，提供' full_reasoning_len=134
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='可用的' delta='可用的' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='可用的' full_reasoning_len=210
+  >>> content='完整的方案' delta='完整的方案' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='完整的方案' full_reasoning_len=137
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='文件操作' delta='文件操作' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='文件操作' full_reasoning_len=213
+  >>> content='和文档内容' delta='和文档内容' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='和文档内容' full_reasoning_len=142
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='工具，' delta='工具，' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='工具，' full_reasoning_len=217
+  >>> content='，让用户可以' delta='，让用户可以' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='，让用户可以' full_reasoning_len=147
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='我需要基于' delta='我需要基于' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='我需要基于' full_reasoning_len=220
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='已有知识' delta='已有知识' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='已有知识' full_reasoning_len=225
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='完成任务，' delta='完成任务，' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='完成任务，' full_reasoning_len=229
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='提供完整的' delta='提供完整的' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='提供完整的' full_reasoning_len=234
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='方案和' delta='方案和' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='方案和' full_reasoning_len=239
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='文档内容' delta='文档内容' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='文档内容' full_reasoning_len=242
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='，让' delta='，让' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='，让' full_reasoning_len=246
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='用户可以手动' delta='用户可以手动' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='用户可以手动' full_reasoning_len=248
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='创建。\n\n' delta='创建。\n\n' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='创建。\n\n' full_reasoning_len=254
+  >>> content='手动创建。\n\n' delta='手动创建。\n\n' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='手动创建。\n\n' full_reasoning_len=153
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='根据环境' delta='根据环境' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='根据环境' full_reasoning_len=259
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='根据环境' full_reasoning_len=160
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='信息，' delta='信息，' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='信息，' full_reasoning_len=263
+  >>> content='信息，当前' delta='信息，当前' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='信息，当前' full_reasoning_len=164
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='当前系统' delta='当前系统' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='当前系统' full_reasoning_len=266
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='时间是202' delta='时间是202' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='时间是202' full_reasoning_len=270
+  >>> content='系统时间是202' delta='系统时间是202' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='系统时间是202' full_reasoning_len=169
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='6-' delta='6-' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='6-' full_reasoning_len=276
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='6-' full_reasoning_len=177
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='05' delta='05' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='05' full_reasoning_len=278
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='05' full_reasoning_len=179
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='-01' delta='-01' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='-01' full_reasoning_len=280
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='-01' full_reasoning_len=181
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='T19' delta='T19' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='T19' full_reasoning_len=283
+  >>> content='T22:' delta='T22:' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='T22:' full_reasoning_len=184
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=':41' delta=':41' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text=':41' full_reasoning_len=286
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=':27' delta=':27' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text=':27' full_reasoning_len=289
+  >>> content='06:05' delta='06:05' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='06:05' full_reasoning_len=188
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='+08' delta='+08' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='+08' full_reasoning_len=292
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='+08' full_reasoning_len=193
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=':00' delta=':00' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text=':00' full_reasoning_len=295
+  >>> content=':00，' delta=':00，' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text=':00，' full_reasoning_len=196
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='，我需要' delta='，我需要' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='，我需要' full_reasoning_len=298
+  >>> content='我需要使用这个' delta='我需要使用这个' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='我需要使用这个' full_reasoning_len=200
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='使用这个' delta='使用这个' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='使用这个' full_reasoning_len=302
+  >>> content='时间作为任务' delta='时间作为任务' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='时间作为任务' full_reasoning_len=207
 event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='时间作为' delta='时间作为' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='时间作为' full_reasoning_len=306
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务创建' delta='任务创建' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='任务创建' full_reasoning_len=310
-event: THINKING_TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='时间。\n' delta='时间。\n' matched_so_far=True
-  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='时间。\n' full_reasoning_len=314
+  >>> content='创建时间。\n' delta='创建时间。\n' matched_so_far=True
+  >>> THINKING_TEXT_MESSAGE_CONTENT matched! text='创建时间。\n' full_reasoning_len=213
 event: THINKING_TEXT_MESSAGE_END keys=['message_id', 'conversation_id']
 event: TEXT_MESSAGE_START keys=['message_id', 'conversation_id']
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='由于' delta='由于' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='由于' full_text_len=92
+  >>> content='由于当前' delta='由于当前' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='由于当前' full_text_len=95
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='当前环境中' delta='当前环境中' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='当前环境中' full_text_len=94
+  >>> content='环境中没有可' delta='环境中没有可' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='环境中没有可' full_text_len=99
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='没有可' delta='没有可' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='没有可' full_text_len=99
+  >>> content='用的文件操作' delta='用的文件操作' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='用的文件操作' full_text_len=105
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='用的文件' delta='用的文件' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='用的文件' full_text_len=102
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='操作工具' delta='操作工具' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='操作工具' full_text_len=106
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='，我将' delta='，我将' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='，我将' full_text_len=110
+  >>> content='工具，我将' delta='工具，我将' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='工具，我将' full_text_len=111
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='基于已有' delta='基于已有' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='基于已有' full_text_len=113
+  >>> TEXT_MESSAGE_CONTENT matched! text='基于已有' full_text_len=116
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='知识为您' delta='知识为您' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='知识为您' full_text_len=117
+  >>> content='知识为您提供' delta='知识为您提供' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='知识为您提供' full_text_len=120
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='提供完整的' delta='提供完整的' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='提供完整的' full_text_len=121
+  >>> content='完整的任务管理' delta='完整的任务管理' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='完整的任务管理' full_text_len=126
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务管理' delta='任务管理' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务管理' full_text_len=126
+  >>> content='方案。您' delta='方案。您' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='方案。您' full_text_len=133
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='方案。' delta='方案。' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='方案。' full_text_len=130
+  >>> content='可以根据以下' delta='可以根据以下' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='可以根据以下' full_text_len=137
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='您可以根据' delta='您可以根据' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='您可以根据' full_text_len=133
+  >>> content='内容手动创建' delta='内容手动创建' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='内容手动创建' full_text_len=143
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='以下内容' delta='以下内容' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='以下内容' full_text_len=138
+  >>> content='相关文件来完成' delta='相关文件来完成' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='相关文件来完成' full_text_len=149
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='手动创建' delta='手动创建' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='手动创建' full_text_len=142
+  >>> content='"test ' delta='"test ' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='"test ' full_text_len=156
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='相关文件' delta='相关文件' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='相关文件' full_text_len=146
+  >>> content='33"任务' delta='33"任务' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='33"任务' full_text_len=162
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='来完成"' delta='来完成"' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='来完成"' full_text_len=150
+  >>> content='。\n\n## PM' delta='。\n\n## PM' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='。\n\n## PM' full_text_len=167
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='test ' delta='test ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='test ' full_text_len=154
+  >>> content='委派任务' delta='委派任务' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='委派任务' full_text_len=175
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='26"' delta='26"' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='26"' full_text_len=159
+  >>> content='执行完成\n\n' delta='执行完成\n\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='执行完成\n\n' full_text_len=179
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务。\n\n' delta='任务。\n\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务。\n\n' full_text_len=162
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='## PM' delta='## PM' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='## PM' full_text_len=167
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='委派' delta='委派' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='委派' full_text_len=172
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务执行' delta='任务执行' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务执行' full_text_len=174
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='完成\n\n' delta='完成\n\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='完成\n\n' full_text_len=178
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='**任务' delta='**任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='**任务' full_text_len=182
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='名称**:' delta='名称**:' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='名称**:' full_text_len=186
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' test ' delta=' test ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' test ' full_text_len=191
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='26  \n' delta='26  \n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='26  \n' full_text_len=197
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='**任务' delta='**任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='**任务' full_text_len=202
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='编号**:' delta='编号**:' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='编号**:' full_text_len=206
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' #task' delta=' #task' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' #task' full_text_len=211
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='-mom' delta='-mom' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='-mom' full_text_len=217
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='ue1' delta='ue1' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='ue1' full_text_len=221
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='pl-' delta='pl-' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='pl-' full_text_len=224
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='0-' delta='0-' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='0-' full_text_len=227
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='8bes' delta='8bes' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='8bes' full_text_len=229
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n\n###' delta='\n\n###' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n\n###' full_text_len=233
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 建议创建' delta=' 建议创建' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 建议创建' full_text_len=238
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='的文件清单' delta='的文件清单' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='的文件清单' full_text_len=243
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n\n1' delta='\n\n1' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n\n1' full_text_len=248
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='. **' delta='. **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='. **' full_text_len=251
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='test_' delta='test_' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='test_' full_text_len=255
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='26_task' delta='26_task' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='26_task' full_text_len=260
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='.md**' delta='.md**' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='.md**' full_text_len=267
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' - ' delta=' - ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' - ' full_text_len=272
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='主任务' delta='主任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='主任务' full_text_len=275
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='文档\n' delta='文档\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='文档\n' full_text_len=278
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='2.' delta='2.' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='2.' full_text_len=281
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' **task' delta=' **task' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' **task' full_text_len=283
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='_management' delta='_management' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='_management' full_text_len=290
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='/** -' delta='/** -' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='/** -' full_text_len=301
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 任务' delta=' 任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 任务' full_text_len=306
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='管理目录' delta='管理目录' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='管理目录' full_text_len=309
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='（可选' delta='（可选' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='（可选' full_text_len=313
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='）\n\n###' delta='）\n\n###' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='）\n\n###' full_text_len=316
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 关键' delta=' 关键' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 关键' full_text_len=322
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='决策说明' delta='决策说明' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='决策说明' full_text_len=325
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n\n1' delta='\n\n1' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n\n1' full_text_len=329
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='. **' delta='. **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='. **' full_text_len=332
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='文档' delta='文档' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='文档' full_text_len=336
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='结构**:' delta='结构**:' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='结构**:' full_text_len=338
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 采用' delta=' 采用' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 采用' full_text_len=343
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='标准PM' delta='标准PM' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='标准PM' full_text_len=346
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务模板' delta='任务模板' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务模板' full_text_len=350
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='，包含' delta='，包含' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='，包含' full_text_len=354
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='基本信息、' delta='基本信息、' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='基本信息、' full_text_len=357
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='进度跟踪' delta='进度跟踪' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='进度跟踪' full_text_len=362
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='、执行' delta='、执行' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='、执行' full_text_len=366
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='要求等' delta='要求等' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='要求等' full_text_len=369
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n2' delta='\n2' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n2' full_text_len=372
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='. **' delta='. **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='. **' full_text_len=374
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='时间记录' delta='时间记录' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='时间记录' full_text_len=378
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='**:' delta='**:' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='**:' full_text_len=382
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 使用' delta=' 使用' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 使用' full_text_len=385
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='当前系统' delta='当前系统' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='当前系统' full_text_len=388
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='时间202' delta='时间202' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='时间202' full_text_len=392
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='6-' delta='6-' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='6-' full_text_len=397
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='05' delta='05' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='05' full_text_len=399
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='-01' delta='-01' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='-01' full_text_len=401
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='T19' delta='T19' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='T19' full_text_len=404
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=':41' delta=':41' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=':41' full_text_len=407
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=':27' delta=':27' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=':27' full_text_len=410
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='+08' delta='+08' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='+08' full_text_len=413
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=':00' delta=':00' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=':00' full_text_len=416
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='作为任务' delta='作为任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='作为任务' full_text_len=419
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='创建时间' delta='创建时间' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='创建时间' full_text_len=423
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n3' delta='\n3' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n3' full_text_len=427
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='. **' delta='. **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='. **' full_text_len=429
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='负责人**:' delta='负责人**:' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='负责人**:' full_text_len=433
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 使用' delta=' 使用' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 使用' full_text_len=439
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='当前用户名' delta='当前用户名' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='当前用户名' full_text_len=442
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='zijian' delta='zijian' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='zijian' full_text_len=447
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='qiu' delta='qiu' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='qiu' full_text_len=453
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='作为任务' delta='作为任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='作为任务' full_text_len=456
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='负责人\n' delta='负责人\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='负责人\n' full_text_len=460
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='4.' delta='4.' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='4.' full_text_len=464
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' **文件' delta=' **文件' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' **文件' full_text_len=466
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='命名**:' delta='命名**:' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='命名**:' full_text_len=471
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 采用' delta=' 采用' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 采用' full_text_len=476
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='test_' delta='test_' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='test_' full_text_len=479
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='26_task' delta='26_task' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='26_task' full_text_len=484
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='.md的' delta='.md的' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='.md的' full_text_len=491
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='命名规范' delta='命名规范' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='命名规范' full_text_len=495
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='，便于' delta='，便于' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='，便于' full_text_len=499
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='识别和管理' delta='识别和管理' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='识别和管理' full_text_len=502
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n\n###' delta='\n\n###' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n\n###' full_text_len=507
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' test_' delta=' test_' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' test_' full_text_len=512
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='26_task' delta='26_task' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='26_task' full_text_len=518
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='.md ' delta='.md ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='.md ' full_text_len=525
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='文件内容' delta='文件内容' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='文件内容' full_text_len=529
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n\n```' delta='\n\n```' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n\n```' full_text_len=533
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='markdown' delta='markdown' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='markdown' full_text_len=538
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n#' delta='\n#' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n#' full_text_len=546
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' PM委' delta=' PM委' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' PM委' full_text_len=548
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='派任务' delta='派任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='派任务' full_text_len=552
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='：test' delta='：test' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='：test' full_text_len=555
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 26' delta=' 26' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 26' full_text_len=560
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n\n##' delta='\n\n##' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n\n##' full_text_len=563
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 任务' delta=' 任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 任务' full_text_len=567
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='信息' delta='信息' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='信息' full_text_len=570
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n-' delta='\n-' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n-' full_text_len=572
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' **' delta=' **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' **' full_text_len=574
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务编号' delta='任务编号' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务编号' full_text_len=577
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='**: #' delta='**: #' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='**: #' full_text_len=581
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='task-m' delta='task-m' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='task-m' full_text_len=586
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='omue' delta='omue' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='omue' full_text_len=592
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='1pl' delta='1pl' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='1pl' full_text_len=596
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='-0' delta='-0' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='-0' full_text_len=599
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='-8' delta='-8' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='-8' full_text_len=601
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='bes\n' delta='bes\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='bes\n' full_text_len=603
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='- **' delta='- **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='- **' full_text_len=607
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务名称' delta='任务名称' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务名称' full_text_len=611
+  >>> content='**任务名称' delta='**任务名称' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='**任务名称' full_text_len=185
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='**: test' delta='**: test' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='**: test' full_text_len=615
+  >>> TEXT_MESSAGE_CONTENT matched! text='**: test' full_text_len=191
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 26' delta=' 26' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 26' full_text_len=623
+  >>> content=' 33  \n' delta=' 33  \n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 33  \n' full_text_len=199
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n-' delta='\n-' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n-' full_text_len=626
+  >>> content='**任务编号' delta='**任务编号' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='**任务编号' full_text_len=205
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' **' delta=' **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' **' full_text_len=628
+  >>> content='**: #' delta='**: #' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='**: #' full_text_len=211
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='创建时间' delta='创建时间' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='创建时间' full_text_len=631
+  >>> content='task-m' delta='task-m' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='task-m' full_text_len=216
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='**: ' delta='**: ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='**: ' full_text_len=635
+  >>> content='omzk1' delta='omzk1' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='omzk1' full_text_len=222
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='2026' delta='2026' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='2026' full_text_len=639
+  >>> content='vn-' delta='vn-' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='vn-' full_text_len=227
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='-05' delta='-05' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='-05' full_text_len=643
+  >>> content='0-5' delta='0-5' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='0-5' full_text_len=230
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='j3' delta='j3' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='j3' full_text_len=233
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='z\n\n###' delta='z\n\n###' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='z\n\n###' full_text_len=235
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content=' 建议创建' delta=' 建议创建' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 建议创建' full_text_len=241
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='的文件清单\n\n' delta='的文件清单\n\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='的文件清单\n\n' full_text_len=246
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='1. **' delta='1. **' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='1. **' full_text_len=253
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='test_33' delta='test_33' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='test_33' full_text_len=258
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='_task.md**' delta='_task.md**' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='_task.md**' full_text_len=265
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content=' - 主' delta=' - 主' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' - 主' full_text_len=275
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='任务文档\n' delta='任务文档\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='任务文档\n' full_text_len=279
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='2. **' delta='2. **' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='2. **' full_text_len=284
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='task_d' delta='task_d' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='task_d' full_text_len=289
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='ocuments/**' delta='ocuments/**' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='ocuments/**' full_text_len=295
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content=' - 任务' delta=' - 任务' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' - 任务' full_text_len=306
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='相关文档目录' delta='相关文档目录' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='相关文档目录' full_text_len=311
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='（可选）\n\n' delta='（可选）\n\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='（可选）\n\n' full_text_len=317
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='### 关键' delta='### 关键' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='### 关键' full_text_len=323
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='决策说明' delta='决策说明' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='决策说明' full_text_len=329
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='\n\n1' delta='\n\n1' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n\n1' full_text_len=333
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='. **' delta='. **' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='. **' full_text_len=336
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='文档结构' delta='文档结构' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='文档结构' full_text_len=340
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='**: 采用' delta='**: 采用' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='**: 采用' full_text_len=344
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='标准PM任务' delta='标准PM任务' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='标准PM任务' full_text_len=350
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='模板，包含' delta='模板，包含' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='模板，包含' full_text_len=356
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='基本信息、进度' delta='基本信息、进度' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='基本信息、进度' full_text_len=361
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='跟踪、执行' delta='跟踪、执行' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='跟踪、执行' full_text_len=368
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='要求等\n' delta='要求等\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='要求等\n' full_text_len=373
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='2. **' delta='2. **' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='2. **' full_text_len=377
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='时间记录**:' delta='时间记录**:' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='时间记录**:' full_text_len=382
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content=' 使用当前' delta=' 使用当前' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 使用当前' full_text_len=389
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='系统时间202' delta='系统时间202' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='系统时间202' full_text_len=394
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='6-' delta='6-' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='6-' full_text_len=401
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='05' delta='05' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='05' full_text_len=403
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='-01' delta='-01' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='-01' full_text_len=646
+  >>> TEXT_MESSAGE_CONTENT matched! text='-01' full_text_len=405
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='T19' delta='T19' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='T19' full_text_len=649
+  >>> content='T22' delta='T22' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='T22' full_text_len=408
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=':41' delta=':41' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=':41' full_text_len=652
+  >>> content=':06' delta=':06' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=':06' full_text_len=411
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=':' delta=':' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=':' full_text_len=655
+  >>> content=':05' delta=':05' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=':05' full_text_len=414
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='27+' delta='27+' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='27+' full_text_len=656
+  >>> content='+08' delta='+08' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='+08' full_text_len=417
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='08:' delta='08:' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='08:' full_text_len=659
+  >>> content=':00' delta=':00' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=':00' full_text_len=420
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='00\n' delta='00\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='00\n' full_text_len=662
+  >>> content='作为任务' delta='作为任务' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='作为任务' full_text_len=423
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='- **' delta='- **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='- **' full_text_len=665
+  >>> content='创建时间\n' delta='创建时间\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='创建时间\n' full_text_len=427
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务状态' delta='任务状态' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务状态' full_text_len=669
+  >>> content='3. **' delta='3. **' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='3. **' full_text_len=432
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='**:' delta='**:' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='**:' full_text_len=673
+  >>> content='负责人**: ' delta='负责人**: ' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='负责人**: ' full_text_len=437
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 新建' delta=' 新建' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 新建' full_text_len=676
+  >>> content='使用当前用户名' delta='使用当前用户名' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='使用当前用户名' full_text_len=444
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n-' delta='\n-' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n-' full_text_len=679
+  >>> content='zijianq' delta='zijianq' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='zijianq' full_text_len=451
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' **' delta=' **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' **' full_text_len=681
+  >>> content='iu作为任务' delta='iu作为任务' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='iu作为任务' full_text_len=458
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='负责人**:' delta='负责人**:' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='负责人**:' full_text_len=684
+  >>> content='负责人\n4' delta='负责人\n4' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='负责人\n4' full_text_len=464
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' zijian' delta=' zijian' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' zijian' full_text_len=690
+  >>> content='. **' delta='. **' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='. **' full_text_len=469
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='qiu' delta='qiu' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='qiu' full_text_len=697
+  >>> content='文件命名**:' delta='文件命名**:' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='文件命名**:' full_text_len=473
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n\n##' delta='\n\n##' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n\n##' full_text_len=700
+  >>> content=' 采用test' delta=' 采用test' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 采用test' full_text_len=480
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 任务' delta=' 任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 任务' full_text_len=704
+  >>> content='_33_task' delta='_33_task' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='_33_task' full_text_len=487
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='描述\n' delta='描述\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='描述\n' full_text_len=707
+  >>> content='.md的命名' delta='.md的命名' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='.md的命名' full_text_len=495
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='这是一个' delta='这是一个' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='这是一个' full_text_len=710
+  >>> content='规范，便于' delta='规范，便于' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='规范，便于' full_text_len=501
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='PM委' delta='PM委' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='PM委' full_text_len=714
+  >>> content='识别和管理' delta='识别和管理' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='识别和管理' full_text_len=506
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='派的任务' delta='派的任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='派的任务' full_text_len=717
+  >>> content='\n\n### test' delta='\n\n### test' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n\n### test' full_text_len=511
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='，名' delta='，名' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='，名' full_text_len=721
+  >>> content='_33_task' delta='_33_task' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='_33_task' full_text_len=521
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='称为"' delta='称为"' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='称为"' full_text_len=723
+  >>> content='.md ' delta='.md ' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='.md ' full_text_len=529
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='文件内容\n\n' delta='文件内容\n\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='文件内容\n\n' full_text_len=533
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='```markdown' delta='```markdown' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='```markdown' full_text_len=539
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='\n#' delta='\n#' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n#' full_text_len=550
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content=' PM委' delta=' PM委' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' PM委' full_text_len=552
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='派任务：' delta='派任务：' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='派任务：' full_text_len=556
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='test ' delta='test ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='test ' full_text_len=726
+  >>> TEXT_MESSAGE_CONTENT matched! text='test ' full_text_len=560
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='26"。' delta='26"。' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='26"。' full_text_len=731
+  >>> content='33\n\n##' delta='33\n\n##' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='33\n\n##' full_text_len=565
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='具体任务' delta='具体任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='具体任务' full_text_len=735
+  >>> content=' 任务信息' delta=' 任务信息' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 任务信息' full_text_len=571
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='内容和目标' delta='内容和目标' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='内容和目标' full_text_len=739
+  >>> content='\n- **' delta='\n- **' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n- **' full_text_len=576
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='需要进一步' delta='需要进一步' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='需要进一步' full_text_len=744
+  >>> content='任务编号**:' delta='任务编号**:' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='任务编号**:' full_text_len=581
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='明确。\n\n' delta='明确。\n\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='明确。\n\n' full_text_len=749
+  >>> content=' #task-m' delta=' #task-m' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' #task-m' full_text_len=588
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='## ' delta='## ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='## ' full_text_len=754
+  >>> content='omzk' delta='omzk' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='omzk' full_text_len=596
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='执行' delta='执行' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='执行' full_text_len=757
+  >>> content='1vn' delta='1vn' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='1vn' full_text_len=600
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='-0-' delta='-0-' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='-0-' full_text_len=603
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='5j' delta='5j' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='5j' full_text_len=606
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='3z\n' delta='3z\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='3z\n' full_text_len=608
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='- **' delta='- **' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='- **' full_text_len=611
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='任务名称**:' delta='任务名称**:' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='任务名称**:' full_text_len=615
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content=' test 33' delta=' test 33' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' test 33' full_text_len=622
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='\n- **' delta='\n- **' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n- **' full_text_len=630
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='创建时间**:' delta='创建时间**:' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='创建时间**:' full_text_len=635
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content=' 2026' delta=' 2026' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 2026' full_text_len=642
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='-05' delta='-05' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='-05' full_text_len=647
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='-01T' delta='-01T' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='-01T' full_text_len=650
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='22:06' delta='22:06' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='22:06' full_text_len=654
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content=':05' delta=':05' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=':05' full_text_len=659
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='+08:' delta='+08:' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='+08:' full_text_len=662
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='00\n-' delta='00\n-' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='00\n-' full_text_len=666
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content=' **' delta=' **' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' **' full_text_len=670
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='任务状态**:' delta='任务状态**:' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='任务状态**:' full_text_len=673
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content=' 新建\n' delta=' 新建\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 新建\n' full_text_len=680
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='- **负责人' delta='- **负责人' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='- **负责人' full_text_len=684
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='**: zij' delta='**: zij' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='**: zij' full_text_len=691
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='ianq' delta='ianq' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='ianq' full_text_len=698
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='iu\n\n##' delta='iu\n\n##' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='iu\n\n##' full_text_len=702
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content=' 任务描述' delta=' 任务描述' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 任务描述' full_text_len=708
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='\n这是一个' delta='\n这是一个' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n这是一个' full_text_len=713
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='PM委' delta='PM委' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='PM委' full_text_len=718
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='派的任务，' delta='派的任务，' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='派的任务，' full_text_len=721
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='名称为"' delta='名称为"' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='名称为"' full_text_len=726
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='test ' delta='test ' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='test ' full_text_len=730
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='33"。具体' delta='33"。具体' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='33"。具体' full_text_len=735
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='任务内容和' delta='任务内容和' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='任务内容和' full_text_len=741
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='目标需要' delta='目标需要' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='目标需要' full_text_len=746
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='进一步明确。\n\n' delta='进一步明确。\n\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='进一步明确。\n\n' full_text_len=750
+event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
+  >>> content='## 执行' delta='## 执行' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='## 执行' full_text_len=758
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='要求\n' delta='要求\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='要求\n' full_text_len=759
+  >>> TEXT_MESSAGE_CONTENT matched! text='要求\n' full_text_len=763
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='1' delta='1' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='1' full_text_len=762
+  >>> content='1. **' delta='1. **' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='1. **' full_text_len=766
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='. **' delta='. **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='. **' full_text_len=763
+  >>> content='禁止仅' delta='禁止仅' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='禁止仅' full_text_len=771
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='禁止' delta='禁止' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='禁止' full_text_len=767
+  >>> content='输出承诺性' delta='输出承诺性' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='输出承诺性' full_text_len=774
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='仅输出' delta='仅输出' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='仅输出' full_text_len=769
+  >>> content='短语就结束' delta='短语就结束' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='短语就结束' full_text_len=779
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='承诺' delta='承诺' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='承诺' full_text_len=772
+  >>> content='**：必须' delta='**：必须' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='**：必须' full_text_len=784
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='性短语' delta='性短语' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='性短语' full_text_len=774
+  >>> content='实际执行' delta='实际执行' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='实际执行' full_text_len=789
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='就结束' delta='就结束' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='就结束' full_text_len=777
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='**：' delta='**：' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='**：' full_text_len=780
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='必须实际' delta='必须实际' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='必须实际' full_text_len=783
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='执行操作' delta='执行操作' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='执行操作' full_text_len=787
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n2' delta='\n2' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n2' full_text_len=791
+  >>> content='操作\n2' delta='操作\n2' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='操作\n2' full_text_len=793
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='. **' delta='. **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='. **' full_text_len=793
+  >>> TEXT_MESSAGE_CONTENT matched! text='. **' full_text_len=797
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='必须先落地' delta='必须先落地' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='必须先落地' full_text_len=797
+  >>> content='必须先落地再' delta='必须先落地再' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='必须先落地再' full_text_len=801
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='再汇报' delta='再汇报' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='再汇报' full_text_len=802
+  >>> content='汇报**：' delta='汇报**：' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='汇报**：' full_text_len=807
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='**：' delta='**：' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='**：' full_text_len=805
+  >>> content='涉及文档/' delta='涉及文档/' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='涉及文档/' full_text_len=812
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='涉及文档' delta='涉及文档' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='涉及文档' full_text_len=808
+  >>> content='代码必须真实' delta='代码必须真实' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='代码必须真实' full_text_len=817
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='/代码' delta='/代码' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='/代码' full_text_len=812
+  >>> content='创建/修改' delta='创建/修改' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='创建/修改' full_text_len=823
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='必须真实' delta='必须真实' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='必须真实' full_text_len=815
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='创建/' delta='创建/' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='创建/' full_text_len=819
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='修改文件' delta='修改文件' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='修改文件' full_text_len=822
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n3' delta='\n3' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n3' full_text_len=826
+  >>> content='文件\n3' delta='文件\n3' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='文件\n3' full_text_len=828
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='. **' delta='. **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='. **' full_text_len=828
+  >>> TEXT_MESSAGE_CONTENT matched! text='. **' full_text_len=832
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='工作区' delta='工作区' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='工作区' full_text_len=832
+  >>> content='工作区路径' delta='工作区路径' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='工作区路径' full_text_len=836
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='路径**' delta='路径**' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='路径**' full_text_len=835
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='：所有' delta='：所有' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='：所有' full_text_len=839
+  >>> content='**：所有' delta='**：所有' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='**：所有' full_text_len=841
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='产出文件' delta='产出文件' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='产出文件' full_text_len=842
+  >>> TEXT_MESSAGE_CONTENT matched! text='产出文件' full_text_len=846
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='保存在工作' delta='保存在工作' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='保存在工作' full_text_len=846
+  >>> content='保存在工作区' delta='保存在工作区' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='保存在工作区' full_text_len=850
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='区根' delta='区根' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='区根' full_text_len=851
+  >>> content='根目录或其' delta='根目录或其' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='根目录或其' full_text_len=856
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='目录' delta='目录' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='目录' full_text_len=853
+  >>> content='子目录下' delta='子目录下' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='子目录下' full_text_len=861
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='或其子' delta='或其子' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='或其子' full_text_len=855
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='目录' delta='目录' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='目录' full_text_len=858
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='下\n' delta='下\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='下\n' full_text_len=860
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='4.' delta='4.' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='4.' full_text_len=862
+  >>> content='\n4.' delta='\n4.' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n4.' full_text_len=865
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content=' **辅助' delta=' **辅助' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' **辅助' full_text_len=864
+  >>> TEXT_MESSAGE_CONTENT matched! text=' **辅助' full_text_len=868
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='工具失败' delta='工具失败' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='工具失败' full_text_len=869
+  >>> TEXT_MESSAGE_CONTENT matched! text='工具失败' full_text_len=873
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='时果断' delta='时果断' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='时果断' full_text_len=873
+  >>> TEXT_MESSAGE_CONTENT matched! text='时果断' full_text_len=877
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='切换' delta='切换' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='切换' full_text_len=876
+  >>> content='切换**：' delta='切换**：' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='切换**：' full_text_len=880
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='**：' delta='**：' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='**：' full_text_len=878
+  >>> content='工具连续失败' delta='工具连续失败' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='工具连续失败' full_text_len=885
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='工具连续' delta='工具连续' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='工具连续' full_text_len=881
+  >>> content='时基于' delta='时基于' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='时基于' full_text_len=891
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='失败时' delta='失败时' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='失败时' full_text_len=885
+  >>> content='已有知识完成' delta='已有知识完成' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='已有知识完成' full_text_len=894
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='基于已有' delta='基于已有' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='基于已有' full_text_len=888
+  >>> content='\n5.' delta='\n5.' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n5.' full_text_len=900
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='知识完成' delta='知识完成' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='知识完成' full_text_len=892
+  >>> content=' **完成后' delta=' **完成后' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' **完成后' full_text_len=903
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n5' delta='\n5' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n5' full_text_len=896
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='. **' delta='. **' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='. **' full_text_len=898
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='完成后简要' delta='完成后简要' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='完成后简要' full_text_len=902
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='汇报' delta='汇报' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='汇报' full_text_len=907
+  >>> content='简要汇报' delta='简要汇报' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='简要汇报' full_text_len=909
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='**：' delta='**：' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='**：' full_text_len=909
+  >>> TEXT_MESSAGE_CONTENT matched! text='**：' full_text_len=913
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='说明创建' delta='说明创建' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='说明创建' full_text_len=912
+  >>> TEXT_MESSAGE_CONTENT matched! text='说明创建' full_text_len=916
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='的文件' delta='的文件' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='的文件' full_text_len=916
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='清单' delta='清单' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='清单' full_text_len=919
+  >>> content='的文件清单' delta='的文件清单' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='的文件清单' full_text_len=920
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='和关键' delta='和关键' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='和关键' full_text_len=921
+  >>> TEXT_MESSAGE_CONTENT matched! text='和关键' full_text_len=925
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='决策\n\n' delta='决策\n\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='决策\n\n' full_text_len=924
+  >>> content='决策\n\n##' delta='决策\n\n##' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='决策\n\n##' full_text_len=928
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='## ' delta='## ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='## ' full_text_len=928
+  >>> content=' 任务进度' delta=' 任务进度' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 任务进度' full_text_len=934
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务进度' delta='任务进度' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务进度' full_text_len=931
+  >>> content='\n- [' delta='\n- [' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n- [' full_text_len=939
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n-' delta='\n-' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n-' full_text_len=935
+  >>> content='x] ' delta='x] ' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='x] ' full_text_len=943
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' [' delta=' [' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT filtered empty-like: ' ['
-  >>> TEXT_MESSAGE_CONTENT matched! text='' full_text_len=937
+  >>> content='制定任务管理' delta='制定任务管理' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='制定任务管理' full_text_len=946
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='x]' delta='x]' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='x]' full_text_len=937
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 制定' delta=' 制定' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 制定' full_text_len=939
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务管理' delta='任务管理' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务管理' full_text_len=942
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='方案\n' delta='方案\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='方案\n' full_text_len=946
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='- [' delta='- [' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='- [' full_text_len=949
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' ] ' delta=' ] ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT filtered empty-like: ' ] '
-  >>> TEXT_MESSAGE_CONTENT matched! text='' full_text_len=952
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='明确任务' delta='明确任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='明确任务' full_text_len=952
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='具体内容和' delta='具体内容和' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='具体内容和' full_text_len=956
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='目标\n' delta='目标\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='目标\n' full_text_len=961
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='- [' delta='- [' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='- [' full_text_len=964
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' ] ' delta=' ] ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT filtered empty-like: ' ] '
-  >>> TEXT_MESSAGE_CONTENT matched! text='' full_text_len=967
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='制定详细' delta='制定详细' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='制定详细' full_text_len=967
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='执行计划' delta='执行计划' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='执行计划' full_text_len=971
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n-' delta='\n-' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n-' full_text_len=975
+  >>> content='方案\n-' delta='方案\n-' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='方案\n-' full_text_len=952
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content=' [' delta=' [' matched_so_far=True
   >>> TEXT_MESSAGE_CONTENT filtered empty-like: ' ['
-  >>> TEXT_MESSAGE_CONTENT matched! text='' full_text_len=977
+  >>> TEXT_MESSAGE_CONTENT matched! text='' full_text_len=956
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' ] ' delta=' ] ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT filtered empty-like: ' ] '
-  >>> TEXT_MESSAGE_CONTENT matched! text='' full_text_len=977
+  >>> content=' ] 明确' delta=' ] 明确' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' ] 明确' full_text_len=956
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='执行核心' delta='执行核心' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='执行核心' full_text_len=977
+  >>> content='任务具体' delta='任务具体' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='任务具体' full_text_len=961
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务内容' delta='任务内容' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务内容' full_text_len=981
+  >>> content='内容和目标\n' delta='内容和目标\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='内容和目标\n' full_text_len=965
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n-' delta='\n-' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n-' full_text_len=985
+  >>> content='- [ ]' delta='- [ ]' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='- [ ]' full_text_len=971
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' [' delta=' [' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT filtered empty-like: ' ['
-  >>> TEXT_MESSAGE_CONTENT matched! text='' full_text_len=987
+  >>> content=' 制定详细' delta=' 制定详细' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 制定详细' full_text_len=976
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' ] ' delta=' ] ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT filtered empty-like: ' ] '
-  >>> TEXT_MESSAGE_CONTENT matched! text='' full_text_len=987
+  >>> content='执行计划\n' delta='执行计划\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='执行计划\n' full_text_len=981
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='验收和' delta='验收和' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='验收和' full_text_len=987
+  >>> content='- [ ]' delta='- [ ]' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='- [ ]' full_text_len=986
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='交付\n\n' delta='交付\n\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='交付\n\n' full_text_len=990
+  >>> content=' 执行' delta=' 执行' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 执行' full_text_len=991
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='## ' delta='## ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='## ' full_text_len=994
+  >>> content='核心任务内容' delta='核心任务内容' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='核心任务内容' full_text_len=994
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='风险评估\n' delta='风险评估\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='风险评估\n' full_text_len=997
+  >>> content='\n- [' delta='\n- [' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n- [' full_text_len=1000
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='- ' delta='- ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='- ' full_text_len=1002
+  >>> content=' ] 验收' delta=' ] 验收' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' ] 验收' full_text_len=1004
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='当前环境' delta='当前环境' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='当前环境' full_text_len=1004
+  >>> content='和交付\n\n' delta='和交付\n\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='和交付\n\n' full_text_len=1009
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='缺乏文件' delta='缺乏文件' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='缺乏文件' full_text_len=1008
+  >>> content='## 风险评估' delta='## 风险评估' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='## 风险评估' full_text_len=1014
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='操作工具' delta='操作工具' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='操作工具' full_text_len=1012
+  >>> content='\n- ' delta='\n- ' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n- ' full_text_len=1021
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='，需要' delta='，需要' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='，需要' full_text_len=1016
+  >>> content='当前环境缺乏' delta='当前环境缺乏' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='当前环境缺乏' full_text_len=1024
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='手动创建' delta='手动创建' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='手动创建' full_text_len=1019
+  >>> content='文件操作工具' delta='文件操作工具' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='文件操作工具' full_text_len=1030
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='文件\n' delta='文件\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='文件\n' full_text_len=1023
+  >>> content='，需要手动' delta='，需要手动' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='，需要手动' full_text_len=1036
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='-' delta='-' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='-' full_text_len=1026
+  >>> content='创建文件' delta='创建文件' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='创建文件' full_text_len=1041
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 任务' delta=' 任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 任务' full_text_len=1027
+  >>> content='\n- ' delta='\n- ' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n- ' full_text_len=1045
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='具体内容' delta='具体内容' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='具体内容' full_text_len=1030
+  >>> content='任务具体' delta='任务具体' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='任务具体' full_text_len=1048
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='需要进一步' delta='需要进一步' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='需要进一步' full_text_len=1034
+  >>> content='内容需要' delta='内容需要' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='内容需要' full_text_len=1052
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='明确\n' delta='明确\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='明确\n' full_text_len=1039
+  >>> content='进一步明确\n' delta='进一步明确\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='进一步明确\n' full_text_len=1056
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='- ' delta='- ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='- ' full_text_len=1042
+  >>> content='- 需要' delta='- 需要' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='- 需要' full_text_len=1062
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='需要与' delta='需要与' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='需要与' full_text_len=1044
+  >>> content='与PM确认' delta='与PM确认' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='与PM确认' full_text_len=1066
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='PM确认' delta='PM确认' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='PM确认' full_text_len=1047
+  >>> content='任务的具体需求和' delta='任务的具体需求和' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='任务的具体需求和' full_text_len=1071
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务的具体' delta='任务的具体' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务的具体' full_text_len=1051
+  >>> content='交付标准\n\n' delta='交付标准\n\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='交付标准\n\n' full_text_len=1079
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='需求和交付' delta='需求和交付' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='需求和交付' full_text_len=1056
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='标准\n\n' delta='标准\n\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='标准\n\n' full_text_len=1061
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='## ' delta='## ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='## ' full_text_len=1065
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='下一步' delta='下一步' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='下一步' full_text_len=1068
+  >>> content='## 下一步' delta='## 下一步' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='## 下一步' full_text_len=1085
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
   >>> content='行动\n' delta='行动\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='行动\n' full_text_len=1071
+  >>> TEXT_MESSAGE_CONTENT matched! text='行动\n' full_text_len=1091
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='1.' delta='1.' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='1.' full_text_len=1074
+  >>> content='1. ' delta='1. ' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='1. ' full_text_len=1094
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 与' delta=' 与' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 与' full_text_len=1076
+  >>> content='与PM' delta='与PM' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='与PM' full_text_len=1097
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='PM沟通' delta='PM沟通' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='PM沟通' full_text_len=1078
+  >>> content='沟通明确' delta='沟通明确' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='沟通明确' full_text_len=1100
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='明确test' delta='明确test' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='明确test' full_text_len=1082
+  >>> content='test 33' delta='test 33' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='test 33' full_text_len=1104
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 26' delta=' 26' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 26' full_text_len=1088
+  >>> content='任务的具体需求' delta='任务的具体需求' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='任务的具体需求' full_text_len=1111
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务的具体' delta='任务的具体' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务的具体' full_text_len=1091
+  >>> content='\n2.' delta='\n2.' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n2.' full_text_len=1118
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='需求\n' delta='需求\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='需求\n' full_text_len=1096
+  >>> content=' 手动创建' delta=' 手动创建' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 手动创建' full_text_len=1121
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='2.' delta='2.' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='2.' full_text_len=1099
+  >>> content='任务管理文档' delta='任务管理文档' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='任务管理文档' full_text_len=1126
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 手动' delta=' 手动' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 手动' full_text_len=1101
+  >>> content='\n3.' delta='\n3.' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='\n3.' full_text_len=1132
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='创建任务' delta='创建任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='创建任务' full_text_len=1104
+  >>> content=' 制定详细' delta=' 制定详细' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 制定详细' full_text_len=1135
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='管理文档' delta='管理文档' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='管理文档' full_text_len=1108
+  >>> content='的时间表和资源' delta='的时间表和资源' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='的时间表和资源' full_text_len=1140
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n3' delta='\n3' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n3' full_text_len=1112
+  >>> content='分配计划\n' delta='分配计划\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='分配计划\n' full_text_len=1147
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='. ' delta='. ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='. ' full_text_len=1114
+  >>> content='4. ' delta='4. ' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='4. ' full_text_len=1152
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='制定详细' delta='制定详细' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='制定详细' full_text_len=1116
+  >>> content='开始执行任务' delta='开始执行任务' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='开始执行任务' full_text_len=1155
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='的时间表和' delta='的时间表和' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='的时间表和' full_text_len=1120
+  >>> content='内容\n\n##' delta='内容\n\n##' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='内容\n\n##' full_text_len=1161
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='资源分配' delta='资源分配' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='资源分配' full_text_len=1125
+  >>> content=' 相关' delta=' 相关' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 相关' full_text_len=1167
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='计划\n' delta='计划\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='计划\n' full_text_len=1129
+  >>> content='文件\n' delta='文件\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='文件\n' full_text_len=1170
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='4.' delta='4.' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='4.' full_text_len=1132
+  >>> content='- 本' delta='- 本' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='- 本' full_text_len=1173
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 开始' delta=' 开始' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 开始' full_text_len=1134
+  >>> content='任务文档：' delta='任务文档：' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='任务文档：' full_text_len=1176
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='执行任务' delta='执行任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='执行任务' full_text_len=1137
+  >>> content='test_33' delta='test_33' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='test_33' full_text_len=1181
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='内容\n\n' delta='内容\n\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='内容\n\n' full_text_len=1141
+  >>> content='_task.md\n\n' delta='_task.md\n\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='_task.md\n\n' full_text_len=1188
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='## ' delta='## ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='## ' full_text_len=1145
+  >>> content='---\n*本文' delta='---\n*本文' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='---\n*本文' full_text_len=1198
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='相关文件' delta='相关文件' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='相关文件' full_text_len=1148
+  >>> content='档由PM' delta='档由PM' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='档由PM' full_text_len=1205
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n-' delta='\n-' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n-' full_text_len=1152
+  >>> content='委派任务' delta='委派任务' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='委派任务' full_text_len=1209
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 本' delta=' 本' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 本' full_text_len=1154
+  >>> content='系统生成*\n' delta='系统生成*\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='系统生成*\n' full_text_len=1213
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='任务' delta='任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='任务' full_text_len=1156
+  >>> content='```\n\n###' delta='```\n\n###' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='```\n\n###' full_text_len=1219
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='文档' delta='文档' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='文档' full_text_len=1158
+  >>> content=' 总结\n' delta=' 总结\n' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text=' 总结\n' full_text_len=1227
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='：test' delta='：test' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='：test' full_text_len=1160
+  >>> content='已完成PM' delta='已完成PM' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='已完成PM' full_text_len=1231
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='_26' delta='_26' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='_26' full_text_len=1165
+  >>> content='委派任务' delta='委派任务' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='委派任务' full_text_len=1236
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='_task.md' delta='_task.md' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='_task.md' full_text_len=1168
+  >>> content='"test ' delta='"test ' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='"test ' full_text_len=1240
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='\n\n---\n' delta='\n\n---\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='\n\n---\n' full_text_len=1176
+  >>> content='33"的方案' delta='33"的方案' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='33"的方案' full_text_len=1246
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='*本文' delta='*本文' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='*本文' full_text_len=1182
+  >>> content='制定。由于' delta='制定。由于' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='制定。由于' full_text_len=1252
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='档由' delta='档由' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='档由' full_text_len=1185
+  >>> content='当前环境缺乏' delta='当前环境缺乏' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='当前环境缺乏' full_text_len=1257
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='PM委' delta='PM委' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='PM委' full_text_len=1187
+  >>> content='文件操作工具' delta='文件操作工具' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='文件操作工具' full_text_len=1263
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='派任务' delta='派任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='派任务' full_text_len=1190
+  >>> content='，建议您' delta='，建议您' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='，建议您' full_text_len=1269
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='系统生成' delta='系统生成' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='系统生成' full_text_len=1193
+  >>> content='手动创建上述' delta='手动创建上述' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='手动创建上述' full_text_len=1273
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='*\n' delta='*\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='*\n' full_text_len=1197
+  >>> content='文件内容' delta='文件内容' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='文件内容' full_text_len=1279
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='```\n\n' delta='```\n\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='```\n\n' full_text_len=1199
+  >>> content='来落地' delta='来落地' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='来落地' full_text_len=1283
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='### ' delta='### ' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='### ' full_text_len=1204
+  >>> content='实施。文档' delta='实施。文档' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='实施。文档' full_text_len=1286
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='总结\n' delta='总结\n' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='总结\n' full_text_len=1208
+  >>> content='已包含完整的' delta='已包含完整的' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='已包含完整的' full_text_len=1291
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='已完成' delta='已完成' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='已完成' full_text_len=1211
+  >>> content='任务管理框架' delta='任务管理框架' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='任务管理框架' full_text_len=1297
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='PM委' delta='PM委' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='PM委' full_text_len=1214
+  >>> content='，符合PM' delta='，符合PM' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='，符合PM' full_text_len=1303
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='派任务' delta='派任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='派任务' full_text_len=1217
+  >>> content='委派任务的' delta='委派任务的' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='委派任务的' full_text_len=1308
 event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='"test' delta='"test' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='"test' full_text_len=1220
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content=' 26' delta=' 26' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text=' 26' full_text_len=1225
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='"的方案' delta='"的方案' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='"的方案' full_text_len=1228
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='制定。' delta='制定。' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='制定。' full_text_len=1232
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='由于当前' delta='由于当前' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='由于当前' full_text_len=1235
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='环境缺乏' delta='环境缺乏' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='环境缺乏' full_text_len=1239
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='文件操作' delta='文件操作' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='文件操作' full_text_len=1243
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='工具，' delta='工具，' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='工具，' full_text_len=1247
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='建议您' delta='建议您' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='建议您' full_text_len=1250
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='手动创建' delta='手动创建' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='手动创建' full_text_len=1253
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='上述文件' delta='上述文件' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='上述文件' full_text_len=1257
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='内容来' delta='内容来' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='内容来' full_text_len=1261
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='落地实施' delta='落地实施' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='落地实施' full_text_len=1264
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='。文档' delta='。文档' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='。文档' full_text_len=1268
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='已包含' delta='已包含' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='已包含' full_text_len=1271
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='完整的任务' delta='完整的任务' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='完整的任务' full_text_len=1274
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='管理框架' delta='管理框架' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='管理框架' full_text_len=1279
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='，符合' delta='，符合' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='，符合' full_text_len=1283
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='PM委' delta='PM委' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='PM委' full_text_len=1286
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='派任务的' delta='派任务的' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='派任务的' full_text_len=1289
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='执行要求' delta='执行要求' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='执行要求' full_text_len=1293
-event: TEXT_MESSAGE_CONTENT keys=['message_id', 'conversation_id', 'content']
-  >>> content='。' delta='。' matched_so_far=True
-  >>> TEXT_MESSAGE_CONTENT matched! text='。' full_text_len=1297
+  >>> content='执行要求。' delta='执行要求。' matched_so_far=True
+  >>> TEXT_MESSAGE_CONTENT matched! text='执行要求。' full_text_len=1313
 event: TEXT_MESSAGE_END keys=['message_id', 'conversation_id']
 event: STEP_FINISHED keys=['message_id', 'conversation_id', 'step_name', 'token_usage']
 event: RUN_FINISHED keys=['message_id', 'conversation_id']
 
 === full_text (first 500) ===
-我将帮您完成PM委派任务"test 26"。首先让我获取knot服务器的工具描述信息。
+我将帮您完成PM委派任务"test 33"。首先让我获取knot服务器的工具描述信息，看看是否有可用的文件操作工具。
 
+让我搜索所有可用的MCP工具，特别是查找是否有文件操作相关的工具。
 
-让我搜索所有可用的MCP工具，看看是否有任何可以用于创建文件或文档的工具。
-
-
-
-
-
-
-
-
-由于当前环境中没有可用的文件操作工具，我将基于已有知识为您提供完整的任务管理方案。您可以根据以下内容手动创建相关文件来完成"test 26"任务。
+由于当前环境中没有可用的文件操作工具，我将基于已有知识为您提供完整的任务管理方案。您可以根据以下内容手动创建相关文件来完成"test 33"任务。
 
 ## PM委派任务执行完成
 
-**任务名称**: test 26  
-**任务编号**: #task-momue1pl-0-8bes
+**任务名称**: test 33  
+**任务编号**: #task-momzk1vn-0-5j3z
 
 ### 建议创建的文件清单
 
-1. **test_26_task.md** - 主任务文档
-2. **task_management/** - 任务管理目录（可选）
+1. **test_33_task.md** - 主任务文档
+2. **task_documents/** - 任务相关文档目录（可选）
 
 ### 关键决策说明
 
 1. **文档结构**: 采用标准PM任务模板，包含基本信息、进度跟踪、执行要求等
-2. **时间记录**: 使用当前系统时间2026-05-01T19:41:27+08:00作为任务创建时间
+2. **时间记录**: 使用当前系统时间2026-05-01T22:06:05+08:00作为任务创建时间
 3. **负责人**: 使用当前用户名zijianqiu作为任务负责人
-4. **文件命名**: 采用test_26_task.md的命名规范，
+4. **文件命名**: 采用test_33_task.md的命
 
 === full_reasoning (first 500) ===
-
-根据系统提醒，我需要先通过grep_mcp_tools和fetch_mcp_tools工具获取MCP Tools的描述，然后才能使用use_mcp_tool。让我先搜索knot服务器提供的工具。
 
 搜索结果显示没有可用的文件操作工具。根据PM委派任务的执行要求：
 1. 禁止仅输出承诺性短语就结束
@@ -1467,5 +1019,5 @@ event: RUN_FINISHED keys=['message_id', 'conversation_id']
 
 由于没有可用的文件操作工具，我需要基于已有知识完成任务，提供完整的方案和文档内容，让用户可以手动创建。
 
-根据环境信息，当前系统时间是2026-05-01T19:41:27+08:00，我需要使用这个时间作为任务创建时间。
+根据环境信息，当前系统时间是2026-05-01T22:06:05+08:00，我需要使用这个时间作为任务创建时间。
 
