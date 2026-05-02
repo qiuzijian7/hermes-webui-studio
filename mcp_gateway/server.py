@@ -22,8 +22,8 @@ import threading
 import time
 from pathlib import Path
 
-from .registry import InstanceRegistry
-from .task_queue import TaskQueue, TaskStatus
+from registry import InstanceRegistry
+from task_queue import TaskQueue, TaskStatus
 
 # ── 配置 ──────────────────────────────────────────────────────────────────────
 GATEWAY_HOST = os.getenv("HERMES_GATEWAY_HOST", "0.0.0.0")
