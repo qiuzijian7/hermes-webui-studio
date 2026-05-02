@@ -835,7 +835,40 @@ async function send(){
       try{
       const d=JSON.parse(e.data);
       // 始终处理 tool 事件（记录到 S.toolCalls），但 DOM 更新仅在当前视图时
-      const tc={name:d.name, preview:d.preview||'', args:d.args||{}, snippet:'', done:false};
+      const tc={name:d.name, preview:d.preview||'', args:d.args||{}, snippet:'', done:false,
+                localExecution:!!d.local_execution, phase:d.phase||''};
+      // ★ 本地执行的工具：phase='executing' 时更新上一个同名工具卡片（而非新建）
+      if(d.local_execution && d.phase === 'executing'){
+        const lastTc = S.toolCalls[S.toolCalls.length - 1];
+        if(lastTc && lastTc.name === d.name && !lastTc.done){
+          lastTc.localExecution = true;
+          lastTc.preview = d.preview || lastTc.preview;
+          if(typeof _scheduleRender==='function') _scheduleRender();
+          return;
+        }
+      }
+      if(d.local_execution && d.phase === 'completed'){
+        const lastTc = S.toolCalls[S.toolCalls.length - 1];
+        if(lastTc && lastTc.name === d.name){
+          lastTc.done = true;
+          lastTc.localExecution = true;
+          lastTc.preview = d.preview || lastTc.preview;
+          if(d.result_preview) lastTc.snippet = d.result_preview;
+          if(typeof _scheduleRender==='function') _scheduleRender();
+          return;
+        }
+      }
+      if(d.local_execution && d.phase === 'error'){
+        const lastTc = S.toolCalls[S.toolCalls.length - 1];
+        if(lastTc && lastTc.name === d.name){
+          lastTc.done = true;
+          lastTc.localExecution = true;
+          lastTc.error = d.error || 'Error';
+          lastTc.preview = d.preview || lastTc.preview;
+          if(typeof _scheduleRender==='function') _scheduleRender();
+          return;
+        }
+      }
       S.toolCalls.push(tc);
       if(!_isViewingOurSession()){
         // 只累积不渲染 —— assistantText 会在切回时由补渲逻辑显示

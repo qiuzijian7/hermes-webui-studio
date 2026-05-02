@@ -1446,11 +1446,17 @@ function buildToolCard(tc){
   const runIndicator=tc.done===false?'<span class="tool-card-running-dot"></span>':'';
   const isSubagent=tc.name==='subagent_progress';
   const isDelegation=tc.name==='delegate_task';
-  const cardClass='tool-card'+(tc.done===false?' tool-card-running':'')+(isSubagent?' tool-card-subagent':'');
+  const isLocalExec=!!tc.localExecution;
+  const isSkillTool=tc.name&&tc.name.startsWith('hermes_skill_');
+  const cardClass='tool-card'+(tc.done===false?' tool-card-running':'')+(isSubagent?' tool-card-subagent':'')+(isLocalExec?' tool-card-local':'')+(isSkillTool?' tool-card-skill':'');
   // Clean up legacy subagent prefixes since the Lucide icon already shows it
   let displayName=tc.name;
   if(isSubagent) displayName='Subagent';
   if(isDelegation) displayName='Delegate task';
+  if(isSkillTool) displayName=tc.name.replace('hermes_skill_','Skill: ');
+  // ★ 本地执行标记
+  const localBadge=isLocalExec?'<span class="tool-card-badge tool-card-badge-local" title="Executed locally by Hermes">Local</span>':'';
+  const skillBadge=isSkillTool&&!isLocalExec?'<span class="tool-card-badge tool-card-badge-skill" title="Hermes Skill">Skill</span>':'';
   let previewText=tc.preview||displaySnippet||'';
   if(isSubagent) previewText=previewText.replace(/^(?:\u{1F500}|↳)\s*/u,'');
   row.innerHTML=`
@@ -1459,6 +1465,7 @@ function buildToolCard(tc){
         ${runIndicator}
         <span class="tool-card-icon">${icon}</span>
         <span class="tool-card-name">${esc(displayName)}</span>
+        ${localBadge}${skillBadge}
         <span class="tool-card-preview">${esc(previewText)}</span>
         ${hasDetail?'<span class="tool-card-toggle">▸</span>':''}
       </div>

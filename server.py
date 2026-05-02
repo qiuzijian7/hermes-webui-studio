@@ -155,6 +155,13 @@ def main() -> None:
     except Exception as e:
         print(f'[!!] WARNING: Gateway watcher failed to start: {e}', flush=True)
 
+    # Start MCP Gateway client (register + heartbeat + task worker)
+    try:
+        from api.gateway_client import init_gateway_client
+        init_gateway_client()
+    except Exception as e:
+        print(f'[!!] WARNING: MCP Gateway client failed to start: {e}', flush=True)
+
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
 
     # 静默良性的客户端断连异常（ThreadingHTTPServer.handle_error 默认会打 traceback）
@@ -200,6 +207,12 @@ def main() -> None:
     try:
         httpd.serve_forever()
     finally:
+        # Stop the MCP Gateway client on shutdown
+        try:
+            from api.gateway_client import shutdown_gateway_client
+            shutdown_gateway_client()
+        except Exception:
+            pass
         # Stop the gateway watcher on shutdown
         try:
             from api.gateway_watcher import stop_watcher

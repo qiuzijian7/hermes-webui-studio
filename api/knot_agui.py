@@ -46,17 +46,13 @@ def get_knot_agents():
 
 
 def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
-                             cancel_event, system_prompt="", employee_name="", enable_web_search=False):
+                             cancel_event, system_prompt="", employee_name="",
+                             enable_web_search=False,
+                             employee=None, workspace=""):
     """Run a Knot AG-UI agent conversation and translate events to Hermes SSE.
 
-    model format: "knot-agui:<agent_id>" or "knot-agui:<agent_id>/<knot_model>"
-
-    The put() callback accepts (event, data) tuples matching Hermes SSE protocol:
-      - ('token', {'text': ...})       -- assistant text content
-      - ('reasoning', {'text': ...})   -- thinking content
-      - ('tool', {...})                -- tool call event
-      - ('done', {...})                -- conversation complete
-      - ('apperror', {...})            -- error
+    Knot AG-UI agent 的工具由智能体后台统一配置（Client 工具），
+    工具调用通过 AG-UI 协议的 ToolCallStart/Args/End/Result 事件流原生处理。
     """
     # Parse model id
     raw = model[len("knot-agui:"):]
@@ -121,6 +117,10 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
     # ★ 将 system_prompt 注入 chat_extra（Knot AG-UI 协议支持通过 chat_extra.system_prompt 覆盖预设）
     if system_prompt:
         chat_body["input"]["chat_extra"]["system_prompt"] = system_prompt
+
+    # ★ 工具策略：统一使用 Knot 智能体后台配置的工具（Client 工具）
+    #   不再注入本地工具到 system prompt，由 Knot 平台原生处理工具调用。
+    #   AG-UI 协议的 ToolCallStart/Args/End/Result 事件会被原样透传给前端展示。
 
     # Build headers
     headers = {
@@ -431,7 +431,7 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
             elif _evt("ToolCallResult", "TOOL_CALL_RESULT"):
                 tool_call_id = raw_event.get("tool_call_id", "")
                 result = raw_event.get("result", "")
-                # ★ 关联 tool result 到对应的 tool call
+                # 记录结果到 completed_tool_calls
                 for tc in _completed_tool_calls:
                     if tc['id'] == tool_call_id:
                         tc['result'] = result
@@ -541,7 +541,7 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
             })
             return
 
-    # Store conversation_id on the session for continuity
+    # （工具调用由 Knot 智能体自行处理，上方 SSE 流中已透传 ToolCall 事件给前端）
     if received_conversation_id:
         try:
             from api.models import get_session

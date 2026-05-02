@@ -1010,6 +1010,14 @@ body.resizing{user-select:none;cursor:col-resize;}
 .tool-card-more:hover{opacity:1;}
 /* Subagent cards: indented with accent border */
 .tool-card-subagent{border-left:2px solid rgba(124,185,255,.3);margin-left:8px;}
+/* Local execution cards: green accent */
+.tool-card-local{border-left:2px solid rgba(76,175,80,.4);}
+/* Skill tool cards: purple accent */
+.tool-card-skill{border-left:2px solid rgba(156,39,176,.3);}
+/* Tool card badges (Local / Skill) */
+.tool-card-badge{font-size:9px;padding:1px 5px;border-radius:8px;text-transform:uppercase;letter-spacing:.3px;font-weight:600;flex-shrink:0;margin:0 4px;}
+.tool-card-badge-local{background:rgba(76,175,80,.15);color:#66bb6a;border:1px solid rgba(76,175,80,.3);}
+.tool-card-badge-skill{background:rgba(156,39,176,.12);color:#ba68c8;border:1px solid rgba(156,39,176,.25);}
 /* Token usage badge below assistant messages */
 .msg-usage{font-size:11px;color:var(--muted);opacity:.6;margin-top:2px;padding-left:42px;}
 .msg-usage:hover{opacity:1;}

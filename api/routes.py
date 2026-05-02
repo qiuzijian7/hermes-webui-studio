@@ -746,6 +746,37 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path == "/api/crons/recent":
         return _handle_cron_recent(handler, parsed)
 
+    # ── Knot AG-UI local tools API (GET) ──
+    if parsed.path == "/api/agui/tools":
+        qs = parse_qs(parsed.query)
+        workspace = qs.get("workspace", [""])[0]
+        emp_name = qs.get("employee", [""])[0]
+        try:
+            from api.knot_agui_tools import get_all_available_tools, get_employee_toolsets
+            employee_obj = None
+            if emp_name and workspace:
+                try:
+                    from api.employee_fs import get_employee
+                    employee_obj = get_employee(workspace, emp_name)
+                except Exception:
+                    pass
+            emp_enabled, emp_disabled = get_employee_toolsets(employee_obj)
+            tools = get_all_available_tools(
+                employee=employee_obj,
+                workspace=workspace,
+                enabled_toolsets=emp_enabled,
+                disabled_toolsets=emp_disabled,
+            )
+            return j(handler, {
+                "ok": True,
+                "tools": tools,
+                "total": len(tools),
+                "hermes_tools": sum(1 for t in tools if not t["name"].startswith("hermes_skill_")),
+                "skill_tools": sum(1 for t in tools if t["name"].startswith("hermes_skill_")),
+            })
+        except Exception as _e:
+            return j(handler, {"ok": False, "error": str(_e)}, status=500)
+
     # ── Skills API (GET) ──
     if parsed.path == "/api/skills":
         from tools.skills_tool import skills_list as _skills_list

@@ -231,11 +231,21 @@ def _run_agent_streaming(session_id, msg_text, model, workspace, stream_id, atta
         if isinstance(model, str) and model.startswith('knot-agui:'):
             try:
                 from api.knot_agui import run_knot_agui_streaming
+                # ★ 解析员工对象（用于本地工具/技能桥接）
+                _employee_obj = None
+                if employee_name and workspace:
+                    try:
+                        from api.employee_fs import get_employee
+                        _employee_obj = get_employee(workspace, employee_name)
+                    except Exception:
+                        pass
                 run_knot_agui_streaming(
                     session_id, msg_text, model, stream_id, put,
                     cancel_event, system_prompt=system_prompt,
                     employee_name=employee_name,
                     enable_web_search=enable_web_search,
+                    employee=_employee_obj,
+                    workspace=workspace,
                 )
             except Exception as _e:
                 put('apperror', {'type': 'knot_agui_import_error', 'message': str(_e)[:300]})

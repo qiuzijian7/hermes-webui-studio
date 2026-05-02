@@ -1,0 +1,2 @@
+# Hermes MCP Gateway dependencies
+fastmcp>=2.0
