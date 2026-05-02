@@ -1,17 +1,10 @@
 """
 MCP Gateway 包入口 — 支持 python -m mcp_gateway 启动。
+
+单端口模式：HTTP API + MCP 协议统一在同一端口 (默认 8080)。
+MCP 端点挂载在 /mcp 路径下。
 """
-from .server import run_gateway_http, run_gateway_mcp
-import sys
+from .server import run_gateway
 
 if __name__ == "__main__":
-    mode = sys.argv[1] if len(sys.argv) > 1 else "both"
-    if mode == "http":
-        run_gateway_http()
-    elif mode == "mcp":
-        run_gateway_mcp()
-    else:
-        import threading
-        mcp_thread = threading.Thread(target=run_gateway_mcp, daemon=True)
-        mcp_thread.start()
-        run_gateway_http()
+    run_gateway()

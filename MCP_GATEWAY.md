@@ -87,7 +87,7 @@ export HERMES_GATEWAY_TOKEN=your-secret-token-here
 
 # 可选：自定义实例 ID 和名称
 export HERMES_AGENT_ID=zhangsan@my-pc
-export HERMES_AGENT_NAME="张三的 Hermes"
+export HERMES_AGENT_NAME="zhangsan@my-pc"  # 默认格式：用户名@主机名
 ```
 
 然后正常启动 WebUI：
@@ -159,7 +159,7 @@ agent_id 格式为 "用户名@主机名"，如：
 | `HERMES_MCP_GATEWAY` | Gateway URL | 空（不启用） |
 | `HERMES_GATEWAY_TOKEN` | API 鉴权 Token | 空 |
 | `HERMES_AGENT_ID` | 实例 ID | `user@hostname` |
-| `HERMES_AGENT_NAME` | 实例显示名 | "用户名 的 Hermes" |
+| `HERMES_AGENT_NAME` | 实例显示名 | `用户名@主机名` |
 
 ## API 参考
 
@@ -170,7 +170,7 @@ agent_id 格式为 "用户名@主机名"，如：
 ```json
 {
   "agent_id": "zhangsan@DESKTOP-A1B2C3D",
-  "name": "张三的 Hermes",
+  "name": "zhangsan@DESKTOP-A1B2C3D",
   "url": "http://10.0.1.50:18080",
   "token": "webui-password",
   "workspace": "/home/zhangsan/project",

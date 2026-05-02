@@ -1,15 +1,15 @@
 """
 Hermes MCP Gateway — FastMCP Server + 注册/心跳/任务 HTTP API。
 
-统一进程，暴露两套接口：
-  1. MCP 协议端点 — Knot 智能体通过 MCP 调用工具
-  2. HTTP REST API — Hermes WebUI 实例注册/心跳/取任务/回报结果
+统一进程，单端口暴露两套接口：
+  1. MCP 协议端点（/mcp）— Knot 智能体通过 MCP 调用工具
+  2. HTTP REST API（其他路径）— Hermes WebUI 实例注册/心跳/取任务/回报结果
 
 运行方式：
     python -m mcp_gateway.server
 
 环境变量：
-    HERMES_GATEWAY_PORT    — HTTP + MCP 端口（默认 8080）
+    HERMES_GATEWAY_PORT    — 统一端口（默认 8080，MCP 和 HTTP API 共用）
     HERMES_GATEWAY_HOST    — 监听地址（默认 0.0.0.0）
     HERMES_GATEWAY_DATA    — 数据目录（默认 /data/hermes-gateway）
     HERMES_GATEWAY_TOKEN   — API 鉴权 Token（可选，保护注册接口）
@@ -20,9 +20,7 @@ import json
 import os
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
 
 from .registry import InstanceRegistry
 from .task_queue import TaskQueue, TaskStatus
@@ -213,219 +211,168 @@ def mcp_execute_skill(skill: str, task: str, agent_id: str = "",
     return result
 
 
-# ── HTTP API Handler ─────────────────────────────────────────────────────────
+# ── Starlette HTTP API 路由 ───────────────────────────────────────────────────
 
-class GatewayHandler(BaseHTTPRequestHandler):
-    """处理 WebUI 实例的注册/心跳/任务拉取/结果回报。"""
+def _check_token(headers) -> bool:
+    """验证 Bearer Token（如果配置了的话）。"""
+    if not GATEWAY_TOKEN:
+        return True
+    auth = headers.get("authorization", "")
+    return auth == f"Bearer {GATEWAY_TOKEN}"
 
-    server_version = "HermesMCPGateway/0.1"
 
-    def log_message(self, fmt, *args):
-        # 简洁日志
-        print(f"[gateway] {self.command} {self.path} {args[0] if args else ''}", flush=True)
+def _json(data: dict, status: int = 200):
+    """快速构造 JSON Response。"""
+    from starlette.responses import JSONResponse
+    return JSONResponse(data, status_code=status, headers={"Access-Control-Allow-Origin": "*"})
 
-    def _read_body(self) -> dict:
-        length = int(self.headers.get("Content-Length", 0))
-        if length == 0:
-            return {}
-        raw = self.rfile.read(length)
+
+def _build_starlette_app():
+    """构建 Starlette ASGI 应用（HTTP REST API 部分）。"""
+    from starlette.applications import Starlette
+    from starlette.routing import Route
+    from starlette.requests import Request
+    from starlette.responses import Response
+    from starlette.middleware import Middleware
+    from starlette.middleware.cors import CORSMiddleware
+
+    async def health(request: Request):
+        instances = registry.list_all()
+        return _json({
+            "status": "ok",
+            "online_agents": len(instances),
+            "uptime": "running",
+        })
+
+    async def agents(request: Request):
+        if not _check_token(request.headers):
+            return _json({"error": "Unauthorized"}, 401)
+        include_offline = "all" in request.query_params
+        instances = registry.list_all(include_offline=include_offline)
+        return _json({"instances": instances})
+
+    async def tasks_poll(request: Request):
+        if not _check_token(request.headers):
+            return _json({"error": "Unauthorized"}, 401)
+        agent_id = request.query_params.get("agent_id", "")
+        if not agent_id:
+            return _json({"error": "agent_id required"}, 400)
+        task = task_queue.poll(agent_id)
+        if task:
+            return _json({"task": task.to_dict()})
+        return _json({"task": None})
+
+    async def tasks_status(request: Request):
+        task_id = request.query_params.get("task_id", "")
+        if not task_id:
+            return _json({"error": "task_id required"}, 400)
+        task = task_queue.get(task_id)
+        if task:
+            return _json({"task": task.to_dict()})
+        return _json({"error": "not found"}, 404)
+
+    async def register(request: Request):
+        if not _check_token(request.headers):
+            return _json({"error": "Unauthorized"}, 401)
+        body = await request.json()
+        agent_id = body.get("agent_id", "").strip()
+        if not agent_id:
+            return _json({"error": "agent_id required"}, 400)
+        entry = registry.register(agent_id, body)
+        print(f"[gateway] Registered: {agent_id} ({body.get('name', '')})", flush=True)
+        return _json({"ok": True, "agent_id": agent_id, "entry": entry})
+
+    async def heartbeat(request: Request):
+        if not _check_token(request.headers):
+            return _json({"error": "Unauthorized"}, 401)
+        body = await request.json()
+        agent_id = body.get("agent_id", "").strip()
+        if not agent_id:
+            return _json({"error": "agent_id required"}, 400)
+        status = body.get("status", "idle")
+        ok = registry.heartbeat(agent_id, status, extra=body.get("extra"))
+        if not ok:
+            registry.register(agent_id, body)
+        return _json({"ok": True})
+
+    async def unregister(request: Request):
+        if not _check_token(request.headers):
+            return _json({"error": "Unauthorized"}, 401)
+        body = await request.json()
+        agent_id = body.get("agent_id", "").strip()
+        if agent_id:
+            registry.unregister(agent_id)
+        return _json({"ok": True})
+
+    async def tasks_result(request: Request):
+        if not _check_token(request.headers):
+            return _json({"error": "Unauthorized"}, 401)
+        body = await request.json()
+        task_id = body.get("task_id", "").strip()
+        if not task_id:
+            return _json({"error": "task_id required"}, 400)
+        status_str = body.get("status", "completed")
         try:
-            return json.loads(raw)
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            return {}
+            task_status = TaskStatus(status_str)
+        except ValueError:
+            task_status = TaskStatus.COMPLETED
+        ok = task_queue.update_status(
+            task_id=task_id,
+            status=task_status,
+            result=body.get("result", ""),
+            error=body.get("error", ""),
+            session_id=body.get("session_id", ""),
+        )
+        return _json({"ok": ok})
 
-    def _json_response(self, data: dict, status: int = 200):
-        body = json.dumps(data, ensure_ascii=False).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(body)
+    async def tasks_update(request: Request):
+        if not _check_token(request.headers):
+            return _json({"error": "Unauthorized"}, 401)
+        body = await request.json()
+        task_id = body.get("task_id", "").strip()
+        if not task_id:
+            return _json({"error": "task_id required"}, 400)
+        try:
+            task_status = TaskStatus(body.get("status", "running"))
+        except ValueError:
+            task_status = TaskStatus.RUNNING
+        ok = task_queue.update_status(
+            task_id=task_id,
+            status=task_status,
+            session_id=body.get("session_id", ""),
+        )
+        return _json({"ok": ok})
 
-    def _check_token(self) -> bool:
-        """验证 Bearer Token（如果配置了的话）。"""
-        if not GATEWAY_TOKEN:
-            return True
-        auth = self.headers.get("Authorization", "")
-        if auth == f"Bearer {GATEWAY_TOKEN}":
-            return True
-        self._json_response({"error": "Unauthorized"}, 401)
-        return False
+    routes = [
+        Route("/health", health, methods=["GET"]),
+        Route("/agents", agents, methods=["GET"]),
+        Route("/tasks/poll", tasks_poll, methods=["GET"]),
+        Route("/tasks/status", tasks_status, methods=["GET"]),
+        Route("/register", register, methods=["POST"]),
+        Route("/heartbeat", heartbeat, methods=["POST"]),
+        Route("/unregister", unregister, methods=["POST"]),
+        Route("/tasks/result", tasks_result, methods=["POST"]),
+        Route("/tasks/update", tasks_update, methods=["POST"]),
+    ]
 
-    def do_OPTIONS(self):
-        """CORS preflight."""
-        self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-        self.end_headers()
-
-    def do_GET(self):
-        parsed = urlparse(self.path)
-        qs = parse_qs(parsed.query)
-
-        # 健康检查
-        if parsed.path == "/health":
-            instances = registry.list_all()
-            return self._json_response({
-                "status": "ok",
-                "online_agents": len(instances),
-                "uptime": "running",
-            })
-
-        # 列出实例
-        if parsed.path == "/agents":
-            if not self._check_token():
-                return
-            instances = registry.list_all(include_offline="all" in qs)
-            return self._json_response({"instances": instances})
-
-        # 拉取待办任务（WebUI Worker 调用）
-        if parsed.path == "/tasks/poll":
-            if not self._check_token():
-                return
-            agent_id = qs.get("agent_id", [""])[0]
-            if not agent_id:
-                return self._json_response({"error": "agent_id required"}, 400)
-            task = task_queue.poll(agent_id)
-            if task:
-                return self._json_response({"task": task.to_dict()})
-            else:
-                return self._json_response({"task": None})
-
-        # 查询任务状态
-        if parsed.path == "/tasks/status":
-            task_id = qs.get("task_id", [""])[0]
-            if not task_id:
-                return self._json_response({"error": "task_id required"}, 400)
-            task = task_queue.get(task_id)
-            if task:
-                return self._json_response({"task": task.to_dict()})
-            return self._json_response({"error": "not found"}, 404)
-
-        self._json_response({"error": "not found"}, 404)
-
-    def do_POST(self):
-        parsed = urlparse(self.path)
-
-        if not self._check_token():
-            return
-
-        body = self._read_body()
-
-        # 实例注册
-        if parsed.path == "/register":
-            agent_id = body.get("agent_id", "").strip()
-            if not agent_id:
-                return self._json_response({"error": "agent_id required"}, 400)
-            entry = registry.register(agent_id, body)
-            print(f"[gateway] Registered: {agent_id} ({body.get('name', '')})", flush=True)
-            return self._json_response({"ok": True, "agent_id": agent_id, "entry": entry})
-
-        # 心跳
-        if parsed.path == "/heartbeat":
-            agent_id = body.get("agent_id", "").strip()
-            if not agent_id:
-                return self._json_response({"error": "agent_id required"}, 400)
-            status = body.get("status", "idle")
-            ok = registry.heartbeat(agent_id, status, extra=body.get("extra"))
-            if not ok:
-                # 未注册则自动注册
-                registry.register(agent_id, body)
-            return self._json_response({"ok": True})
-
-        # 注销
-        if parsed.path == "/unregister":
-            agent_id = body.get("agent_id", "").strip()
-            if agent_id:
-                registry.unregister(agent_id)
-            return self._json_response({"ok": True})
-
-        # 任务结果回报（WebUI Worker 调用）
-        if parsed.path == "/tasks/result":
-            task_id = body.get("task_id", "").strip()
-            if not task_id:
-                return self._json_response({"error": "task_id required"}, 400)
-            status_str = body.get("status", "completed")
-            try:
-                task_status = TaskStatus(status_str)
-            except ValueError:
-                task_status = TaskStatus.COMPLETED
-            ok = task_queue.update_status(
-                task_id=task_id,
-                status=task_status,
-                result=body.get("result", ""),
-                error=body.get("error", ""),
-                session_id=body.get("session_id", ""),
-            )
-            return self._json_response({"ok": ok})
-
-        # 任务状态更新（Worker 上报 running 状态）
-        if parsed.path == "/tasks/update":
-            task_id = body.get("task_id", "").strip()
-            if not task_id:
-                return self._json_response({"error": "task_id required"}, 400)
-            try:
-                task_status = TaskStatus(body.get("status", "running"))
-            except ValueError:
-                task_status = TaskStatus.RUNNING
-            ok = task_queue.update_status(
-                task_id=task_id,
-                status=task_status,
-                session_id=body.get("session_id", ""),
-            )
-            return self._json_response({"ok": ok})
-
-        self._json_response({"error": "not found"}, 404)
+    app = Starlette(
+        routes=routes,
+        middleware=[
+            Middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]),
+        ],
+    )
+    return app
 
 
-# ── 启动入口 ──────────────────────────────────────────────────────────────────
+# ── FastMCP 创建 ─────────────────────────────────────────────────────────────
 
-def run_gateway_http():
-    """启动 HTTP REST API 服务。"""
-    global _cleanup_thread
-
-    GATEWAY_DATA.mkdir(parents=True, exist_ok=True)
-
-    # 启动清理线程
-    _cleanup_thread = threading.Thread(target=_cleanup_loop, daemon=True)
-    _cleanup_thread.start()
-
-    httpd = ThreadingHTTPServer((GATEWAY_HOST, GATEWAY_PORT), GatewayHandler)
-    print(f"[gateway] Hermes MCP Gateway listening on http://{GATEWAY_HOST}:{GATEWAY_PORT}", flush=True)
-    print(f"[gateway] Data directory: {GATEWAY_DATA}", flush=True)
-    print(f"[gateway] Token auth: {'enabled' if GATEWAY_TOKEN else 'disabled'}", flush=True)
-    print(f"[gateway] Endpoints:", flush=True)
-    print(f"           POST /register      — 实例注册", flush=True)
-    print(f"           POST /heartbeat     — 心跳", flush=True)
-    print(f"           POST /unregister    — 注销", flush=True)
-    print(f"           GET  /agents        — 列出实例", flush=True)
-    print(f"           GET  /tasks/poll    — Worker 拉取任务", flush=True)
-    print(f"           POST /tasks/result  — Worker 回报结果", flush=True)
-    print(f"           POST /tasks/update  — Worker 更新状态", flush=True)
-    print(f"           GET  /health        — 健康检查", flush=True)
-    print("", flush=True)
-
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("\n[gateway] Shutting down...", flush=True)
-        httpd.shutdown()
-
-
-def run_gateway_mcp():
-    """启动 FastMCP Server（需要安装 fastmcp）。
-
-    FastMCP 会在另一个端口运行，或者用 streamable-http 模式
-    复用同一端口的不同路径。
-    """
+def _build_mcp_server():
+    """创建 FastMCP 实例并注册工具（不启动服务）。"""
     try:
         from fastmcp import FastMCP
     except ImportError:
         print("[gateway] ERROR: fastmcp not installed. Run: pip install fastmcp", flush=True)
-        print("[gateway] Falling back to HTTP-only mode (no MCP protocol).", flush=True)
-        return
+        return None
 
     mcp = FastMCP("hermes-team", instructions="""
 Hermes Team MCP Gateway — 连接多个 Hermes Agent 实例的协调网关。
@@ -488,22 +435,77 @@ delegate_task() 会同步等待执行结果返回。结果包含：
     mcp.tool(name="delegate_task", description="委派任务给 Hermes Agent 执行（高级接口，支持指定实例/超时）")(mcp_delegate_task)
     mcp.tool(name="get_task_status", description="查询任务执行状态")(mcp_get_task_status)
 
-    mcp_port = GATEWAY_PORT + 1  # MCP 在下一个端口
-    print(f"[gateway] FastMCP Server on port {mcp_port} (streamable-http)", flush=True)
-    mcp.run(transport="streamable-http", host=GATEWAY_HOST, port=mcp_port)
+    return mcp
+
+
+# ── 统一启动入口 ──────────────────────────────────────────────────────────────
+
+def run_gateway():
+    """单端口统一启动 — HTTP API + MCP 协议 都在同一端口 (GATEWAY_PORT)。
+
+    MCP 挂载在 /mcp 路径下，其余路径为 HTTP REST API。
+    """
+    global _cleanup_thread
+    import uvicorn
+
+    GATEWAY_DATA.mkdir(parents=True, exist_ok=True)
+
+    # 启动清理线程
+    _cleanup_thread = threading.Thread(target=_cleanup_loop, daemon=True)
+    _cleanup_thread.start()
+
+    # 构建 Starlette HTTP App
+    http_app = _build_starlette_app()
+
+    # 构建 FastMCP 并获取其 ASGI app
+    mcp = _build_mcp_server()
+    if mcp:
+        # FastMCP http_app() 返回一个 Starlette/ASGI 应用
+        # path="/" 表示 MCP 在这个子应用的根路径响应
+        # 然后我们 mount 到 /mcp，最终外部访问 /mcp 即可
+        mcp_asgi = mcp.http_app(path="/")
+        http_app.mount("/mcp", mcp_asgi)
+        print(f"[gateway] MCP endpoint mounted at /mcp", flush=True)
+    else:
+        print("[gateway] WARNING: FastMCP unavailable, running in HTTP-only mode", flush=True)
+
+    print(f"[gateway] ═══════════════════════════════════════════════════════", flush=True)
+    print(f"[gateway] Hermes MCP Gateway — Single Port Mode", flush=True)
+    print(f"[gateway] Listening on http://{GATEWAY_HOST}:{GATEWAY_PORT}", flush=True)
+    print(f"[gateway] Data directory: {GATEWAY_DATA}", flush=True)
+    print(f"[gateway] Token auth: {'enabled' if GATEWAY_TOKEN else 'disabled'}", flush=True)
+    print(f"[gateway] ───────────────────────────────────────────────────────", flush=True)
+    print(f"[gateway] HTTP API Endpoints:", flush=True)
+    print(f"           GET  /health        — 健康检查", flush=True)
+    print(f"           GET  /agents        — 列出实例", flush=True)
+    print(f"           POST /register      — 实例注册", flush=True)
+    print(f"           POST /heartbeat     — 心跳", flush=True)
+    print(f"           POST /unregister    — 注销", flush=True)
+    print(f"           GET  /tasks/poll    — Worker 拉取任务", flush=True)
+    print(f"           POST /tasks/result  — Worker 回报结果", flush=True)
+    print(f"           POST /tasks/update  — Worker 更新状态", flush=True)
+    print(f"[gateway] MCP Protocol:", flush=True)
+    print(f"           POST /mcp           — MCP Streamable HTTP", flush=True)
+    print(f"[gateway] ═══════════════════════════════════════════════════════", flush=True)
+    print("", flush=True)
+
+    uvicorn.run(http_app, host=GATEWAY_HOST, port=GATEWAY_PORT, log_level="info")
+
+
+# 兼容旧的分离模式入口
+def run_gateway_http():
+    """（已废弃）旧的纯 HTTP 模式入口，现在重定向到统一入口。"""
+    run_gateway()
+
+
+def run_gateway_mcp():
+    """（已废弃）旧的纯 MCP 模式入口，现在重定向到统一入口。"""
+    run_gateway()
 
 
 if __name__ == "__main__":
     import sys
 
     mode = sys.argv[1] if len(sys.argv) > 1 else "both"
-
-    if mode == "http":
-        run_gateway_http()
-    elif mode == "mcp":
-        run_gateway_mcp()
-    else:
-        # 默认：HTTP API 在主线程，MCP 在后台线程
-        mcp_thread = threading.Thread(target=run_gateway_mcp, daemon=True)
-        mcp_thread.start()
-        run_gateway_http()
+    # 所有模式统一走单端口
+    run_gateway()

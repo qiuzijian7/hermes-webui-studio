@@ -1047,6 +1047,11 @@
               <div style="font-size:11px;color:var(--muted);margin-bottom:6px">JSON 数组格式，每项含 id、name 和可选的 models 数组。models 列出该智能体支持的下游模型名，会直接显示在聊天框模型选择中。<br>agent_id 可从智能体页面的 URL 中获取。</div>
               <textarea id="settingsKnotAguiAgents" rows="5" placeholder='[{"id":"agent_id_1","name":"智能体1","models":["deepseek-v3.1","glm-5.1","claude-4.7-opus"]},{"id":"agent_id_2","name":"智能体2"}]' style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:12px;font-family:monospace;resize:vertical"></textarea>
             </div>
+            <div class="settings-field">
+              <label for="settingsKnotAguiMcpModel">MCP Gateway Worker — 模型名称</label>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px">所有 MCP 工具执行任务时统一使用的模型名称（如 hy3-preview）。Agent ID 自动使用智能体列表中的第一个。</div>
+              <input type="text" id="settingsKnotAguiMcpModel" placeholder="如 hy3-preview" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+            </div>
             <button class="sm-btn" onclick="saveKnotAguiSettings()" style="margin-top:12px;width:100%;padding:8px;font-weight:600">保存 Knot AG-UI 配置</button>
           </div>
           <div class="settings-pane" id="settingsPaneSystem" role="tabpanel" aria-labelledby="settingsTabSystem">

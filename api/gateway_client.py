@@ -22,6 +22,7 @@ import time
 import traceback
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 # ── 配置 ──────────────────────────────────────────────────────────────────────
@@ -41,6 +42,56 @@ _stop_event = threading.Event()
 
 # ── 工具函数 ──────────────────────────────────────────────────────────────────
 
+def _load_hermes_env() -> None:
+    """将 Hermes ~/.hermes/.env（或当前 profile 的 .env）中的 API Key 加载到 os.environ。
+
+    WebUI server 的 Python 进程不会自动继承 start.bat 设置的环境变量，
+    此函数确保 _execute_task() 创建 AIAgent 时能读到正确的 API Key。
+
+    只会执行一次（结果缓存到 _hermes_env_loaded）。
+    """
+    global _hermes_env_loaded
+    if _hermes_env_loaded:
+        return
+    _hermes_env_loaded = True
+
+    # 定位 .env 文件路径
+    try:
+        from api.profiles import get_active_hermes_home
+        env_path = get_active_hermes_home() / ".env"
+    except Exception:
+        env_path = Path.home() / ".hermes" / ".env"
+
+    if not env_path.exists():
+        return
+
+    loaded = 0
+    try:
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            # 兼容 bash 格式：export KEY=value
+            if line.startswith("export "):
+                line = line[len("export "):].strip()
+            if "=" not in line:
+                continue
+            key, val = line.split("=", 1)
+            key = key.strip()
+            val = val.strip().strip('"').strip("'")
+            if key and key not in os.environ:  # 不覆盖已设置的环境变量
+                os.environ[key] = val
+                loaded += 1
+    except Exception as e:
+        print(f"[mcp-worker] Warning: failed to load .env: {e}", flush=True)
+
+    if loaded:
+        print(f"[mcp-worker] Loaded {loaded} env vars from {env_path}", flush=True)
+
+
+_hermes_env_loaded = False
+
+
 def _get_agent_id() -> str:
     """生成唯一的 agent_id: user@hostname。"""
     # 允许环境变量覆盖
@@ -53,12 +104,17 @@ def _get_agent_id() -> str:
 
 
 def _get_agent_name() -> str:
-    """获取实例显示名。"""
+    """获取实例显示名。
+
+    默认格式：{用户名}@{电脑名}（与 agent_id 格式一致，便于识别）
+    可通过 HERMES_AGENT_NAME 环境变量覆盖。
+    """
     override = os.getenv("HERMES_AGENT_NAME", "").strip()
     if override:
         return override
     user = os.getenv("USER") or os.getenv("USERNAME") or "user"
-    return f"{user} 的 Hermes"
+    host = socket.gethostname()
+    return f"{user}@{host}"
 
 
 def _get_local_ip() -> str:
@@ -308,8 +364,15 @@ def _poll_and_execute(agent_id: str):
     task_id = task["task_id"]
     message = task.get("message", "")
     skill = task.get("skill", "")
+    # 提取触发该任务的员工 session_id（兼容多种字段名）
+    session_id = (
+        task.get("_hermes_session_id")
+        or task.get("session_id")
+        or task.get("sessionId")
+        or ""
+    )
 
-    print(f"[mcp-worker] Received task {task_id}: {message[:80]}...", flush=True)
+    print(f"[mcp-worker] Received task {task_id}: {message[:80]}... session_id={session_id!r}", flush=True)
 
     # 上报 running 状态
     _http_request("/tasks/update", method="POST", data={
@@ -319,13 +382,13 @@ def _poll_and_execute(agent_id: str):
 
     # 执行任务
     try:
-        response = _execute_task(message, skill, task.get("timeout_seconds", 300))
+        response = _execute_task(message, skill, task.get("timeout_seconds", 300), session_id)
         # 上报结果
         _http_request("/tasks/result", method="POST", data={
             "task_id": task_id,
             "status": "completed",
             "result": response,
-            "session_id": "",
+            "session_id": session_id,
         })
         print(f"[mcp-worker] Task {task_id} completed.", flush=True)
     except Exception as e:
@@ -333,15 +396,120 @@ def _poll_and_execute(agent_id: str):
             "task_id": task_id,
             "status": "failed",
             "error": str(e),
+            "session_id": session_id,
         })
         print(f"[mcp-worker] Task {task_id} failed: {e}", flush=True)
 
 
-def _execute_task(message: str, skill: str, timeout: int) -> str:
-    """使用本地 Hermes Agent 执行任务。
+def _resolve_task_model(session_id: str = "") -> str:
+    """根据触发任务的员工 session，返回该员工配置的模型。
 
-    这里复用 WebUI 现有的 agent 调用逻辑。
+    优先级：
+      1. session_id 能匹配到某员工 → 该员工的 model
+      2. 环境变量 HERMES_MCP_GATEWAY_EMPLOYEE 指定的员工 → 该员工的 model
+      3. 兜底返回 DEFAULT_MODEL
+
+    核心逻辑：通过员工 X 发送的消息，使用员工 X 的模型。
     """
+    from api.config import DEFAULT_MODEL
+    import json
+
+    # ── 1. 通过 session_id 查找对应的员工 ──────────────────────────────
+    if session_id:
+        from api.workspace_manager import WORKSPACES_DIR as _WSD
+        for ws_dir in sorted(_WSD.iterdir()):
+            if not ws_dir.is_dir() or ws_dir.name.startswith("_"):
+                continue
+            emp_root = ws_dir / "employee_ins"
+            if not emp_root.is_dir():
+                continue
+            for emp_dir in sorted(emp_root.iterdir()):
+                if not emp_dir.is_dir() or emp_dir.name.startswith("_"):
+                    continue
+                emp_info_path = emp_dir / "info.json"
+                if not emp_info_path.exists():
+                    continue
+                try:
+                    emp_info = json.loads(emp_info_path.read_text(encoding="utf-8"))
+                    emp_session = emp_info.get("sessionId") or emp_info.get("session_id") or ""
+                    if emp_session == session_id:
+                        model = emp_info.get("model", "")
+                        if model:
+                            print(f"[mcp-worker] Resolved model from session {session_id[-8:]}: {model}", flush=True)
+                            return model
+                except Exception:
+                    continue
+
+    # ── 2. 环境变量指定了员工名/ID ─────────────────────────────────────
+    import os
+    target_emp = os.getenv("HERMES_MCP_GATEWAY_EMPLOYEE", "").strip()
+    if target_emp:
+        from api.workspace_manager import WORKSPACES_DIR as _WSD
+        for ws_dir in sorted(_WSD.iterdir()):
+            if not ws_dir.is_dir() or ws_dir.name.startswith("_"):
+                continue
+            emp_root = ws_dir / "employee_ins"
+            if not emp_root.is_dir():
+                continue
+            for emp_dir in sorted(emp_root.iterdir()):
+                if not emp_dir.is_dir() or emp_dir.name.startswith("_"):
+                    continue
+                emp_info_path = emp_dir / "info.json"
+                if not emp_info_path.exists():
+                    continue
+                try:
+                    emp_info = json.loads(emp_info_path.read_text(encoding="utf-8"))
+                    if emp_info.get("name") == target_emp or emp_info.get("id") == target_emp:
+                        model = emp_info.get("model", "")
+                        if model:
+                            return model
+                except Exception:
+                    continue
+
+    # ── 3. 兜底 ─────────────────────────────────────────────────────────
+    print(f"[mcp-worker] Cannot resolve employee from session_id={session_id!r}, using DEFAULT_MODEL", flush=True)
+    return DEFAULT_MODEL
+
+
+def _execute_task(message: str, skill: str, timeout: int, session_id: str = "") -> str:
+    """使用 Knot AG-UI 或本地 Hermes Agent 执行任务。
+
+    如果 settings 中配置了 knot_agui_mcp_model，
+    则通过 Knot AG-UI API 执行（同步调用，不启动 AIAgent）。
+    """
+    # ── 优先使用 Knot AG-UI（如已在 settings 中配置）────────────
+    try:
+        from api.config import load_settings
+        _settings = load_settings()
+        _knot_model = _settings.get("knot_agui_mcp_model", "").strip()
+    except Exception:
+        _knot_model = ""
+
+    if _knot_model:
+        try:
+            from api.knot_agui import run_knot_agui_sync
+            print(f"[mcp-worker] Using Knot AG-UI: model={_knot_model}", flush=True)
+            result = run_knot_agui_sync(message, model_name=_knot_model)
+            if result.startswith("[Error]"):
+                print(f"[mcp-worker] Knot AG-UI error: {result}", flush=True)
+                return result  # 不 fallback，直接返回错误
+            return result
+        except Exception as _e:
+            print(f"[mcp-worker] Knot AG-UI exception: {_e}", flush=True)
+            return f"[Error] Knot AG-UI call failed: {_e}"
+
+    # ── 兜底：使用本地 Hermes Agent ─────────────────────────────
+    # 加载 Hermes .env 中的 API Key（如果尚未加载）
+    _load_hermes_env()
+
+    import sys
+    from pathlib import Path
+
+    # 确保项目根目录在 sys.path 中（run_agent.py 在 hermes-agent-studio/ 根目录）
+    project_root = Path(__file__).parent.parent.parent  # api/ → hermes-webui-studio/ → hermes-agent-studio/
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
     # 构造 prompt
     prompt = message
     if skill:
@@ -350,8 +518,8 @@ def _execute_task(message: str, skill: str, timeout: int) -> str:
     # 使用 Hermes Agent 的 chat() 接口
     try:
         from api.config import (
-            HERMES_DIR, _HERMES_FOUND, DEFAULT_MODEL, DEFAULT_WORKSPACE,
-            get_setting
+            _HERMES_FOUND, DEFAULT_MODEL, DEFAULT_WORKSPACE,
+            cfg
         )
 
         if not _HERMES_FOUND:
@@ -359,15 +527,75 @@ def _execute_task(message: str, skill: str, timeout: int) -> str:
 
         from run_agent import AIAgent
 
-        # 获取模型配置
-        model = DEFAULT_MODEL
-        provider_settings = get_setting("provider", {})
+        # 解析模型：使用触发任务的员工对应的模型
+        import os
+        raw_model = _resolve_task_model(session_id)
+        model = raw_model
+        provider = ""
+        base_url = ""
+
+        # raw_model 格式通常为 "provider/model-name"（如 "openai/gpt-5.4-mini"）
+        if "/" in model:
+            parts = model.split("/", 1)
+            provider = parts[0]
+            model = parts[1]  # 传给 AIAgent 的 model 不含 provider 前缀
+
+        # 从 cfg 中解析 base_url
+        providers_cfg = cfg.get("providers", {})
+        if isinstance(providers_cfg, dict) and provider:
+            p_cfg = providers_cfg.get(provider, {})
+            if isinstance(p_cfg, dict):
+                base_url = p_cfg.get("base_url", base_url)
+
+        # 检查 custom_providers 段
+        if not base_url and provider and provider.startswith("custom:"):
+            cp_name = provider.replace("custom:", "")
+            for cp in cfg.get("custom_providers", []):
+                if cp.get("name") == cp_name:
+                    base_url = cp.get("base_url", "")
+                    break
+
+        # 如果 model 不含 provider 前缀，尝试从字符串判断
+        if not provider:
+            if "claude" in model.lower():
+                provider = "anthropic"
+            elif "gpt" in model.lower() or "o1" in model.lower() or "o3" in model.lower():
+                provider = "openai"
+            elif "openrouter" in model.lower():
+                provider = "openrouter"
+
+        print(f"[mcp-worker] Using model: {raw_model} → provider={provider}, base_url={base_url}", flush=True)
+
+        # 根据 provider 获取对应的 API key
+        api_key = ""
+        if provider == "anthropic":
+            api_key = os.getenv("ANTHROPIC_API_KEY", "")
+        elif provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY", "")
+        elif provider == "openrouter":
+            api_key = os.getenv("OPENROUTER_API_KEY", "")
+        elif provider and provider.startswith("custom:"):
+            # custom provider，从 cfg 中获取
+            cp_name = provider.replace("custom:", "")
+            for cp in cfg.get("custom_providers", []):
+                if cp.get("name") == cp_name:
+                    api_key = cp.get("api_key", "")
+                    if not base_url:
+                        base_url = cp.get("base_url", "")
+                    break
+        else:
+            # 尝试从 cfg 的 model 段获取
+            model_cfg = cfg.get("model", {})
+            if isinstance(model_cfg, dict):
+                api_key = model_cfg.get("api_key", "")
+
+        print(f"[mcp-worker] API key present: {bool(api_key)}", flush=True)
 
         agent = AIAgent(
             model=model,
-            base_url=provider_settings.get("base_url"),
-            api_key=provider_settings.get("api_key"),
-            provider=provider_settings.get("provider"),
+            base_url=base_url,
+            api_key=api_key,
+            provider=provider,
             max_iterations=30,
             quiet_mode=True,
             platform="mcp_worker",

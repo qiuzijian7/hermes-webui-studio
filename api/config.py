@@ -1486,6 +1486,7 @@ _SETTINGS_DEFAULTS = {
     "knot_agui_token": "",           # 个人/团队 API token
     "knot_agui_user": "",            # 企微英文名（团队 token 时必填）
     "knot_agui_agents": "",          # JSON 数组: [{"id":"agent_id","name":"显示名"},...]
+    "knot_agui_mcp_model": "",       # MCP Gateway Worker 统一使用的模型名称（如 "hy3-preview"）
 }
 
 

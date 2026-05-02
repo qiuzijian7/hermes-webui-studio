@@ -1505,6 +1505,7 @@ async function loadKnotAguiPanel(){
     const tokenField=$('settingsKnotAguiToken');
     const userField=$('settingsKnotAguiUser');
     const agentsField=$('settingsKnotAguiAgents');
+    const mcpModelField=$('settingsKnotAguiMcpModel');
     if(tokenField){
       tokenField.value=(settings.knot_agui_token&&settings.knot_agui_token!=='●●●●')?settings.knot_agui_token:'';
       tokenField.placeholder=settings.knot_agui_token==='●●●●'?'已配置（留空保持不变）':'粘贴你的 Knot API Token';
@@ -1512,6 +1513,7 @@ async function loadKnotAguiPanel(){
     }
     if(userField){userField.value=settings.knot_agui_user||'';userField.addEventListener('input',_markSettingsDirty,{once:false});}
     if(agentsField){agentsField.value=settings.knot_agui_agents||'';agentsField.addEventListener('input',_markSettingsDirty,{once:false});}
+    if(mcpModelField){mcpModelField.value=settings.knot_agui_mcp_model||'';mcpModelField.addEventListener('input',_markSettingsDirty,{once:false});}
   }catch(e){
     showToast('加载 Knot AG-UI 配置失败: '+e.message);
   }
@@ -1521,10 +1523,12 @@ async function saveKnotAguiSettings(){
   const tokenField=$('settingsKnotAguiToken');
   const userField=$('settingsKnotAguiUser');
   const agentsField=$('settingsKnotAguiAgents');
+  const mcpModelField=$('settingsKnotAguiMcpModel');
   const body={};
   const tokenVal=(tokenField||{}).value||'';
   const userVal=(userField||{}).value||'';
   const agentsVal=(agentsField||{}).value||'';
+  const mcpModelVal=(mcpModelField||{}).value||'';
   // Validate agents JSON
   if(agentsVal.trim()){
     try{
@@ -1543,6 +1547,7 @@ async function saveKnotAguiSettings(){
   if(tokenVal&&tokenVal!=='●●●●') body.knot_agui_token=tokenVal;
   body.knot_agui_user=userVal;
   body.knot_agui_agents=agentsVal;
+  body.knot_agui_mcp_model=mcpModelVal;
   try{
     await api('/api/settings',{method:'POST',body:JSON.stringify(body)});
     showToast('Knot AG-UI 配置已保存');

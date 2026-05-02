@@ -723,3 +723,140 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
         'usage': usage,
         '_knot_conversation_id': received_conversation_id,
     })
+
+
+def run_knot_agui_sync(message: str, *,
+                        model_name: str = "",
+                        system_prompt: str = "",
+                        enable_web_search: bool = False) -> str:
+    """同步调用 Knot AG-UI agent 并返回完整文本响应。
+
+    供 MCP Gateway Worker（gateway_client.py 的 _execute_task）使用，
+    避免在 Worker 子进程中启动完整 AIAgent，改为直接调用 Knot AG-UI API。
+    所有 MCP 工具统一使用 knot_agui_mcp_model 配置的模型。
+
+    Args:
+        message: 用户消息
+        model_name: 模型名称（如 "hy3-preview"），为空时从 settings 读取 knot_agui_mcp_model
+        system_prompt: 可选的系统提示词
+        enable_web_search: 是否启用联网搜索
+
+    Returns:
+        助手的回复文本；若出错则返回 "[Error] ..." 格式的错误信息。
+    """
+    # 直接读取完整 settings（不用 _load_agui_settings() 的过滤版本）
+    try:
+        from api.config import load_settings
+        _s = load_settings()
+    except Exception as _cfg_err:
+        return f"[Error] Cannot load settings: {_cfg_err}"
+
+    # agent_id：从 knot_agui_agents 取第一个 agent 的 id
+    agents_str = _s.get("knot_agui_agents", "").strip()
+    agent_id = ""
+    if agents_str:
+        try:
+            _agents = json.loads(agents_str)
+            if isinstance(_agents, list) and len(_agents) > 0:
+                agent_id = str(_agents[0].get("id", "")).strip()
+        except Exception:
+            pass
+    if not agent_id:
+        return "[Error] Knot AG-UI agents not configured or first agent has no id (knot_agui_agents)"
+
+    # model_name：从参数或 settings 读取
+    if not model_name:
+        model_name = _s.get("knot_agui_mcp_model", "").strip()
+    if not model_name:
+        return "[Error] Knot AG-UI mcp_model not configured (knot_agui_mcp_model)"
+
+    knot_model = model_name
+
+    # 读取 token / user
+    api_token = _s.get("knot_agui_token", "")
+    if not api_token:
+        return "[Error] Knot AG-UI token not configured (knot_agui_token)"
+
+    # 构建请求
+    api_url = f"https://knot.woa.com/apigw/api/v1/agents/agui/{agent_id}"
+    headers = {
+        "x-knot-api-token": api_token,
+        "Content-Type": "application/json",
+    }
+    api_user = _s.get("knot_agui_user", "")
+    if api_user:
+        headers["x-knot-api-user"] = api_user
+
+    chat_body = {
+        "input": {
+            "message": message,
+            "conversation_id": "",
+            "stream": True,
+            "enable_web_search": enable_web_search,
+            "chat_extra": {},
+        }
+    }
+    if knot_model:
+        chat_body["input"]["model"] = knot_model
+    if system_prompt:
+        chat_body["input"]["chat_extra"]["system_prompt"] = system_prompt
+
+    # 发送请求
+    try:
+        response = requests.post(
+            api_url, json=chat_body, headers=headers,
+            stream=True, timeout=300,
+        )
+        response.encoding = 'utf-8'
+    except requests.exceptions.ConnectionError as e:
+        return f"[Error] Cannot connect to Knot AG-UI: {e}"
+    except requests.exceptions.Timeout:
+        return "[Error] Knot AG-UI connection timed out"
+
+    if response.status_code not in (200, 201):
+        return f"[Error] Knot AG-UI HTTP {response.status_code}: {response.text[:500]}"
+
+    # 解析 SSE 流，收集 full_text
+    full_text = ""
+    for raw_line in response.iter_lines(decode_unicode=False):
+        if not raw_line:
+            continue
+        try:
+            line = raw_line.decode('utf-8')
+        except UnicodeDecodeError:
+            line = raw_line.decode('utf-8', errors='replace')
+
+        line = line.strip()
+        if line.startswith("data:"):
+            line = line[5:].strip()
+        elif line.startswith("data: "):
+            line = line[6:].strip()
+        elif line.startswith("event:"):
+            continue
+        else:
+            continue
+
+        if line == "[DONE]":
+            break
+
+        try:
+            msg = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        if "type" not in msg:
+            continue
+
+        msg_type = msg.get("type", "")
+        raw_event = msg.get("rawEvent", {})
+
+        if msg_type in ("TextMessageContent", "TEXT_MESSAGE_CONTENT",
+                        "ThinkingTextMessageContent", "THINKING_TEXT_MESSAGE_CONTENT"):
+            text = raw_event.get("content", "")
+            if not text:
+                text = msg.get("delta", "")
+            if text and not re.match(r'^[\s{}\[\]"]+$', text.strip()):
+                full_text += text
+
+    return full_text if full_text else "[No response from Knot AG-UI agent]"
+
