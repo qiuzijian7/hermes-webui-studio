@@ -13,6 +13,13 @@ const PM_NAME = 'PM专员';
 /** 获取 PM 员工的 sessionId */
 function _getPMSessionId() {
   const pm = (typeof getPMEmployee === 'function') ? getPMEmployee() : null;
+  if (pm && pm.sessionId) {
+    // ★ 调试：检查 PM 的 sessionId 是否合理
+    if (typeof _currentCanvasWorkspace !== 'undefined') {
+      console.log('[_getPMSessionId] pm.name=', pm.name, 'pm.sessionId=', pm.sessionId,
+                  'currentCanvasWorkspace=', _currentCanvasWorkspace);
+    }
+  }
   return pm?.sessionId || null;
 }
 

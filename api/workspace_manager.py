@@ -338,7 +338,8 @@ def create_employee_instance(ws_slug: str, data: dict) -> dict:
         "subagentOf": data.get("subagentOf"),
         "createdAt": data.get("createdAt", now),
         "lastActiveAt": data.get("lastActiveAt", now),
-        "sessionId": data.get("sessionId"),
+        # ★ 防御性修复：新员工必须 sessionId=null，防止从模板错误继承 sessionId
+        "sessionId": None,
         "_pos": data.get("_pos"),
         "metadata": data.get("metadata", {}),
     }

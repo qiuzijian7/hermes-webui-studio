@@ -7,6 +7,12 @@
       "path": "G:\\HermesWorkspaces\\test2",
       "slug": "test2",
       "createdAt": 1777816895735
+    },
+    {
+      "name": "test3",
+      "path": "G:\\HermesWorkspaces\\test3",
+      "slug": "test3",
+      "createdAt": 1777818099884
     }
   ]
 }

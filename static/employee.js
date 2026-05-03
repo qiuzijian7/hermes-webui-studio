@@ -147,6 +147,12 @@ function _loadEmployees() {
   try {
     let key = _wsEmployeeKey();
     let raw = localStorage.getItem(key);
+    // ★ 调试：追踪员工数据加载
+    if (typeof _currentCanvasWorkspace !== 'undefined') {
+      console.log('[_loadEmployees] workspace=', _currentCanvasWorkspace,
+                  'key=', key, 'hasData=', !!raw,
+                  'currentStoreCount=', EMPLOYEE_STORE.employees.length);
+    }
 
     // ★ 2026-04-27(v3) Bug 修复：路径归一化模糊匹配兜底
     //   用户反馈"切换到 GodotWorkspace 后画布空，点全部按钮才刷新出员工"。
@@ -230,6 +236,8 @@ function switchCanvasWorkspace(newWsPath) {
     return;
   }
 
+  // 调试：追踪工作区切换
+  console.log('[switchCanvasWorkspace] from=', oldWs, 'to=', newWs);
   // 1. 保存当前工作区的员工数据
   try { _saveEmployees(); } catch(e) { console.error('[switchCanvasWorkspace] save employees err:', e); }
   // 2. 保存当前画布视觉状态（zoom/pan）

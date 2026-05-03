@@ -705,11 +705,9 @@ async function addWorkspace(){
     if(data.template_init&&data.template_init.created>0){
       showToast(`已自动创建 ${data.template_init.created} 个模板员工`);
     }
-    // ★ 新工作区需要一个默认 PM 专员 — 切换到新工作区后由 ensurePMExists 兜底
-    if (typeof ensurePMExists === 'function') {
-      // 等切换完成后再创建 PM
-      setTimeout(() => { try { ensurePMExists(); } catch(_){} }, 300);
-    }
+    // ★ 不再在这里调用 ensurePMExists()，因为此时 _currentCanvasWorkspace 仍指向旧工作区。
+    //   PM 专员的创建由 switchCanvasWorkspace 的 hook 触发（_hookWorkspaceSwitch），
+    //   确保在新工作区的上下文中正确创建 PM 专员。
     // Show workspace manager init info
     if(data.ws_manager&&data.ws_manager.slug){
       console.log('[addWorkspace] Centralized workspace created:', data.ws_manager.slug);

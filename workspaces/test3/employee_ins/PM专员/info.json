@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "emp-1",
+  "name": "PM专员",
+  "role": "部门主管",
+  "avatar": "🤖",
+  "skills": [
+    {
+      "name": "sprint-plan",
+      "enabled": true
+    },
+    {
+      "name": "scope-check",
+      "enabled": true
+    },
+    {
+      "name": "estimate",
+      "enabled": true
+    },
+    {
+      "name": "task-decompose",
+      "enabled": true
+    }
+  ],
+  "presetId": "pm-specialist",
+  "characterImg": "character_3",
+  "model": "sonnet",
+  "customPrompt": "",
+  "params": {},
+  "subagentOf": null,
+  "createdAt": 1777818099899,
+  "lastActiveAt": 1777818099899,
+  "sessionId": null,
+  "_pos": null,
+  "metadata": {}
+}
