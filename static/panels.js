@@ -13,7 +13,6 @@ async function switchPanel(name) {
   if (name === 'tasks') await loadCrons();
   if (name === 'teams') { if (typeof renderTeamPresets === 'function') renderTeamPresets(); }
   if (name === 'skills') await loadSkills();
-  if (name === 'memory') await loadMemory();
   if (name === 'workspaces') await loadWorkspacesPanel();
   if (name === 'profiles') await loadProfilesPanel();
   if (name === 'todos') loadTodos();
@@ -1173,7 +1172,6 @@ async function switchToProfile(name) {
 
     // ── Sidebar panels ─────────────────────────────────────────────────────
     if (_currentPanel === 'skills') await loadSkills();
-    if (_currentPanel === 'memory') await loadMemory();
     if (_currentPanel === 'tasks') await loadCrons();
     if (_currentPanel === 'profiles') await loadProfilesPanel();
     if (_currentPanel === 'workspaces') await loadWorkspacesPanel();

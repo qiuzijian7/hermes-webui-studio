@@ -764,6 +764,10 @@ function selectEmployee(id, fromUser, taskId) {
   });
   // 打开右侧对话面板（★ 传 taskId 以便加载委派任务的独立 session）
   openEmployeeChat(id, taskId || undefined);
+
+  // ★ 显示 Memory 按钮（在员工操作栏，点击后在聊天区域显示记忆面板）
+  const memBtn = document.getElementById('btnEmployeeMemory');
+  if (memBtn) memBtn.style.display = '';
 }
 
 // ── 搜索/筛选 ────────────────────────────────────────────────────────────

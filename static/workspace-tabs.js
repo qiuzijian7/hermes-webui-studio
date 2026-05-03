@@ -465,14 +465,28 @@ function _renderWsSelectorDropdown(dd) {
 
     const opt = document.createElement('div');
     opt.className = 'ws-opt' + (w.path === currentWs ? ' active' : '');
-    opt.innerHTML = `<span class="ws-opt-name">${esc(w.name)}</span><span class="ws-opt-path" title="${esc(w.path)}">${esc(w.path)}</span>`;
-    opt.onclick = () => {
+    // 左侧：点击切换工作区
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'ws-opt-info';
+    infoDiv.innerHTML = `<span class="ws-opt-name">${esc(w.name)}</span><span class="ws-opt-path" title="${esc(w.path)}">${esc(w.path)}</span>`;
+    infoDiv.onclick = () => {
       closeWsSelector();
       if (typeof closeWsInfoSelector === 'function') closeWsInfoSelector();
       if (w.path !== currentWs && typeof switchToWorkspace === 'function') {
         switchToWorkspace(w.path, w.name);
       }
     };
+    opt.appendChild(infoDiv);
+    // 右侧：删除按钮
+    const delBtn = document.createElement('button');
+    delBtn.className = 'ws-opt-del';
+    delBtn.title = '删除工作区';
+    delBtn.innerHTML = li('x', 12);
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (typeof removeWorkspace === 'function') removeWorkspace(w.path);
+    };
+    opt.appendChild(delBtn);
     dd.appendChild(opt);
   }
 

@@ -1016,8 +1016,23 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
         chat_body["input"]["model"] = knot_model
 
     # ★ 将 system_prompt 注入 chat_extra（Knot AG-UI 协议支持通过 chat_extra.system_prompt 覆盖预设）
-    if system_prompt:
-        chat_body["input"]["chat_extra"]["system_prompt"] = system_prompt
+    # ★ 同时注入员工 memory（MEMORY.md / USER.md）
+    _final_system_prompt = system_prompt or ""
+    if employee_name and workspace:
+        try:
+            from api.employee_memory import build_employee_memory_system_prompt
+            _emp_memory = build_employee_memory_system_prompt(workspace, employee_name)
+            if _emp_memory:
+                if _final_system_prompt:
+                    _final_system_prompt = _final_system_prompt + "\n\n" + _emp_memory
+                else:
+                    _final_system_prompt = _emp_memory
+                print(f"[knot_agui_streaming] Injected employee memory (len={len(_emp_memory)})", flush=True)
+        except Exception as _mem_err:
+            print(f"[knot_agui_streaming] Failed to load employee memory: {_mem_err}", flush=True)
+
+    if _final_system_prompt:
+        chat_body["input"]["chat_extra"]["system_prompt"] = _final_system_prompt
 
     # ★ 注入 agent_client_uuid（机器 ID）到 chat_extra
     #   NOTE: connection_uuid is MACHINE-UNIQUE (same for ALL workspaces on this machine).
@@ -1652,6 +1667,29 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
         'usage': usage,
         '_knot_conversation_id': received_conversation_id,
     })
+
+    # ★★★ 自动更新员工记忆（LLM 提取对话关键信息）★★★
+    #   在对话结束后，使用 LLM 提取关键信息并保存到 MEMORY.md / USER.md
+    if employee_name and workspace and msg_text and full_text:
+        try:
+            from api.employee_memory import sync_employee_memory_after_turn
+            import threading
+
+            def _do_memory_sync():
+                try:
+                    result = sync_employee_memory_after_turn(
+                        workspace, employee_name, msg_text, full_text
+                    )
+                    if result and result.get("ok"):
+                        print(f"[knot-agui] Auto-updated memory: {result.get('message', '')}", flush=True)
+                except Exception as _mem_err:
+                    print(f"[knot-agui] Auto-update memory failed: {_mem_err}", flush=True)
+
+            # 异步执行，不阻塞主流程
+            _mem_thread = threading.Thread(target=_do_memory_sync, daemon=True)
+            _mem_thread.start()
+        except Exception as _import_err:
+            print(f"[knot-agui] Failed to import memory module: {_import_err}", flush=True)
 
 
 def run_knot_agui_sync(message: str, *,

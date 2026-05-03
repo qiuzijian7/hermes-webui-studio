@@ -6,6 +6,8 @@
 <title>Hermes</title>
 <script>(function(){var t=localStorage.getItem('hermes-theme');if(t&&t!=='dark')document.documentElement.dataset.theme=t;})()</script>
 <link rel="stylesheet" href="/static/style.css?v=20260503a">
+  <link rel="stylesheet" href="/static/memory-panel.css?v=20260503">
+
 
 
 
@@ -348,6 +350,10 @@
               <button class="panel-icon-btn" id="btnEmployeeSkills" title="配置员工技能" onclick="showEmployeeSkillDialog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
               <button class="panel-icon-btn" id="btnEmployeeConfigHtml" title="配置页面" onclick="openEmployeeConfigHtml()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></button>
               <button class="panel-icon-btn" id="btnEmployeeParams" title="配置参数" onclick="openEmployeeParamsEditor()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
+              <!-- ★ Memory 按钮：在聊天区域显示记忆面板 -->
+              <button class="panel-icon-btn" id="btnEmployeeMemory" title="员工记忆" onclick="toggleMemoryPanel()" style="display:none">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h6"/><path d="M8 11h4"/></svg>
+              </button>
 
               <button class="panel-icon-btn close-preview" onclick="closeRightPanel()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
@@ -363,6 +369,46 @@
               <p>与该员工开始对话</p>
             </div>
             <div class="rp-messages-inner" id="rpMsgInner"></div>
+            <!-- ★ Memory 面板：在聊天区域显示 -->
+            <div class="memory-panel-in-chat" id="memoryPanelInChat" style="display:none">
+              <div class="memory-header">
+                <div class="memory-employee-info">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                  <span id="memoryChatEmployeeName">员工记忆</span>
+                </div>
+                <div class="memory-actions">
+                  <button class="memory-btn" id="btnMemoryAutoUpdateChat" onclick="autoUpdateMemory()" title="AI 自动提取对话中的关键信息到记忆">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                    <span>自动更新</span>
+                  </button>
+                  <button class="memory-btn primary" onclick="saveMemory()" title="保存记忆">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>保存</span>
+                  </button>
+                  <button class="panel-icon-btn" onclick="toggleMemoryPanel()" title="关闭">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="memory-body">
+                <div class="memory-tabs">
+                  <button class="memory-tab active" data-tab="memory" onclick="switchMemoryTab('memory', this)">MEMORY.md</button>
+                  <button class="memory-tab" data-tab="user" onclick="switchMemoryTab('user', this)">USER.md</button>
+                </div>
+                <div class="memory-editor-wrap">
+                  <div class="memory-editor-label" id="memoryEditorLabelChat">记忆条目（每行一条，支持 Markdown）</div>
+                  <textarea class="memory-editor" id="memoryEditorChat" placeholder="输入要记住的事实、约定、笔记...&#10;每行一条，保存时自动格式化为条目。"></textarea>
+                </div>
+                <div class="memory-preview" id="memoryPreviewChat" style="display:none">
+                  <div class="memory-preview-title">预览</div>
+                  <div class="memory-preview-content" id="memoryPreviewContentChat"></div>
+                </div>
+                <div class="memory-auto-update-result" id="memoryAutoUpdateResultChat" style="display:none">
+                  <div class="memory-auto-update-title">自动更新结果</div>
+                  <div class="memory-auto-update-content" id="memoryAutoUpdateContentChat"></div>
+                </div>
+              </div>
+            </div>
           </div>
           <div id="liveToolCards" style="display:none;max-width:100%;width:100%;padding:0 12px;"></div>
           <div class="reconnect-banner" id="reconnectBanner">
@@ -1307,17 +1353,18 @@
 <script src="/static/messages.js?v=20260501b"></script>
 <script src="/static/delegation-handler.js?v=20260427a"></script>
 <script src="/static/browser-panel.js?v=20260427a"></script>
-<script src="/static/panels.js?v=20260503a"></script>
+<script src="/static/panels.js?v=20260503b"></script>
 <script src="/static/employee.js?v=20260430a"></script>
 <script src="/static/canvas-connections.js?v=20260417u"></script>
 <script src="/static/agent-presets.js?v=20260430a"></script>
 <script src="/static/pm-manager.js?v=20260430b"></script>
-<script src="/static/workspace-tabs.js?v=20260427r"></script>
+<script src="/static/workspace-tabs.js?v=20260503a"></script>
 <script src="/static/logs-panel.js?v=20260430a"></script>
 
 
 
 <script src="/static/right-panel.js?v=20260503a"></script>
+<script src="/static/memory-panel.js?v=20260503"></script>
 <!-- CodeMirror 6 editor module (async, non-blocking) -->
 <script type="module" src="/static/cm-editor.js?v=20260416d"></script>
 <script src="/static/onboarding.js?v=20260414"></script>

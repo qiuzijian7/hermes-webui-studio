@@ -1,0 +1,222 @@
+/* ── Memory Panel ─────────────────────────────────────────────────── */
+.memory-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.memory-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--text);
+  flex: 1;
+}
+
+.memory-subtitle {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.memory-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.memory-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.memory-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(124, 185, 255, 0.3);
+}
+
+.memory-btn.primary {
+  background: rgba(124, 185, 255, 0.15);
+  border-color: rgba(124, 185, 255, 0.3);
+  color: #7cb9ff;
+}
+
+.memory-btn.primary:hover {
+  background: rgba(124, 185, 255, 0.25);
+}
+
+.memory-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.memory-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.memory-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 8px 14px 0;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.memory-tab {
+  padding: 6px 14px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+}
+
+.memory-tab:hover {
+  color: var(--text);
+}
+
+.memory-tab.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+
+.memory-editor-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.memory-editor-label {
+  padding: 8px 14px 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.memory-editor {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  padding: 8px 14px;
+  outline: none;
+  tab-size: 2;
+}
+
+.memory-editor::placeholder {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.memory-preview {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  overflow-y: auto;
+  max-height: 300px;
+  flex-shrink: 0;
+}
+
+.memory-preview-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.memory-preview-content {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.memory-preview-content ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.memory-preview-content li {
+  margin-bottom: 3px;
+}
+
+.memory-auto-update-result {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  overflow-y: auto;
+  max-height: 200px;
+  flex-shrink: 0;
+}
+
+.memory-auto-update-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.memory-auto-update-content {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.memory-auto-update-content .added {
+  color: #5beb7b;
+}
+
+.memory-auto-update-content .updated {
+  color: #7cb9ff;
+}
+
+.memory-auto-update-content .deleted {
+  color: #ff7a7a;
+}
+
+/* Memory panel in chat area */
+.memory-panel-in-chat {
+  display: none;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.memory-panel-in-chat.active {
+  display: flex;
+}

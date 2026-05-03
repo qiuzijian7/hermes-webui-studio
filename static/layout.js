@@ -116,7 +116,7 @@
   const OUT_TAB_KEY = 'hermes-output-tab';
 
   function switchOutputTab(tab) {
-    const tabs = ['files', 'changes', 'browser', 'logs', 'agents', 'detail'];
+    const tabs = ['files', 'changes', 'browser', 'logs', 'agents', 'detail', 'memory'];
     if (!tabs.includes(tab)) tab = 'files';
     localStorage.setItem(OUT_TAB_KEY, tab);
 

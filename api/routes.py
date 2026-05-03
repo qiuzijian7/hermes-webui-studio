@@ -527,6 +527,10 @@ def handle_get(handler, parsed) -> bool:
         from api.skill_resolver import handle_resolve as _sr_resolve
         return _sr_resolve(handler, parsed)
 
+    # ── Employee Memory API (GET) ──
+    if parsed.path == "/api/employee/memory":
+        return _handle_employee_memory_read(handler, parsed)
+
     # ── Global skills library listing ──
     if parsed.path == "/api/skills/global/list":
         from api.skill_resolver import handle_list_global as _sr_list
@@ -1513,6 +1517,13 @@ def handle_post(handler, parsed) -> bool:
     # ── Memory (POST) ──
     if parsed.path == "/api/memory/write":
         return _handle_memory_write(handler, body)
+
+    # ── Employee Memory API (POST) ──
+    if parsed.path == "/api/employee/memory":
+        return _handle_employee_memory_write(handler, body)
+
+    if parsed.path == "/api/employee/memory/auto-update":
+        return _handle_employee_memory_auto_update(handler, body)
 
     # ── Profile API (POST) ──
     if parsed.path == "/api/profile/switch":
@@ -2831,6 +2842,285 @@ def _handle_memory_read(handler):
             "user_mtime": user_file.stat().st_mtime if user_file.exists() else None,
         },
     )
+
+
+# ── Employee Memory Handlers ─────────────────────────────────────────────
+
+def _handle_employee_memory_read(handler, parsed):
+    """GET /api/employee/memory?workspace=...&id=...&name=...
+
+    Read employee's MEMORY.md and USER.md.
+    Priority: name > id (to avoid filesystem lookup if name is provided).
+    """
+    from urllib.parse import parse_qs
+    qs = parse_qs(parsed.query)
+    workspace = (qs.get("workspace", [None])[0] or "").strip()
+    emp_id = (qs.get("id", [None])[0] or "").strip()
+    emp_name = (qs.get("name", [None])[0] or "").strip()
+
+    print(f"[Memory API] GET /api/employee/memory - workspace={workspace}, emp_id={emp_id}, emp_name={emp_name}", flush=True)
+
+    if not workspace:
+        return bad(handler, "workspace is required")
+    if not emp_id and not emp_name:
+        return bad(handler, "id or name is required")
+
+    try:
+        from api.employee_fs import get_employee_by_id, _employee_dir, _employees_root, _safe_dirname
+        from pathlib import Path
+
+        emp_dir = None
+
+        # 优先使用 name 直接构造路径（前端已提供 name）
+        if emp_name:
+            root = _employees_root(workspace)
+            emp_dir = root / _safe_dirname(emp_name)
+            print(f"[Memory API] Using name to construct path: {emp_dir}", flush=True)
+            
+            # 如果目录不存在，自动创建（员工可能只存在于前端 localStorage）
+            if not emp_dir.exists():
+                print(f"[Memory API] Employee directory not found, creating: {emp_dir}", flush=True)
+                emp_dir.mkdir(parents=True, exist_ok=True)
+                # 创建空的 MEMORY.md 和 USER.md
+                (emp_dir / "MEMORY.md").write_text("", encoding="utf-8")
+                (emp_dir / "USER.md").write_text("", encoding="utf-8")
+                if emp_id:
+                    # 写入基本的 info.json 以便后续 get_employee_by_id 能找到
+                    from datetime import datetime
+                    info = {
+                        "id": emp_id,
+                        "name": emp_name,
+                        "role": "",
+                        "created_at": datetime.utcnow().isoformat(),
+                    }
+                    (emp_dir / "info.json").write_text(
+                        json.dumps(info, ensure_ascii=False, indent=2),
+                        encoding="utf-8"
+                    )
+                print(f"[Memory API] Created employee directory with empty memory files", flush=True)
+
+        # 如果没有 name，回退到用 id 查找
+        if not emp_dir or not emp_dir.exists():
+            if emp_id:
+                print(f"[Memory API] Looking up employee by ID: {emp_id}", flush=True)
+                emp = get_employee_by_id(workspace, emp_id)
+                if not emp:
+                    print(f"[Memory API] Employee not found by ID: {emp_id}", flush=True)
+                    return bad(handler, f"Employee not found: {emp_id}", 404)
+                emp_dir = _employee_dir(workspace, emp.get("name", ""))
+            else:
+                return bad(handler, "Cannot find employee: neither name nor valid id provided", 404)
+
+        if not emp_dir.exists():
+            print(f"[Memory API] Employee directory not found: {emp_dir}", flush=True)
+            return bad(handler, f"Employee directory not found for: {emp_name or emp_id}", 404)
+
+        print(f"[Memory API] Employee directory: {emp_dir}", flush=True)
+        mem_file = emp_dir / "MEMORY.md"
+        user_file = emp_dir / "USER.md"
+
+        memory = mem_file.read_text(encoding="utf-8", errors="replace") if mem_file.exists() else ""
+        user = user_file.read_text(encoding="utf-8", errors="replace") if user_file.exists() else ""
+
+        return j(handler, {
+            "ok": True,
+            "memory": memory,
+            "user": user,
+            "memory_path": str(mem_file),
+            "user_path": str(user_file),
+            "memory_mtime": mem_file.stat().st_mtime if mem_file.exists() else None,
+            "user_mtime": user_file.stat().st_mtime if user_file.exists() else None,
+        })
+
+    except Exception as e:
+        print(f"[Memory API] Error: {e}", flush=True)
+        return bad(handler, str(e), 500)
+
+
+def _handle_employee_memory_write(handler, body):
+    """POST /api/employee/memory
+
+    Write employee's MEMORY.md and/or USER.md.
+    Body: { workspace, id, name, memory_content, user_content }
+    """
+    workspace = (body.get("workspace") or "").strip()
+    emp_id = (body.get("id") or body.get("employee_id") or "").strip()
+    emp_name = (body.get("name") or "").strip()
+
+    print(f"[Memory API] POST /api/employee/memory - workspace={workspace}, emp_id={emp_id}, emp_name={emp_name}", flush=True)
+
+    if not workspace:
+        return bad(handler, "workspace is required")
+    if not emp_id and not emp_name:
+        return bad(handler, "id or name is required")
+
+    try:
+        from api.employee_fs import get_employee_by_id, _employee_dir, _employees_root, _safe_dirname
+        from pathlib import Path
+
+        emp_dir = None
+
+        # 优先使用 name 直接构造路径
+        if emp_name:
+            root = _employees_root(workspace)
+            emp_dir = root / _safe_dirname(emp_name)
+            print(f"[Memory API] Using name to construct path: {emp_dir}", flush=True)
+            
+            # 如果目录不存在，自动创建
+            if not emp_dir.exists():
+                print(f"[Memory API] Employee directory not found, creating: {emp_dir}", flush=True)
+                emp_dir.mkdir(parents=True, exist_ok=True)
+                (emp_dir / "MEMORY.md").write_text("", encoding="utf-8")
+                (emp_dir / "USER.md").write_text("", encoding="utf-8")
+                if emp_id:
+                    from datetime import datetime
+                    info = {
+                        "id": emp_id,
+                        "name": emp_name,
+                        "role": "",
+                        "created_at": datetime.utcnow().isoformat(),
+                    }
+                    (emp_dir / "info.json").write_text(
+                        json.dumps(info, ensure_ascii=False, indent=2),
+                        encoding="utf-8"
+                    )
+                print(f"[Memory API] Created employee directory with empty memory files", flush=True)
+
+        # 如果没有 name，回退到用 id 查找
+        if not emp_dir or not emp_dir.exists():
+            if emp_id:
+                print(f"[Memory API] Looking up employee by ID: {emp_id}", flush=True)
+                emp = get_employee_by_id(workspace, emp_id)
+                if not emp:
+                    print(f"[Memory API] Employee not found by ID: {emp_id}", flush=True)
+                    return bad(handler, f"Employee not found: {emp_id}", 404)
+                emp_dir = _employee_dir(workspace, emp.get("name", ""))
+            else:
+                return bad(handler, "Cannot find employee: neither name nor valid id provided", 404)
+
+        if not emp_dir.exists():
+            print(f"[Memory API] Employee directory not found: {emp_dir}", flush=True)
+            return bad(handler, f"Employee directory not found for: {emp_name or emp_id}", 404)
+
+        print(f"[Memory API] Employee directory: {emp_dir}", flush=True)
+
+        updated = []
+
+        # Write MEMORY.md if provided
+        memory_content = body.get("memory_content")
+        if memory_content is not None:
+            mem_file = emp_dir / "MEMORY.md"
+            mem_file.write_text(str(memory_content), encoding="utf-8")
+            updated.append("MEMORY.md")
+
+        # Write USER.md if provided
+        user_content = body.get("user_content")
+        if user_content is not None:
+            user_file = emp_dir / "USER.md"
+            user_file.write_text(str(user_content), encoding="utf-8")
+            updated.append("USER.md")
+
+        return j(handler, {"ok": True, "updated": updated})
+
+    except Exception as e:
+        return bad(handler, str(e), 500)
+
+
+def _handle_employee_memory_auto_update(handler, body):
+    """POST /api/employee/memory/auto-update
+
+    Trigger LLM-based memory extraction after a conversation turn.
+    Body: { workspace, id, name, user_message, assistant_response }
+    """
+    workspace = (body.get("workspace") or "").strip()
+    emp_id = (body.get("id") or body.get("employee_id") or "").strip()
+    emp_name = (body.get("name") or "").strip()
+    user_message = body.get("user_message", "")
+    assistant_response = body.get("assistant_response", "")
+
+    print(f"[Memory API] POST /api/employee/memory/auto-update - workspace={workspace}, emp_id={emp_id}, emp_name={emp_name}", flush=True)
+
+    if not workspace:
+        return bad(handler, "workspace is required")
+    if not emp_id and not emp_name:
+        return bad(handler, "id or name is required")
+    if not user_message or not assistant_response:
+        return bad(handler, "user_message and assistant_response are required")
+
+    try:
+        from api.employee_fs import get_employee_by_id, _employee_dir, _employees_root, _safe_dirname
+
+        emp = None
+        emp_dir = None
+
+        # 优先使用 name 直接构造路径并验证目录存在
+        if emp_name:
+            root = _employees_root(workspace)
+            emp_dir = root / _safe_dirname(emp_name)
+            print(f"[Memory API] Using name to construct path: {emp_dir}", flush=True)
+            
+            # 如果目录不存在，自动创建
+            if not emp_dir.exists():
+                print(f"[Memory API] Employee directory not found, creating: {emp_dir}", flush=True)
+                emp_dir.mkdir(parents=True, exist_ok=True)
+                (emp_dir / "MEMORY.md").write_text("", encoding="utf-8")
+                (emp_dir / "USER.md").write_text("", encoding="utf-8")
+                if emp_id:
+                    from datetime import datetime
+                    info = {
+                        "id": emp_id,
+                        "name": emp_name,
+                        "role": "",
+                        "created_at": datetime.utcnow().isoformat(),
+                    }
+                    (emp_dir / "info.json").write_text(
+                        json.dumps(info, ensure_ascii=False, indent=2),
+                        encoding="utf-8"
+                    )
+                # 创建空的 emp dict
+                emp = {"id": emp_id, "name": emp_name, "role": ""}
+                print(f"[Memory API] Created employee directory with empty memory files", flush=True)
+            else:
+                # 目录存在，尝试从 info.json 加载员工信息
+                info_path = emp_dir / "info.json"
+                if info_path.exists():
+                    try:
+                        import json as _json
+                        emp = _json.loads(info_path.read_text(encoding='utf-8'))
+                    except:
+                        emp = {"id": emp_id, "name": emp_name, "role": ""}
+                else:
+                    emp = {"id": emp_id, "name": emp_name, "role": ""}
+
+        # 如果没有 name 或加载失败，回退到用 id 查找
+        if not emp:
+            if emp_id:
+                print(f"[Memory API] Looking up employee by ID: {emp_id}", flush=True)
+                emp = get_employee_by_id(workspace, emp_id)
+                if not emp:
+                    print(f"[Memory API] Employee not found by ID: {emp_id}", flush=True)
+                    return bad(handler, f"Employee not found: {emp_id}", 404)
+                emp_dir = _employee_dir(workspace, emp.get("name", ""))
+            else:
+                return bad(handler, "Cannot find employee: neither name nor valid id provided", 404)
+
+        if not emp_dir or not emp_dir.exists():
+            print(f"[Memory API] Employee directory not found: {emp_dir}", flush=True)
+            return bad(handler, f"Employee directory not found for: {emp_name or emp_id}", 404)
+
+        print(f"[Memory API] Employee directory: {emp_dir}", flush=True)
+
+        # 使用员工名称调用 sync_employee_memory_after_turn
+        from api.employee_memory import sync_employee_memory_after_turn
+
+        result = sync_employee_memory_after_turn(
+            workspace, emp.get("name", ""), user_message, assistant_response
+        )
+
+        return j(handler, result)
+
+    except Exception as e:
+        return bad(handler, str(e), 500)
 
 
 # ── POST route helpers ────────────────────────────────────────────────────────

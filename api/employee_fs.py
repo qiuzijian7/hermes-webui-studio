@@ -280,6 +280,13 @@ def create_employee(workspace: str, data: dict) -> dict:
         html_path = emp_dir / INDEX_HTML_FILENAME
         html_path.write_text(config_html, encoding='utf-8')
 
+    # ★ Initialize MEMORY.md and USER.md for employee memory system
+    try:
+        from api.employee_memory import initialize_employee_memory_files
+        initialize_employee_memory_files(str(emp_dir))
+    except Exception as _mem_init_err:
+        print(f"[employee_fs] Failed to initialize memory files: {_mem_init_err}", flush=True)
+
     # Return full employee data
     result = dict(info)
     result["configHtml"] = config_html
