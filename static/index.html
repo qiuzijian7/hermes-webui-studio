@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hermes</title>
 <script>(function(){var t=localStorage.getItem('hermes-theme');if(t&&t!=='dark')document.documentElement.dataset.theme=t;})()</script>
-<link rel="stylesheet" href="/static/style.css?v=20260429a">
+<link rel="stylesheet" href="/static/style.css?v=20260503a">
 
 
 
   <!-- Marked.js — full-featured Markdown renderer (GFM tables, task lists, etc.) -->
   <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js" crossorigin="anonymous" defer></script>
+
 </head>
 <body>
 <div class="layout">
@@ -214,7 +215,13 @@
       <div class="ws-selector-wrap topbar-ws-info" id="wsInfoWrap">
         <button class="ws-info-btn" id="wsInfoBtn" type="button" onclick="toggleWsInfoSelector()" title="点击切换工作区">
           <div class="ws-info-btn-text">
-            <div class="topbar-title" id="topbarTitle">Hermes Studio</div>
+            <div style="display:flex;align-items:center;gap:5px">
+              <div class="topbar-title" id="topbarTitle">Hermes Studio</div>
+              <span class="knot-badge" id="knotBadge" style="display:none" title="已注册到 Knot 工作区">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Knot
+              </span>
+            </div>
             <div class="topbar-meta" id="topbarMeta">员工工作台 — 点击员工卡片开始对话</div>
           </div>
           <svg class="ws-info-chevron" width="12" height="8" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
@@ -425,6 +432,7 @@
                   <span class="composer-model-label" id="rpEmpModelLabel">Model</span>
                   <span class="composer-model-chevron" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
                 </button>
+
               </div>
             </div>
             <div class="composer-right">
@@ -1032,6 +1040,12 @@
               配置 Knot 平台的 API 凭据和智能体列表。Token 申请地址：<a href="https://knot.woa.com/settings/token" target="_blank" style="color:var(--blue)">个人 Token</a> · <a href="https://knot.woa.com/settings/token?type=team" target="_blank" style="color:var(--blue)">团队 Token</a><br>
               配置完成后，聊天框模型选择中会出现各智能体支持的模型（如 deepseek-v3.1、glm-5.1 等）。
             </div>
+            
+            <!-- knot-cli 状态显示 -->
+            <div id="knotCliStatus" style="margin:8px 0 12px;padding:8px;background:var(--code-bg);border:1px solid var(--border2);border-radius:6px;">
+              <div style="font-size:12px;color:var(--muted);">正在检查 knot-cli 状态...</div>
+            </div>
+            
             <div class="settings-field">
               <label for="settingsKnotAguiToken">API Token</label>
               <div style="font-size:11px;color:var(--muted);margin-bottom:6px">个人或团队 Token（通过 knot.woa.com 申请）</div>
@@ -1136,14 +1150,14 @@
 <script src="/static/user-action-log.js?v=20260428a"></script>
 <script src="/static/i18n.js?v=20260417b"></script>
 <script src="/static/icons.js?v=20260428a"></script>
-<script src="/static/ui.js?v=20260427d"></script>
+<script src="/static/ui.js?v=20260503a"></script>
 <script src="/static/workspace.js?v=20260417f"></script>
 <script src="/static/sessions.js?v=20260418d"></script>
 <script src="/static/commands.js?v=20260414"></script>
 <script src="/static/messages.js?v=20260501b"></script>
 <script src="/static/delegation-handler.js?v=20260427a"></script>
 <script src="/static/browser-panel.js?v=20260427a"></script>
-<script src="/static/panels.js?v=20260424w"></script>
+<script src="/static/panels.js?v=20260503a"></script>
 <script src="/static/employee.js?v=20260430a"></script>
 <script src="/static/canvas-connections.js?v=20260417u"></script>
 <script src="/static/agent-presets.js?v=20260430a"></script>
@@ -1153,7 +1167,7 @@
 
 
 
-<script src="/static/right-panel.js?v=20260501b"></script>
+<script src="/static/right-panel.js?v=20260503a"></script>
 <!-- CodeMirror 6 editor module (async, non-blocking) -->
 <script type="module" src="/static/cm-editor.js?v=20260416d"></script>
 <script src="/static/onboarding.js?v=20260414"></script>

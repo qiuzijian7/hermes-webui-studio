@@ -902,6 +902,13 @@ async function switchToWorkspace(path,name){
   // ★ 即使没有 session 也切换画布工作区
   if(typeof switchCanvasWorkspace==='function') switchCanvasWorkspace(path);
   if(typeof syncWsSelectorLabel==='function') syncWsSelectorLabel();
+  
+  // ★ Ensure workspace is registered in knot-cli (async, non-blocking)
+  _ensureKnotWorkspaceAsync(path);
+  // ★ 更新顶栏 Knot 标记
+  if (typeof _knotBadgeLastWs !== 'undefined') _knotBadgeLastWs = '';
+  if (typeof updateKnotBadge === 'function') updateKnotBadge(path);
+  
   if(!S.session){
     // No session — create one with the selected workspace so files can load
     try{
@@ -946,6 +953,23 @@ async function switchToWorkspace(path,name){
   }catch(e){
     setStatus('Switch failed: '+e.message);
   }
+}
+
+// ── knot-cli workspace sync helper (non-blocking) ──
+function _ensureKnotWorkspaceAsync(path) {
+  // Use knot-cli workspace --action list to check, then --action add if missing
+  // This runs in the background to not block the UI
+  api('/api/knot-cli/workspace/add', {
+    method: 'POST',
+    body: JSON.stringify({ path: path })
+  }).then(r => {
+    if (r && r.ok) {
+      console.log('[knot-sync] workspace ensured:', path);
+    }
+  }).catch(e => {
+    // Silently ignore — knot-cli might not be installed
+    console.debug('[knot-sync] workspace sync skipped:', e.message || e);
+  });
 }
 
 // ── Profile panel + dropdown ──
@@ -1514,8 +1538,227 @@ async function loadKnotAguiPanel(){
     if(userField){userField.value=settings.knot_agui_user||'';userField.addEventListener('input',_markSettingsDirty,{once:false});}
     if(agentsField){agentsField.value=settings.knot_agui_agents||'';agentsField.addEventListener('input',_markSettingsDirty,{once:false});}
     if(mcpModelField){mcpModelField.value=settings.knot_agui_mcp_model||'';mcpModelField.addEventListener('input',_markSettingsDirty,{once:false});}
+    
+    // ── Auto-check knot-cli status ─────────────────────
+    const workspace = (typeof S !== 'undefined' && S.session && S.session.workspace) || '.';
+    try {
+      const status = await api('/api/knot-cli/status', {
+        method: 'POST',
+        body: JSON.stringify({ workspace: workspace })
+      });
+      if (status.ok) {
+        const statusDiv = document.getElementById('knotCliStatus');
+        if (statusDiv) {
+          if (status.installed) {
+            let statusHtml = `
+              <div style="color:var(--green);font-size:12px;margin-top:8px">
+                ✓ knot-cli 已安装: ${status.cli_path}
+              </div>`;
+            
+            if (status.connection_uuid) {
+              statusHtml += `
+                <div style="color:var(--muted);font-size:11px;font-family:monospace;margin-top:4px;">
+                  connection_uuid: ${status.connection_uuid}
+                </div>`;
+            } else {
+              statusHtml += `
+                <div style="color:var(--accent);font-size:12px;">
+                  ⚠ 当前工作区未注册
+                </div>`;
+              // Show auto-register button if token is configured
+              if (settings.knot_agui_token) {
+                statusHtml += `
+                  <button onclick="autoRegisterKnotWorkspace()" style="margin-top:6px;padding:4px 12px;font-size:11px;cursor:pointer">
+                    注册当前工作区
+                  </button>`;
+              }
+            }
+            statusDiv.innerHTML = statusHtml;
+          } else {
+            // knot-cli 未安装
+            let statusHtml = `
+              <div style="color:var(--accent);font-size:12px;margin-top:8px">
+                ⚠ knot-cli 未安装
+              </div>`;
+            
+            // Check Git Bash availability
+            if (!status.git_bash_available) {
+              statusHtml += `
+                <div style="color:var(--red,#e74c3c);font-size:12px;margin-top:4px;padding:8px;border:1px solid var(--border2);border-radius:6px;background:rgba(231,76,60,0.05)">
+                  ⚠ 安装 knot-cli 需要 Git Bash<br>
+                  <span style="font-size:11px;color:var(--muted)">
+                    请先安装 Git for Windows：
+                    <a href="https://git-scm.com/download/win" target="_blank" style="color:var(--link,#3498db)">
+                      https://git-scm.com/download/win
+                    </a>
+                  </span>
+                  <br><br>
+                  <span style="font-size:11px;color:var(--muted)">安装 Git 后请刷新此页面重试。</span>
+                </div>`;
+            }
+            
+            if (settings.knot_agui_token) {
+              if (status.git_bash_available) {
+                statusHtml += `
+                  <button onclick="autoInstallKnotCli()" style="margin-top:8px;padding:6px 14px;font-size:12px;cursor:pointer">
+                    🚀 自动安装 knot-cli
+                  </button>`;
+              }
+            } else {
+              statusHtml += `
+                <div style="color:var(--muted);font-size:11px;margin-top:4px">
+                  请先配置 Token 后再安装
+                </div>`;
+            }
+            statusDiv.innerHTML = statusHtml;
+          }
+        }
+      }
+    } catch(e) {
+      console.warn('Failed to check knot-cli status:', e);
+      const statusDiv = document.getElementById('knotCliStatus');
+      if(statusDiv) statusDiv.innerHTML = `<div style="color:var(--muted);font-size:11px">无法检查 knot-cli 状态</div>`;
+    }
   }catch(e){
     showToast('加载 Knot AG-UI 配置失败: '+e.message);
+  }
+}
+
+// ── Auto-install knot-cli ─────────────────────────────
+async function autoInstallKnotCli() {
+  try {
+    const settings = await api('/api/settings');
+    if (!settings.knot_agui_token || settings.knot_agui_token === '●●●●') {
+      showToast('请先配置 Knot API Token');
+      return;
+    }
+    
+    const workspace = (typeof S !== 'undefined' && S.session && S.session.workspace) || '.';
+    
+    // Update status UI to show progress
+    const statusDiv = document.getElementById('knotCliStatus');
+    if (statusDiv) {
+      statusDiv.innerHTML = `
+        <div style="color:var(--accent);font-size:12px;margin-top:8px">
+          ⏳ 正在安装 knot-cli，请稍候...
+        </div>`;
+    }
+    
+    const result = await api('/api/knot-cli/install', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspace: workspace,
+        token: settings.knot_agui_token
+      })
+    });
+    
+    if (result.ok) {
+      showToast('knot-cli 安装成功！');
+      // Show connection_uuid immediately
+      if (statusDiv) {
+        let html = `
+          <div style="color:var(--green);font-size:12px;margin-top:8px">
+            ✓ knot-cli 安装成功: ${result.cli_path}
+          </div>`;
+        if (result.connection_uuid) {
+          html += `
+            <div style="color:var(--muted);font-size:11px;font-family:monospace;margin-top:4px;">
+              connection_uuid: ${result.connection_uuid}
+            </div>`;
+        } else {
+          html += `
+            <div style="color:var(--accent);font-size:12px;">
+              ⚠ 安装成功，但工作区注册尚未完成
+            </div>
+            <button onclick="autoRegisterKnotWorkspace()" style="margin-top:6px;padding:4px 12px;font-size:11px;cursor:pointer">
+              重试注册工作区
+            </button>`;
+        }
+        statusDiv.innerHTML = html;
+      }
+    } else {
+      // Check if it's a Git Bash missing error
+      if (result.need_git_bash) {
+        if (statusDiv) {
+          statusDiv.innerHTML = `
+            <div style="color:var(--red,#e74c3c);font-size:12px;margin-top:8px;padding:10px;border:1px solid var(--border2);border-radius:6px;background:rgba(231,76,60,0.05)">
+              ⚠ 安装 knot-cli 需要 Git Bash<br><br>
+              <span style="font-size:11px;color:var(--muted)">
+                请先安装 Git for Windows：
+                <a href="${result.download_url || 'https://git-scm.com/download/win'}" target="_blank" style="color:var(--link,#3498db)">
+                  ${result.download_url || 'https://git-scm.com/download/win'}
+                </a>
+              </span>
+              <br><br>
+              <span style="font-size:11px;color:var(--muted)">安装 Git 后请刷新此页面重试。</span>
+            </div>`;
+        }
+        showToast('需要先安装 Git Bash');
+      } else {
+        showToast('knot-cli 安装失败: ' + (result.error || '未知错误'));
+        if (statusDiv) {
+          statusDiv.innerHTML = `
+            <div style="color:var(--red,#e74c3c);font-size:12px;margin-top:8px">
+              ✗ 安装失败: ${result.error || '未知错误'}
+            </div>
+            <button onclick="autoInstallKnotCli()" style="margin-top:6px;padding:4px 12px;font-size:11px;cursor:pointer">
+              重试安装
+            </button>`;
+        }
+      }
+    }
+  } catch(e) {
+    showToast('安装失败: ' + e.message);
+    const statusDiv = document.getElementById('knotCliStatus');
+    if (statusDiv) {
+      statusDiv.innerHTML = `
+        <div style="color:var(--red,#e74c3c);font-size:12px;margin-top:8px">
+          ✗ 安装异常: ${e.message}
+        </div>
+        <button onclick="autoInstallKnotCli()" style="margin-top:6px;padding:4px 12px;font-size:11px;cursor:pointer">
+          重试安装
+        </button>`;
+    }
+  }
+}
+
+// ── Auto-register workspace in knot-cli ─────────────────────────────
+async function autoRegisterKnotWorkspace() {
+  try {
+    const workspace = (typeof S !== 'undefined' && S.session && S.session.workspace) || '.';
+    const statusDiv = document.getElementById('knotCliStatus');
+    
+    if (statusDiv) {
+      statusDiv.innerHTML = `
+        <div style="color:var(--accent);font-size:12px;margin-top:8px">
+          ⏳ 正在注册工作区...
+        </div>`;
+    }
+    
+    const result = await api('/api/knot-cli/workspace/create', {
+      method: 'POST',
+      body: JSON.stringify({ workspace: workspace })
+    });
+    
+    if (result.ok && result.connection_uuid) {
+      showToast('工作区注册成功');
+      if (statusDiv) {
+        statusDiv.innerHTML = `
+          <div style="color:var(--green);font-size:12px;margin-top:8px">
+            ✓ knot-cli 已安装: ${result.cli_path || ''}
+          </div>
+          <div style="color:var(--muted);font-size:11px;font-family:monospace;margin-top:4px;">
+            connection_uuid: ${result.connection_uuid}
+          </div>`;
+      }
+    } else {
+      showToast('工作区注册失败: ' + (result.error || '未获取到 connection_uuid'));
+      // Reload panel for fresh status
+      loadKnotAguiPanel();
+    }
+  } catch(e) {
+    showToast('注册失败: ' + e.message);
+    loadKnotAguiPanel();
   }
 }
 
@@ -1544,7 +1787,8 @@ async function saveKnotAguiSettings(){
     }
   }
   // Only send token if user typed something new (not placeholder)
-  if(tokenVal&&tokenVal!=='●●●●') body.knot_agui_token=tokenVal;
+  const isNewToken = tokenVal && tokenVal !== '●●●●';
+  if(isNewToken) body.knot_agui_token=tokenVal;
   body.knot_agui_user=userVal;
   body.knot_agui_agents=agentsVal;
   body.knot_agui_mcp_model=mcpModelVal;
@@ -1553,8 +1797,37 @@ async function saveKnotAguiSettings(){
     showToast('Knot AG-UI 配置已保存');
     _settingsDirty=false;
     const bar=$('settingsUnsavedBar');if(bar) bar.style.display='none';
-    // Reload panel to reflect masked token
-    loadKnotAguiPanel();
+    
+    // ★ If a new token was just configured, auto-install knot-cli
+    if(isNewToken){
+      // Check current knot-cli status and auto-install if not installed
+      const workspace = (typeof S !== 'undefined' && S.session && S.session.workspace) || '.';
+      try {
+        const status = await api('/api/knot-cli/status', {
+          method: 'POST',
+          body: JSON.stringify({ workspace: workspace })
+        });
+        if (status.ok && !status.installed) {
+          // Not installed — trigger auto-install
+          showToast('Token 已保存，正在自动安装 knot-cli...');
+          setTimeout(() => autoInstallKnotCli(), 500);
+        } else if (status.ok && status.installed && !status.connection_uuid) {
+          // Installed but workspace not registered — auto-register
+          showToast('Token 已保存，正在注册工作区...');
+          setTimeout(() => autoRegisterKnotWorkspace(), 500);
+        } else {
+          // Already fully configured, just reload panel
+          loadKnotAguiPanel();
+        }
+      } catch(_e) {
+        // Fallback: just reload panel
+        loadKnotAguiPanel();
+      }
+    } else {
+      // Reload panel to reflect masked token
+      loadKnotAguiPanel();
+    }
+    
     // ★ 刷新模型下拉框，使 Knot AG-UI 智能体立即出现在聊天框模型选择中
     if(typeof populateModelDropdown==='function'){
       try{ await populateModelDropdown(); }catch(_){}

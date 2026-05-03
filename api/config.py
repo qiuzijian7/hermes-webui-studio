@@ -229,17 +229,64 @@ def _discover_default_workspace() -> Path:
     """
     Resolve the default workspace in order:
       1. HERMES_WEBUI_DEFAULT_WORKSPACE env var
-      2. ~/workspace (common Hermes convention)
-      3. STATE_DIR / workspace (isolated fallback)
-    The chosen directory is auto-created if it does not exist yet.
+      2. config.yaml keys: 'workspace', 'default_workspace', 'terminal.cwd'
+      3. last_workspace.txt (profile-specific, then global)
+      4. STATE_DIR / workspace (isolated fallback)
+
+    NOTE (2026-05-03): We intentionally NO LONGER auto-select ~/workspace just
+    because it exists.  That heuristic caused silent mis-routing — the user's
+    real project workspace (e.g. G:\\HermesWorkspaces\\GodotWorkspace) was
+    overridden by the generic ~/workspace directory that happens to exist on
+    many machines.  If the user wants ~/workspace as default they can set
+    HERMES_WEBUI_DEFAULT_WORKSPACE or the config.yaml 'workspace' key.
     """
+    # 1. Explicit env var — highest priority
     if os.getenv("HERMES_WEBUI_DEFAULT_WORKSPACE"):
         p = Path(os.getenv("HERMES_WEBUI_DEFAULT_WORKSPACE")).expanduser().resolve()
     else:
-        common = HOME / "workspace"
-        if common.exists():
-            p = common.resolve()
-        else:
+        # 2. Config-file keys (workspace / default_workspace / terminal.cwd)
+        p = None
+        try:
+            import yaml as _yaml
+            cfg_path = STATE_DIR / 'config.yaml'
+            if cfg_path.is_file():
+                with open(cfg_path, 'r', encoding='utf-8') as f:
+                    cfg = _yaml.safe_load(f) or {}
+                for key in ('workspace', 'default_workspace'):
+                    val = cfg.get(key)
+                    if val:
+                        candidate = Path(str(val)).expanduser().resolve()
+                        if candidate.is_dir():
+                            p = candidate
+                            break
+                if p is None:
+                    terminal_cfg = cfg.get('terminal', {})
+                    if isinstance(terminal_cfg, dict):
+                        cwd = terminal_cfg.get('cwd', '')
+                        if cwd and str(cwd) not in ('.', ''):
+                            candidate = Path(str(cwd)).expanduser().resolve()
+                            if candidate.is_dir():
+                                p = candidate
+        except Exception:
+            pass
+
+        # 3. last_workspace.txt (profile-specific → global)
+        if p is None:
+            for lwf in (STATE_DIR / 'last_workspace.txt',
+                        Path.home() / '.hermes' / 'webui' / 'last_workspace.txt'):
+                try:
+                    if lwf.is_file():
+                        val = lwf.read_text(encoding='utf-8').strip()
+                        if val:
+                            candidate = Path(val).expanduser().resolve()
+                            if candidate.is_dir():
+                                p = candidate
+                                break
+                except Exception:
+                    pass
+
+        # 4. Isolated fallback (STATE_DIR / workspace)
+        if p is None:
             p = (STATE_DIR / "workspace").resolve()
 
     # Ensure the workspace directory exists (critical for Docker / first-launch)

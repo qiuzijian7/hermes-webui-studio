@@ -864,6 +864,242 @@ def handle_post(handler, parsed) -> bool:
     body = read_body(handler)
     print(f"[POST] path={parsed.path} body_keys={list(body.keys())[:5]}", file=sys.stderr, flush=True)
 
+    # ── Knot-CLI management API ────────────────────────────────
+    if parsed.path == "/api/knot-cli/check-git-bash":
+        """Check if Git Bash is available (needed for knot-cli install on Windows)."""
+        try:
+            from api.knot_agui import check_git_bash
+            result = check_git_bash()
+            return j(handler, {"ok": True, **result})
+        except Exception as e:
+            return j(handler, {"ok": False, "error": str(e)}, status=500)
+
+    if parsed.path == "/api/knot-cli/status":
+        """Check knot-cli installation status and workspace registration."""
+        try:
+            from api.knot_agui import (
+                _get_knot_cli_path,
+                get_connection_uuid,
+                check_git_bash,
+            )
+
+            workspace = str(body.get("workspace", "")).strip() or "."
+
+            # Check knot-cli installation
+            cli_path = _get_knot_cli_path()
+            installed = cli_path is not None
+
+            # Check Git Bash availability (relevant on Windows)
+            git_bash_info = check_git_bash()
+
+            print(f"[knot-status] installed={installed} cli_path={cli_path} workspace={workspace} git_bash={git_bash_info.get('available')}", flush=True)
+
+            result = {
+                "ok": True,
+                "installed": installed,
+                "cli_path": cli_path or "",
+                "git_bash_available": git_bash_info.get("available", False),
+                "git_bash_path": git_bash_info.get("path", ""),
+                "git_bash_message": git_bash_info.get("message", ""),
+            }
+
+            # If installed, try to get connection_uuid for workspace
+            if installed:
+                try:
+                    connection_uuid = get_connection_uuid(workspace)
+                    print(f"[knot-status] connection_uuid={connection_uuid[:20] if connection_uuid else 'EMPTY'}", flush=True)
+                except Exception as uuid_err:
+                    print(f"[knot-status] get_connection_uuid error: {uuid_err}", flush=True)
+                    connection_uuid = ""
+                result["connection_uuid"] = connection_uuid
+                result["workspace"] = workspace
+            else:
+                result["connection_uuid"] = ""
+                result["workspace"] = ""
+
+            return j(handler, result)
+        except Exception as e:
+            print(f"[knot-status] Exception: {e}", flush=True)
+            import traceback; traceback.print_exc()
+            return j(handler, {"ok": False, "error": str(e)}, status=500)
+
+    if parsed.path == "/api/knot-cli/install":
+        """Install knot-cli programmatically.
+        
+        Requires Git Bash on Windows for fresh installation.
+        Returns connection_uuid on success.
+        """
+        try:
+            from api.knot_agui import ensure_knot_cli, ensure_workspace, check_git_bash, _get_knot_cli_path
+
+            workspace = str(body.get("workspace", "")).strip() or "."
+            token = str(body.get("token", "")).strip()
+
+            if not token:
+                return j(handler, {"ok": False, "error": "token is required for installation"}, status=400)
+
+            # Check if knot-cli is already installed
+            existing_cli = _get_knot_cli_path()
+            
+            # If not installed, check Git Bash availability on Windows
+            if not existing_cli:
+                git_bash_info = check_git_bash()
+                if not git_bash_info["available"]:
+                    return j(handler, {
+                        "ok": False,
+                        "error": "需要安装 Git Bash",
+                        "need_git_bash": True,
+                        "message": git_bash_info["message"],
+                        "download_url": "https://git-scm.com/download/win"
+                    }, status=400)
+
+            # Ensure knot-cli is installed
+            cli_path = ensure_knot_cli(workspace, token)
+            if not cli_path:
+                return j(handler, {"ok": False, "error": "Failed to install knot-cli"}, status=500)
+
+            # Ensure workspace is registered
+            connection_uuid = ensure_workspace(workspace, token)
+
+            return j(handler, {
+                "ok": True,
+                "cli_path": cli_path,
+                "connection_uuid": connection_uuid,
+                "workspace": workspace,
+            })
+        except Exception as e:
+            return j(handler, {"ok": False, "error": str(e)}, status=500)
+
+    if parsed.path == "/api/knot-cli/workspace/create":
+        """Create or get workspace registration and return connection_uuid."""
+        try:
+            from api.knot_agui import ensure_workspace, _get_knot_cli_path
+            from api.config import load_settings
+
+            workspace = str(body.get("workspace", "")).strip() or "."
+            token = str(body.get("token", "")).strip()
+
+            print(f"[knot-workspace] Creating workspace: {workspace}", flush=True)
+
+            # 如果请求体中没有 token，从配置文件读取
+            if not token:
+                try:
+                    settings = load_settings()
+                    token = settings.get("knot_agui_token", "")
+                    print(f"[knot-workspace] Loaded token from config: {len(token)} chars", flush=True)
+                except Exception as e:
+                    print(f"[knot-workspace] Failed to load token from config: {e}", flush=True)
+                    pass
+
+            # Check if knot-cli is installed
+            cli_path = _get_knot_cli_path()
+            print(f"[knot-workspace] knot-cli path: {cli_path}", flush=True)
+            if not cli_path:
+                print(f"[knot-workspace] knot-cli not installed", flush=True)
+                return j(handler, {"ok": False, "error": "knot-cli not installed"}, status=400)
+
+            # Ensure workspace is registered
+            connection_uuid = ""
+            error_msg = ""
+            try:
+                print(f"[knot-workspace] Calling ensure_workspace...", flush=True)
+                connection_uuid = ensure_workspace(workspace, token)
+                print(f"[knot-workspace] ensure_workspace returned: uuid={connection_uuid[:20] if connection_uuid else 'EMPTY'}", flush=True)
+            except Exception as e:
+                error_msg = str(e)
+                print(f"[knot-cli] Warning: workspace registration failed: {e}", flush=True)
+
+            # Return result based on connection_uuid
+            if connection_uuid:
+                print(f"[knot-workspace] Success: connection_uuid={connection_uuid[:20]}...", flush=True)
+                return j(handler, {
+                    "ok": True,
+                    "connection_uuid": connection_uuid,
+                    "workspace": workspace,
+                })
+            else:
+                # Registration failed — return 200 with ok=false so frontend can
+                # handle gracefully without triggering api() throw on non-2xx
+                print(f"[knot-workspace] Failed: connection_uuid is empty, error={error_msg}", flush=True)
+                return j(handler, {
+                    "ok": False,
+                    "error": error_msg or "Workspace registration failed. Please check if knot-cli service is running.",
+                    "connection_uuid": "",
+                    "workspace": workspace,
+                })
+        except Exception as e:
+            print(f"[knot-workspace] Exception: {e}", flush=True)
+            return j(handler, {"ok": False, "error": str(e)}, status=500)
+
+    if parsed.path == "/api/knot-cli/workspace/list":
+        """List all registered workspaces."""
+        try:
+            from api.knot_agui import list_workspaces
+            
+            workspaces = list_workspaces()
+            return j(handler, {
+                "ok": True,
+                "workspaces": workspaces,
+            })
+        except Exception as e:
+            return j(handler, {"ok": False, "error": str(e)}, status=500)
+
+    if parsed.path == "/api/knot-cli/workspace/check":
+        """Check if a workspace path is registered in knot-cli (lightweight, no side effects)."""
+        try:
+            from api.knot_agui import is_workspace_in_knot_list, _get_knot_cli_path
+            path = str(body.get("path", "")).strip()
+            if not path:
+                return j(handler, {"ok": False, "error": "path is required"}, status=400)
+            cli_path = _get_knot_cli_path()
+            if not cli_path:
+                return j(handler, {"ok": True, "registered": False, "reason": "knot-cli not installed"})
+            registered = is_workspace_in_knot_list(path)
+            return j(handler, {"ok": True, "registered": registered})
+        except Exception as e:
+            return j(handler, {"ok": False, "error": str(e)}, status=500)
+
+    if parsed.path == "/api/knot-cli/workspace/add":
+        """Add a workspace directory (checks list first to avoid duplicates)."""
+        try:
+            from api.knot_agui import ensure_knot_workspace, _get_knot_cli_path
+            
+            path = str(body.get("path", "")).strip()
+            if not path:
+                return j(handler, {"ok": False, "error": "path is required"}, status=400)
+            
+            if not _get_knot_cli_path():
+                return j(handler, {"ok": False, "error": "knot-cli not installed"}, status=400)
+            
+            # Use ensure_knot_workspace which checks list first, then adds if missing
+            result = ensure_knot_workspace(path)
+            if result["ok"]:
+                return j(handler, {"ok": True, "path": path, "action": result["action"]})
+            else:
+                return j(handler, {"ok": False, "error": result["message"]}, status=500)
+        except Exception as e:
+            return j(handler, {"ok": False, "error": str(e)}, status=500)
+
+    if parsed.path == "/api/knot-cli/workspace/remove":
+        """Remove a workspace directory from knot-cli registry."""
+        try:
+            from api.knot_agui import remove_knot_workspace, _get_knot_cli_path
+            
+            path = str(body.get("path", "")).strip()
+            if not path:
+                return j(handler, {"ok": False, "error": "path is required"}, status=400)
+            
+            if not _get_knot_cli_path():
+                return j(handler, {"ok": False, "error": "knot-cli not installed"}, status=400)
+            
+            result = remove_knot_workspace(path)
+            if result["ok"]:
+                return j(handler, {"ok": True, "path": path, "action": result["action"]})
+            else:
+                return j(handler, {"ok": False, "error": result["message"]}, status=500)
+        except Exception as e:
+            return j(handler, {"ok": False, "error": str(e)}, status=500)
+
     if parsed.path == "/api/session/new":
         s = new_session(workspace=body.get("workspace"), model=body.get("model"))
         return j(handler, {"session": s.compact() | {"messages": s.messages}})
@@ -2583,6 +2819,7 @@ def _handle_chat_start(handler, body):
     attachments = [str(a) for a in (body.get("attachments") or [])][:20]
     workspace = str(Path(body.get("workspace") or s.workspace).expanduser().resolve())
     model = body.get("model") or s.model or DEFAULT_MODEL
+    print(f"[_handle_chat_start] session_id={body['session_id'][:12]} workspace='{workspace}' model='{model}' employee='{body.get('employee_name','')}'", flush=True)
     system_prompt = body.get("system_prompt") or getattr(s, 'system_prompt', '') or ""
     employee_name = body.get("employee_name", "") or ""
     s.workspace = workspace
@@ -3094,10 +3331,23 @@ def _handle_workspace_add(handler, body):
     except Exception as e:
         ws_manager_result = {"error": str(e)}
 
+    # ── Sync with knot-cli workspace registry ──
+    # Use `knot-cli workspace --action list` to check, then `--action add` if missing
+    knot_sync_result = None
+    try:
+        from api.knot_agui import ensure_knot_workspace, _get_knot_cli_path
+        if _get_knot_cli_path():
+            knot_sync_result = ensure_knot_workspace(str(p))
+            print(f"[workspace-add] knot sync: {knot_sync_result}", flush=True)
+    except Exception as e:
+        knot_sync_result = {"ok": False, "action": "error", "message": str(e)}
+        print(f"[workspace-add] knot sync error: {e}", flush=True)
+
     return j(handler, {
         "ok": True, "workspaces": wss, "resolved_path": str(p),
         "template_init": init_result,
-        "ws_manager": ws_manager_result
+        "ws_manager": ws_manager_result,
+        "knot_sync": knot_sync_result
     })
 
 
@@ -3108,7 +3358,19 @@ def _handle_workspace_remove(handler, body):
     wss = load_workspaces()
     wss = [w for w in wss if w["path"] != path_str]
     save_workspaces(wss)
-    return j(handler, {"ok": True, "workspaces": wss})
+
+    # ── Sync with knot-cli: remove workspace from registry ──
+    knot_sync_result = None
+    try:
+        from api.knot_agui import remove_knot_workspace, _get_knot_cli_path
+        if _get_knot_cli_path():
+            knot_sync_result = remove_knot_workspace(path_str)
+            print(f"[workspace-remove] knot sync: {knot_sync_result}", flush=True)
+    except Exception as e:
+        knot_sync_result = {"ok": False, "action": "error", "message": str(e)}
+        print(f"[workspace-remove] knot sync error: {e}", flush=True)
+
+    return j(handler, {"ok": True, "workspaces": wss, "knot_sync": knot_sync_result})
 
 
 def _handle_workspace_rename(handler, body):

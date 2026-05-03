@@ -33,8 +33,14 @@ function _restoreExpandedDirs(){
 /** 获取当前活跃的工作区路径（画布工作区优先于 session.workspace） */
 function _activeWorkspacePath(){
   const canvasWs=(typeof _currentCanvasWorkspace!=='undefined')?_currentCanvasWorkspace:'';
-  if(canvasWs&&canvasWs!=='__default__') return canvasWs;
-  return (S.session&&S.session.workspace)||'';
+  if(canvasWs&&canvasWs!=='__default__'){
+    // ★ 2026-05-03 防御：过滤疑似错误的默认 home workspace
+    if(typeof _isLikelyHomeWorkspace==='function'&&_isLikelyHomeWorkspace(canvasWs)) return '';
+    return canvasWs;
+  }
+  const sessWs=(S.session&&S.session.workspace)||'';
+  if(sessWs&&typeof _isLikelyHomeWorkspace==='function'&&_isLikelyHomeWorkspace(sessWs)) return '';
+  return sessWs;
 }
 
 async function loadDir(path){

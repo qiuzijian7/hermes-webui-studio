@@ -387,9 +387,14 @@ async function openEmployeeChat(empId, taskId) {
   if (!targetSessionId) {
     try {
       // 传递当前工作区路径，确保新 session 的 workspace 与画布工作区一致
-      const currentWs = (typeof _currentCanvasWorkspace !== 'undefined' && _currentCanvasWorkspace && _currentCanvasWorkspace !== '__default__')
+      let currentWs = (typeof _currentCanvasWorkspace !== 'undefined' && _currentCanvasWorkspace && _currentCanvasWorkspace !== '__default__')
         ? _currentCanvasWorkspace
         : (S.session?.workspace || '');
+      // ★ 2026-05-03 防御：过滤掉疑似错误的默认 home workspace 路径
+      if (currentWs && typeof _isLikelyHomeWorkspace === 'function' && _isLikelyHomeWorkspace(currentWs)) {
+        console.warn('[openEmployeeChat] 过滤掉疑似默认 home workspace:', currentWs);
+        currentWs = '';
+      }
       const data = await api('/api/session/new', { method: 'POST', body: JSON.stringify({
         model: emp.model || $('modelSelect')?.value || '',
         workspace: currentWs || undefined,
@@ -654,6 +659,8 @@ async function openEmployeeChat(empId, taskId) {
   if (topMeta) topMeta.textContent = ws ? ws : '员工工作台 — 点击员工卡片开始对话';
   // 同步工作区选择器标签
   if (typeof syncWsSelectorLabel === 'function') syncWsSelectorLabel();
+  // ★ 更新顶栏 Knot 工作区标记
+  if (typeof updateKnotBadge === 'function') updateKnotBadge(ws);
   // 如果 session workspace 与画布工作区不一致，刷新文件目录以显示正确的工作区内容
   if (S.session && S.session.workspace !== ws && ws && typeof loadDir === 'function') {
     loadDir('.');

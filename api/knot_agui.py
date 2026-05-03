@@ -6,12 +6,897 @@ translating AG-UI events into Hermes internal SSE events
 (token / reasoning / tool / done / apperror).
 
 API docs: https://knot.woa.com/apigw/api/v1/agents/agui/{agent_id}
+Knot CLI docs: https://iwiki.woa.com/p/4018261384
+
+Features:
+- Auto-detect and install knot-cli if not present
+- Programmatic workspace management via knot-cli
+- Retrieve connection_uuid via `knot-cli client-status`
+- Workspace commands: `knot-cli workspace --action [list|add|remove]`
+
+Workspace Binding:
+  The workspace path is bound at install time via --workspace parameter:
+    curl -L 'https://mirrors.tencent.com/repository/generic/knot-cli/install.sh' | \
+      bash -s -- --workspace /your/path --token {token} --origin knot
+  After installation, the knot-cli instance represents that workspace path.
+  Subsequent API calls only need the corresponding agent_client_uuid.
+  
+  When a workspace has no workid (connection_uuid), the system will:
+  1. First try `knot-cli workspace --action add --path <path>` (fast)
+  2. If that fails, fallback to the install command with --workspace binding
+
+Note:
+- connection_uuid (即 agent_client_uuid) 会自动注入到 chat_extra 中
+  当工作区已注册且 connection_uuid 可用时，聊天请求会携带 agent_client_uuid，
+  让 Knot 平台关联工作区上下文。如果获取失败，聊天仍可正常进行。
 """
 import json
+import os
 import re
+import shutil
+import subprocess
+import sys
 import time
+import tempfile
+import logging
 
 import requests
+
+logger = logging.getLogger(__name__)
+
+# Cache for knot-cli path (avoid repeated which() calls)
+_KNOT_CLI_CACHE = None
+_KNOT_CLI_CACHE_LOCK = None  # threading.Lock for thread safety
+
+# Connection UUID cache: {workspace_path: connection_uuid}
+_WORKSPACE_CONNECTION_CACHE = {}
+
+
+def check_git_bash() -> dict:
+    """Check if Git Bash is available on Windows.
+    
+    Returns:
+        dict: {"available": bool, "path": str or None, "message": str}
+    """
+    if sys.platform != "win32":
+        return {"available": True, "path": "/bin/bash", "message": "Non-Windows platform, bash available"}
+    
+    bash_paths = [
+        r"C:\Program Files\Git\bin\bash.exe",
+        r"C:\Program Files (x86)\Git\bin\bash.exe",
+        os.path.expanduser(r"~\scoop\apps\git\current\bin\bash.exe"),
+    ]
+    for bp in bash_paths:
+        if os.path.exists(bp):
+            return {"available": True, "path": bp, "message": f"Git Bash found: {bp}"}
+    
+    return {
+        "available": False,
+        "path": None,
+        "message": "Git Bash 未安装。请先安装 Git for Windows: https://git-scm.com/download/win"
+    }
+
+
+def is_workspace_in_knot_list(workspace_path: str) -> bool:
+    """Check if a workspace path is already registered in knot-cli workspace list.
+    
+    The list_workspaces() output may contain lines like:
+      "✅ success", "Current workspaces:", "1. G:\\KnotWorkspace", "2. /path/to/ws"
+    We need to strip number prefixes and ignore non-path lines.
+    
+    Args:
+        workspace_path: Path to check
+        
+    Returns:
+        bool: True if workspace is in the knot-cli list
+    """
+    workspaces = list_workspaces()
+    if not workspaces:
+        return False
+    
+    import pathlib
+    target = str(pathlib.Path(workspace_path).resolve()).lower()
+    
+    for ws in workspaces:
+        if isinstance(ws, str):
+            # Strip numbered prefix like "1. " or "12. "
+            cleaned = re.sub(r'^\d+\.\s*', '', ws).strip()
+            # Skip non-path lines
+            if not cleaned or cleaned.startswith('✅') or cleaned.startswith('success') or cleaned.lower().startswith('current'):
+                continue
+            try:
+                ws_resolved = str(pathlib.Path(cleaned).resolve()).lower()
+                if ws_resolved == target:
+                    return True
+            except (ValueError, OSError):
+                continue
+        elif isinstance(ws, dict):
+            ws_path = ws.get("path", ws.get("workspace", ""))
+            if ws_path:
+                try:
+                    ws_resolved = str(pathlib.Path(ws_path).resolve()).lower()
+                    if ws_resolved == target:
+                        return True
+                except (ValueError, OSError):
+                    continue
+    return False
+
+
+def ensure_knot_workspace(workspace_path: str) -> dict:
+    """Ensure a workspace is registered in knot-cli.
+    
+    Uses `knot-cli workspace --action list` to check if the workspace exists.
+    If not, uses `knot-cli workspace --action add --path <path>` to register it.
+    
+    Args:
+        workspace_path: Path to ensure is registered
+        
+    Returns:
+        dict: {"ok": bool, "action": "exists"|"added"|"failed", "message": str}
+    """
+    cli_path = _get_knot_cli_path()
+    if not cli_path:
+        return {"ok": False, "action": "failed", "message": "knot-cli not installed"}
+    
+    # Check if workspace is already in the list
+    if is_workspace_in_knot_list(workspace_path):
+        return {"ok": True, "action": "exists", "message": f"Workspace already registered: {workspace_path}"}
+    
+    # Not registered — add it
+    success, _uuid = add_workspace(workspace_path)
+    if success:
+        return {"ok": True, "action": "added", "message": f"Workspace added: {workspace_path}"}
+    else:
+        return {"ok": False, "action": "failed", "message": f"Failed to add workspace: {workspace_path}"}
+
+
+def remove_knot_workspace(workspace_path: str) -> dict:
+    """Remove a workspace from knot-cli registration.
+    
+    Uses `knot-cli workspace --action remove --path <path>`.
+    
+    Args:
+        workspace_path: Path to remove
+        
+    Returns:
+        dict: {"ok": bool, "action": "removed"|"not_found"|"failed", "message": str}
+    """
+    cli_path = _get_knot_cli_path()
+    if not cli_path:
+        return {"ok": False, "action": "failed", "message": "knot-cli not installed"}
+    
+    # Check if workspace is registered
+    if not is_workspace_in_knot_list(workspace_path):
+        return {"ok": True, "action": "not_found", "message": f"Workspace not in knot-cli list: {workspace_path}"}
+    
+    # Remove it
+    success = remove_workspace(workspace_path)
+    if success:
+        return {"ok": True, "action": "removed", "message": f"Workspace removed: {workspace_path}"}
+    else:
+        return {"ok": False, "action": "failed", "message": f"Failed to remove workspace: {workspace_path}"}
+
+
+def _get_knot_cli_path():
+    """Find knot-cli executable, with caching.
+    
+    Returns:
+        str or None: Path to knot-cli executable, or None if not found
+    """
+    global _KNOT_CLI_CACHE
+    
+    if _KNOT_CLI_CACHE is not None:
+        return _KNOT_CLI_CACHE
+    
+    # Try PATH first
+    cli = shutil.which("knot-cli")
+    if cli:
+        # On Windows, shutil.which may return path with uppercase .EXE from PATHEXT.
+        # knot-cli internally uses os.Args[0] basename to locate its env file,
+        # and the case mismatch (e.g. "knot-cli.EXE" vs "knot-cli.exe") causes
+        # "listen port not found in knot-cli.EXE env file" errors.
+        # Normalize to lowercase extension to avoid this.
+        if sys.platform == "win32" and cli.lower().endswith(".exe") and not cli.endswith(".exe"):
+            cli = cli[:-4] + ".exe"
+        _KNOT_CLI_CACHE = cli
+        return cli
+    
+    # Common installation paths (Windows)
+    candidates = [
+        os.path.expanduser(r"~\background_agent_cli\bin\knot-cli.exe"),
+        os.path.expanduser(r"~\background_agent_cli\bin\knot-cli"),
+        r"C:\background_agent_cli\bin\knot-cli.exe",
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            _KNOT_CLI_CACHE = c
+            return c
+    
+    _KNOT_CLI_CACHE = None
+    return None
+
+
+def _install_knot_cli(workspace_path: str, token: str) -> tuple:
+    """Install knot-cli programmatically and bind workspace.
+    
+    The workspace path is bound at install time via --workspace parameter.
+    This is the canonical way to create a knot workspace binding:
+      curl -L 'https://mirrors.tencent.com/repository/generic/knot-cli/install.sh' | \
+        bash -s -- --workspace /your/path --token {token} --origin knot
+    
+    On Windows: Uses PowerShell to download and run the install script.
+    On Linux/Mac: Uses curl | bash.
+    
+    Args:
+        workspace_path: Path to register as workspace (bound at install time)
+        token: API token for authentication
+        
+    Returns:
+        tuple: (success: bool, connection_uuid: str)
+    """
+    install_script = "https://mirrors.tencent.com/repository/generic/knot-cli/install.sh"
+    
+    try:
+        if sys.platform == "win32":
+            # Windows: Use PowerShell to download and execute install script
+            # The install script is designed for bash, so on Windows we use
+            # the knot-cli's own restart mechanism with workspace binding.
+            # First try: if knot-cli is already installed, use restart with --workspace
+            cli_path = _get_knot_cli_path()
+            if cli_path:
+                # knot-cli already installed — restart with new workspace binding
+                logger.info("knot-cli already installed, restarting with workspace: %s", workspace_path)
+                cmd = [cli_path, "restart"]
+                result = subprocess.run(
+                    cmd,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    timeout=30
+                )
+                stdout_text = result.stdout.decode('utf-8', errors='replace') if result.stdout else ""
+                stderr_text = result.stderr.decode('utf-8', errors='replace') if result.stderr else ""
+                logger.info("knot-cli restart output: rc=%d stdout=%s stderr=%s",
+                           result.returncode, stdout_text[:300], stderr_text[:200])
+                # After restart, add workspace
+                time.sleep(2)
+                add_ok, add_uuid = add_workspace(workspace_path)
+                if add_ok:
+                    # Use UUID from add if available
+                    if add_uuid:
+                        return True, add_uuid
+                    time.sleep(2)
+                    uuid = get_connection_uuid(workspace_path)
+                    if uuid:
+                        logger.info("Got connection_uuid after restart+add: %s...", uuid[:8])
+                        return True, uuid
+                # If restart+add didn't work, try WSL/Git Bash
+                logger.warning("restart+add did not yield connection_uuid, trying shell install...")
+            
+            # Try using Git Bash or WSL to run the install script
+            bash_paths = [
+                r"C:\Program Files\Git\bin\bash.exe",
+                r"C:\Program Files (x86)\Git\bin\bash.exe",
+                os.path.expanduser(r"~\scoop\apps\git\current\bin\bash.exe"),
+            ]
+            bash_exe = None
+            for bp in bash_paths:
+                if os.path.exists(bp):
+                    bash_exe = bp
+                    break
+            
+            if bash_exe:
+                cmd = (
+                    f'curl -sL "{install_script}" | '
+                    f'bash -s -- --workspace "{workspace_path}" --token {token} --origin knot'
+                )
+                logger.info("Installing knot-cli via Git Bash: %s", bash_exe)
+                result = subprocess.run(
+                    [bash_exe, "-c", cmd],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    universal_newlines=True, timeout=300,
+                    env=dict(os.environ)
+                )
+                output = (result.stdout or "") + (result.stderr or "")
+                if result.returncode == 0:
+                    logger.info("knot-cli installed successfully via Git Bash")
+                    global _KNOT_CLI_CACHE
+                    _KNOT_CLI_CACHE = None
+                    time.sleep(3)
+                    uuid = get_connection_uuid(workspace_path)
+                    if uuid:
+                        return True, uuid
+                    return True, ""
+                else:
+                    logger.warning("Git Bash install failed (code %d): %s", result.returncode, output[:500])
+            
+            # Fallback: just add workspace to running server
+            logger.warning(
+                "Windows install: no bash available. "
+                "Attempting workspace add to running server."
+            )
+            if not cli_path:
+                logger.error(
+                    "Auto-install of knot-cli is not supported on Windows without Git Bash. "
+                    "Please install manually: "
+                    "https://mirrors.tencent.com/repository/generic/knot-cli/"
+                )
+                return False, ""
+            # Add workspace to running server
+            add_ok, add_uuid = add_workspace(workspace_path)
+            if add_ok:
+                # Use UUID from add if available
+                if add_uuid:
+                    return True, add_uuid
+                time.sleep(2)
+                uuid = get_connection_uuid(workspace_path)
+                if uuid:
+                    return True, uuid
+            return False, ""
+        else:
+            # Linux/Mac: Use official install script with --workspace binding
+            cmd = (
+                f'curl -sL "{install_script}" | '
+                f'bash -s -- --workspace "{workspace_path}" --token {token} --origin knot'
+            )
+            
+            logger.info("Installing knot-cli with workspace binding: %s", cmd)
+            
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                universal_newlines=True, timeout=300,
+                env=dict(os.environ)
+            )
+            
+            output = (result.stdout or "") + (result.stderr or "")
+            
+            if result.returncode == 0:
+                logger.info("knot-cli installed successfully")
+                logger.info("knot-cli install output (stdout): %s", result.stdout[:1000])
+                
+                # Clear cache to re-detect
+                _KNOT_CLI_CACHE = None
+                
+                # Try to get connection_uuid via client-status
+                time.sleep(3)
+                uuid = get_connection_uuid(workspace_path)
+                if uuid:
+                    logger.info("Got connection_uuid after install: %s...", uuid[:8])
+                    return True, uuid
+                
+                logger.warning("knot-cli installed but connection_uuid not found yet")
+                return True, ""
+            else:
+                logger.error("knot-cli installation failed (code %d): %s", result.returncode, output[:500])
+                return False, ""
+            
+    except subprocess.TimeoutExpired:
+        logger.error("knot-cli installation timed out")
+        return False, ""
+    except Exception as e:
+        logger.error("knot-cli installation error: %s", e)
+        return False, ""
+
+
+def ensure_knot_cli(workspace_path: str = ".", token: str = "") -> str:
+    """Ensure knot-cli is installed and workspace is registered.
+    
+    Auto-installs knot-cli if not present, then ensures the workspace
+    is registered and returns the connection_uuid.
+    
+    Args:
+        workspace_path: Workspace path to register (default: current directory)
+        token: API token for authentication
+        
+    Returns:
+        str: Path to knot-cli if available, empty string otherwise
+    """
+    cli_path = _get_knot_cli_path()
+    
+    if cli_path is None:
+        # Auto-install if token is provided
+        if token:
+            logger.info("knot-cli not found, attempting auto-install...")
+            success, uuid = _install_knot_cli(workspace_path, token)
+            if success:
+                cli_path = _get_knot_cli_path()
+                # If we got connection_uuid from install, cache it
+                if uuid:
+                    cache_key = workspace_path or "."
+                    _WORKSPACE_CONNECTION_CACHE[cache_key] = uuid
+        
+        if cli_path is None:
+            logger.warning("knot-cli not installed and no token provided for auto-install")
+            return ""
+    
+    return cli_path
+
+
+def get_connection_uuid(workspace_path: str = "") -> str:
+    """Get connection_uuid for a workspace.
+    
+    Strategy (in order):
+    1. Check cache for this specific workspace_path
+    2. Try `knot-cli workspace --action list` to find per-workspace UUID
+    3. If not found and workspace is not registered, add it and retry
+    4. Fall back to `knot-cli client-status` (may return wrong workspace's UUID)
+    
+    Args:
+        workspace_path: Workspace path (default: current directory)
+        
+    Returns:
+        str: connection_uuid if found, empty string otherwise
+    """
+    # Check cache first
+    cache_key = workspace_path or "."
+    if cache_key in _WORKSPACE_CONNECTION_CACHE:
+        return _WORKSPACE_CONNECTION_CACHE[cache_key]
+    
+    cli_path = ensure_knot_cli(workspace_path)
+    if not cli_path:
+        logger.error("get_connection_uuid: knot-cli not found")
+        return ""
+    
+    # ★ Strategy 1: Try workspace list for per-workspace UUID (most accurate)
+    if workspace_path and workspace_path != ".":
+        uuid = _get_connection_uuid_from_workspace_list(workspace_path)
+        if uuid:
+            _WORKSPACE_CONNECTION_CACHE[cache_key] = uuid
+            print(f"[get_connection_uuid] Got UUID from workspace list for '{workspace_path}': {uuid[:20]}", flush=True)
+            return uuid
+        
+        # ★ Strategy 2: Workspace not found in list — try to add it
+        if not is_workspace_in_knot_list(workspace_path):
+            print(f"[get_connection_uuid] Workspace '{workspace_path}' not in knot-cli list, adding...", flush=True)
+            success, add_uuid = add_workspace(workspace_path)
+            if success:
+                # If add returned a UUID, use it
+                if add_uuid:
+                    _WORKSPACE_CONNECTION_CACHE[cache_key] = add_uuid
+                    print(f"[get_connection_uuid] Got UUID from add_workspace for '{workspace_path}': {add_uuid[:20]}", flush=True)
+                    return add_uuid
+                
+                # Add succeeded but no UUID in output — retry workspace list
+                time.sleep(2)
+                uuid = _get_connection_uuid_from_workspace_list(workspace_path)
+                if uuid:
+                    _WORKSPACE_CONNECTION_CACHE[cache_key] = uuid
+                    print(f"[get_connection_uuid] Got UUID from workspace list after add for '{workspace_path}': {uuid[:20]}", flush=True)
+                    return uuid
+    
+    # ★ Strategy 3: Fall back to `knot-cli client-status`
+    # WARNING: This returns the DEFAULT workspace's UUID, which may not match workspace_path!
+    logger.info("Falling back to client-status for workspace: %s", workspace_path)
+    print(f"[get_connection_uuid] Falling back to client-status for workspace='{workspace_path}'", flush=True)
+    
+    try:
+        result = subprocess.run(
+            [cli_path, "client-status"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=15
+        )
+        
+        # Decode with UTF-8 + replace to avoid UnicodeDecodeError from emoji
+        stdout_text = result.stdout.decode('utf-8', errors='replace') if result.stdout else ""
+        stderr_text = result.stderr.decode('utf-8', errors='replace') if result.stderr else ""
+        output = stdout_text + stderr_text
+        logger.info("knot-cli client-status returncode=%d output: %s", result.returncode, output[:500])
+        print(f"[get_connection_uuid] client-status output={output[:300]}", flush=True)
+        
+        # Try to extract JSON from output (output may have prefix like "✅ success\n...")
+        uuid = _extract_uuid_from_output(output)
+        if uuid:
+            # ★ Warn if workspace_path was specified — this UUID might be for a different workspace
+            if workspace_path and workspace_path != ".":
+                print(f"[get_connection_uuid] WARNING: client-status UUID may NOT match workspace='{workspace_path}'. "
+                      f"UUID={uuid[:20]} — this could be the DEFAULT workspace's UUID", flush=True)
+            _WORKSPACE_CONNECTION_CACHE[cache_key] = uuid
+            return uuid
+        
+        logger.warning("connection_uuid not found in client-status output: %s", output[:500])
+        return ""
+        
+    except subprocess.TimeoutExpired:
+        logger.error("knot-cli client-status timed out (15s)")
+        return ""
+    except Exception as e:
+        logger.error("Error running knot-cli client-status: %s", e)
+        return ""
+
+
+def ensure_workspace(workspace_path: str, token: str = "") -> str:
+    """Ensure workspace is registered and return connection_uuid.
+    
+    This is the main entry point for workspace management:
+    1. Auto-install knot-cli if not present
+    2. Get connection_uuid from running server
+    3. If not found, register workspace via:
+       a. `knot-cli workspace --action add` (fast, for running server)
+       b. Install command with --workspace binding (creates deep binding)
+    4. Return connection_uuid for API calls
+    
+    The workspace path is bound at install time via --workspace parameter.
+    After installation, the knot-cli instance represents that workspace path,
+    and subsequent API calls only need the agent_client_uuid.
+    
+    Args:
+        workspace_path: Path to register as workspace
+        token: API token for authentication (used for install-based registration)
+        
+    Returns:
+        str: connection_uuid if successful, empty string otherwise
+    """
+    # Ensure knot-cli is available
+    cli_path = ensure_knot_cli(workspace_path, token)
+    if not cli_path:
+        return ""
+    
+    # Get connection_uuid via client-status
+    uuid = get_connection_uuid(workspace_path)
+    
+    # If not registered, try to register workspace
+    if not uuid and cli_path:
+        logger.info("Workspace not registered, attempting to register...")
+        uuid = _register_workspace(workspace_path, cli_path, token)
+        # Update cache if registration succeeded
+        if uuid:
+            cache_key = workspace_path or "."
+            _WORKSPACE_CONNECTION_CACHE[cache_key] = uuid
+            logger.info("Workspace registered successfully, uuid: %s...", uuid[:8])
+        else:
+            logger.warning("Failed to register workspace")
+    
+    return uuid
+
+
+def _register_workspace(workspace_path: str, cli_path: str, token: str = "") -> str:
+    """Register workspace with knot-cli and return connection_uuid.
+    
+    Strategy:
+    1. First try `knot-cli workspace --action add --path <path>` (fast, for running server).
+    2. If that doesn't yield a connection_uuid, fallback to the install command
+       which binds the workspace at a deeper level:
+         curl -L install.sh | bash -s -- --workspace <path> --token <token> --origin knot
+    
+    The workspace path is bound at install time via --workspace parameter.
+    Subsequent API calls only need the agent_client_uuid.
+    
+    Args:
+        workspace_path: Path to register as workspace
+        cli_path: Path to knot-cli executable
+        token: API token for authentication (needed for install fallback)
+        
+    Returns:
+        str: connection_uuid if registration succeeded, empty string otherwise
+    """
+    # Strategy 1: Use workspace add (fast, for running server)
+    logger.info("Registering workspace (strategy 1: workspace add): %s", workspace_path)
+    
+    success, add_uuid = add_workspace(workspace_path)
+    cache_key = workspace_path or "."
+    if success:
+        # Use UUID from add output if available
+        if add_uuid:
+            _WORKSPACE_CONNECTION_CACHE[cache_key] = add_uuid
+            return add_uuid
+        
+        logger.info("Workspace add succeeded, getting connection_uuid...")
+        
+        # Wait a moment for registration to take effect
+        time.sleep(2)
+        
+        # Clear cache to force fresh lookup
+        _WORKSPACE_CONNECTION_CACHE.pop(cache_key, None)
+        
+        # Get connection_uuid via client-status
+        uuid = get_connection_uuid(workspace_path)
+        if uuid:
+            logger.info("Got connection_uuid after workspace add: %s...", uuid[:8])
+            return uuid
+        
+        # Retry after a short delay
+        logger.warning("connection_uuid not found after workspace add, retrying...")
+        time.sleep(3)
+        _WORKSPACE_CONNECTION_CACHE.pop(cache_key, None)
+        uuid = get_connection_uuid(workspace_path)
+        if uuid:
+            return uuid
+    
+    # Strategy 2: Fallback to install command with --workspace binding
+    # The workspace path is bound at install time via --workspace parameter,
+    # so when workspace add doesn't produce a connection_uuid, we need to
+    # use the install command to create the binding.
+    if token:
+        logger.info("Registering workspace (strategy 2: install with --workspace): %s", workspace_path)
+        install_ok, install_uuid = _install_knot_cli(workspace_path, token)
+        if install_uuid:
+            return install_uuid
+        if install_ok:
+            # Install succeeded but no uuid yet, try one more time
+            time.sleep(3)
+            _WORKSPACE_CONNECTION_CACHE.pop(workspace_path or ".", None)
+            uuid = get_connection_uuid(workspace_path)
+            if uuid:
+                return uuid
+    else:
+        logger.warning("No token provided, cannot use install fallback for workspace registration")
+    
+    logger.error("Failed to get connection_uuid after all registration strategies")
+    return ""
+
+
+def list_workspaces() -> list:
+    """List all registered workspaces.
+    
+    Runs `knot-cli workspace --action list` and parses the output.
+    
+    Returns:
+        list: List of workspace paths, empty list if error
+    """
+    cli_path = _get_knot_cli_path()
+    if not cli_path:
+        logger.error("list_workspaces: knot-cli not found")
+        return []
+    
+    try:
+        result = subprocess.run(
+            [cli_path, "workspace", "--action", "list"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=30
+        )
+        
+        stdout_text = result.stdout.decode('utf-8', errors='replace') if result.stdout else ""
+        stderr_text = result.stderr.decode('utf-8', errors='replace') if result.stderr else ""
+        output = stdout_text + stderr_text
+        logger.info("knot-cli workspace --action list output: %s", output[:500])
+        
+        # Try to parse as JSON first
+        try:
+            data = json.loads(output)
+            if isinstance(data, list):
+                return data
+            elif isinstance(data, dict) and "workspaces" in data:
+                return data["workspaces"]
+        except (json.JSONDecodeError, TypeError):
+            pass
+        
+        # Fallback: parse line by line
+        workspaces = []
+        for line in output.split("\n"):
+            line = line.strip()
+            if line and not line.startswith("=") and not line.startswith("Workspace"):
+                workspaces.append(line)
+        
+        return workspaces
+        
+    except Exception as e:
+        logger.error("Error listing workspaces: %s", e)
+        return []
+
+
+def add_workspace(path: str) -> tuple:
+    """Add a workspace directory.
+    
+    Runs `knot-cli workspace --action add --path <path>`.
+    
+    Args:
+        path: Workspace directory path to add
+        
+    Returns:
+        tuple: (success: bool, connection_uuid: str) — connection_uuid may be empty
+               even on success if the CLI output doesn't contain one.
+    """
+    cli_path = _get_knot_cli_path()
+    if not cli_path:
+        logger.error("add_workspace: knot-cli not found")
+        return False, ""
+    
+    try:
+        result = subprocess.run(
+            [cli_path, "workspace", "--action", "add", "--path", path],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=30
+        )
+        
+        stdout_text = result.stdout.decode('utf-8', errors='replace') if result.stdout else ""
+        stderr_text = result.stderr.decode('utf-8', errors='replace') if result.stderr else ""
+        output = stdout_text + stderr_text
+        logger.info("knot-cli workspace --action add output: %s", output[:500])
+        print(f"[add_workspace] path='{path}' rc={result.returncode} output={output[:300]}", flush=True)
+        
+        # Try to extract connection_uuid from the add output
+        _uuid = _extract_uuid_from_output(output)
+        
+        if result.returncode == 0:
+            logger.info("Workspace added successfully: %s", path)
+            # Clear cache to force refresh
+            _WORKSPACE_CONNECTION_CACHE.clear()
+            # Cache the UUID if we got one
+            if _uuid:
+                cache_key = path or "."
+                _WORKSPACE_CONNECTION_CACHE[cache_key] = _uuid
+                logger.info("Got connection_uuid from add output for %s: %s...", cache_key, _uuid[:8])
+            return True, _uuid
+        else:
+            logger.error("Failed to add workspace: %s", output[:500])
+            return False, ""
+        
+    except Exception as e:
+        logger.error("Error adding workspace: %s", e)
+        return False, ""
+
+
+def _extract_uuid_from_output(output: str) -> str:
+    """Extract a connection_uuid from knot-cli command output.
+    
+    Tries JSON parsing first, then UUID regex fallback.
+    
+    Returns:
+        str: UUID string if found, empty string otherwise
+    """
+    # Try JSON extraction
+    json_start = output.find('{')
+    json_end = output.rfind('}')
+    if json_start >= 0 and json_end > json_start:
+        json_str = output[json_start:json_end + 1]
+        try:
+            data = json.loads(json_str)
+            if isinstance(data, dict):
+                for key in ("connection_uuid", "workid", "uuid", "id"):
+                    if key in data and data[key]:
+                        return str(data[key])
+        except (json.JSONDecodeError, TypeError):
+            pass
+    
+    # Try parsing entire output as JSON
+    try:
+        data = json.loads(output)
+        if isinstance(data, dict):
+            for key in ("connection_uuid", "workid", "uuid", "id"):
+                if key in data and data[key]:
+                    return str(data[key])
+    except (json.JSONDecodeError, TypeError):
+        pass
+    
+    # Fallback: regex search for UUID pattern
+    match = re.search(r'([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})', output, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    
+    return ""
+
+
+def _get_connection_uuid_from_workspace_list(workspace_path: str) -> str:
+    """Try to get connection_uuid for a specific workspace from workspace list.
+    
+    Runs `knot-cli workspace --action list` and looks for the workspace_path
+    in the output, then extracts its connection_uuid if available.
+    
+    Args:
+        workspace_path: The workspace path to look up
+        
+    Returns:
+        str: connection_uuid if found, empty string otherwise
+    """
+    if not workspace_path or workspace_path == ".":
+        return ""
+    
+    cli_path = _get_knot_cli_path()
+    if not cli_path:
+        return ""
+    
+    try:
+        import pathlib
+        target_resolved = str(pathlib.Path(workspace_path).resolve()).lower()
+    except (ValueError, OSError):
+        target_resolved = workspace_path.lower()
+    
+    try:
+        result = subprocess.run(
+            [cli_path, "workspace", "--action", "list"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=30
+        )
+        
+        stdout_text = result.stdout.decode('utf-8', errors='replace') if result.stdout else ""
+        stderr_text = result.stderr.decode('utf-8', errors='replace') if result.stderr else ""
+        output = stdout_text + stderr_text
+        print(f"[_get_connection_uuid_from_workspace_list] output={output[:500]}", flush=True)
+        
+        # Try JSON parsing — list may contain objects with path + connection_uuid
+        json_start = output.find('[')
+        json_end = output.rfind(']')
+        if json_start >= 0 and json_end > json_start:
+            try:
+                data = json.loads(output[json_start:json_end + 1])
+                if isinstance(data, list):
+                    for item in data:
+                        if isinstance(item, dict):
+                            ws_path = item.get("path", item.get("workspace", ""))
+                            ws_uuid = item.get("connection_uuid", item.get("workid", item.get("uuid", "")))
+                            if ws_path:
+                                try:
+                                    ws_resolved = str(pathlib.Path(ws_path).resolve()).lower()
+                                except (ValueError, OSError):
+                                    ws_resolved = ws_path.lower()
+                                if ws_resolved == target_resolved and ws_uuid:
+                                    print(f"[_get_connection_uuid_from_workspace_list] MATCH: path={ws_path} uuid={ws_uuid[:20]}", flush=True)
+                                    return str(ws_uuid)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        
+        # Also try top-level JSON object
+        json_start = output.find('{')
+        json_end = output.rfind('}')
+        if json_start >= 0 and json_end > json_start:
+            try:
+                data = json.loads(output[json_start:json_end + 1])
+                if isinstance(data, dict):
+                    workspaces = data.get("workspaces", data.get("data", []))
+                    if isinstance(workspaces, list):
+                        for item in workspaces:
+                            if isinstance(item, dict):
+                                ws_path = item.get("path", item.get("workspace", ""))
+                                ws_uuid = item.get("connection_uuid", item.get("workid", item.get("uuid", "")))
+                                if ws_path:
+                                    try:
+                                        ws_resolved = str(pathlib.Path(ws_path).resolve()).lower()
+                                    except (ValueError, OSError):
+                                        ws_resolved = ws_path.lower()
+                                    if ws_resolved == target_resolved and ws_uuid:
+                                        print(f"[_get_connection_uuid_from_workspace_list] MATCH(dict): path={ws_path} uuid={ws_uuid[:20]}", flush=True)
+                                        return str(ws_uuid)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        
+        print(f"[_get_connection_uuid_from_workspace_list] No UUID found for workspace={workspace_path}", flush=True)
+        return ""
+        
+    except Exception as e:
+        logger.error("Error in _get_connection_uuid_from_workspace_list: %s", e)
+        return ""
+
+
+def remove_workspace(path: str) -> bool:
+    """Remove a workspace directory.
+    
+    Runs `knot-cli workspace --action remove --path <path>`.
+    
+    Args:
+        path: Workspace directory path to remove
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    cli_path = _get_knot_cli_path()
+    if not cli_path:
+        logger.error("remove_workspace: knot-cli not found")
+        return False
+    
+    try:
+        result = subprocess.run(
+            [cli_path, "workspace", "--action", "remove", "--path", path],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=30
+        )
+        
+        stdout_text = result.stdout.decode('utf-8', errors='replace') if result.stdout else ""
+        stderr_text = result.stderr.decode('utf-8', errors='replace') if result.stderr else ""
+        output = stdout_text + stderr_text
+        logger.info("knot-cli workspace --action remove output: %s", output[:500])
+        
+        if result.returncode == 0:
+            logger.info("Workspace removed successfully: %s", path)
+            # Clear cache to force refresh
+            _WORKSPACE_CONNECTION_CACHE.clear()
+            return True
+        else:
+            logger.error("Failed to remove workspace: %s", output[:500])
+            return False
+        
+    except Exception as e:
+        logger.error("Error removing workspace: %s", e)
+        return False
 
 
 def _load_agui_settings():
@@ -50,11 +935,15 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
                              enable_web_search=False,
                              employee=None, workspace=""):
     """Run a Knot AG-UI agent conversation and translate events to Hermes SSE.
-
+    
     Knot AG-UI agent 的工具由智能体后台统一配置（Client 工具），
     工具调用通过 AG-UI 协议的 ToolCallStart/Args/End/Result 事件流原生处理。
+    
+    自动检测并安装 knot-cli，程序化创建工作区。
     """
-    # Parse model id
+    # ── Auto-setup knot-cli and workspace ─────────────────────
+    # Parse model id first to get agent_id for token
+    print(f"[knot_agui_streaming] ENTER — workspace='{workspace}', model='{model[:60]}', session_id='{session_id[:12]}'", flush=True)
     raw = model[len("knot-agui:"):]
     if "/" in raw:
         agent_id, knot_model = raw.split("/", 1)
@@ -67,12 +956,54 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
         put('apperror', {'type': 'config_error', 'message': 'Knot AG-UI agent_id is empty'})
         return
 
-    # Load settings
+    # Load settings for auto-install
     settings = _load_agui_settings()
     api_token = settings.get("token", "")
     api_user = settings.get("user", "")
 
+    # Auto-setup knot-cli if not present
+    if not _get_knot_cli_path():
+        put('tool', {
+            'name': 'knot-cli-setup',
+            'preview': '[Auto] Checking knot-cli installation...',
+            'args': {},
+        })
+        
+        if api_token:
+            put('tool', {
+                'name': 'knot-cli-setup',
+                'preview': '[Auto] Installing knot-cli...',
+                'args': {'workspace': workspace or '.'},
+            })
+            install_ok, _install_uuid = _install_knot_cli(workspace or ".", api_token)
+            if install_ok:
+                put('tool', {
+                    'name': 'knot-cli-setup',
+                    'preview': '[Auto] knot-cli installed successfully',
+                    'args': {},
+                })
+            else:
+                put('tool', {
+                    'name': 'knot-cli-setup',
+                    'preview': '[Auto] knot-cli auto-install failed, please install manually',
+                    'args': {},
+                })
+        else:
+            put('apperror', {
+                'type': 'config_error',
+                'message': 'knot-cli not found and no token for auto-install',
+                'hint': 'Please install knot-cli manually or configure knot_agui_token',
+            })
+    
+    # ── Original logic continues ─────────────────────────────
+    # NOTE: agent_client_uuid (connection_uuid) is injected into chat_extra below
+    # when available, enabling workspace-level tool/context association on Knot platform.
+    if not agent_id:
+        put('apperror', {'type': 'config_error', 'message': 'Knot AG-UI agent_id is empty'})
+        return
+
     if not api_token:
+        print(f"[knot_agui_streaming] ABORT — api_token is EMPTY, cannot call Knot API. workspace='{workspace}'", flush=True)
         put('apperror', {
             'type': 'config_error',
             'message': 'Knot AG-UI token not configured',
@@ -118,6 +1049,29 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
     if system_prompt:
         chat_body["input"]["chat_extra"]["system_prompt"] = system_prompt
 
+    # ★ 注入 agent_client_uuid（工作区 ID）到 chat_extra
+    #   让 Knot 平台知道请求来自哪个工作区，用于工作区级别的工具/上下文关联
+    _ws_path = workspace or "."
+    _agent_client_uuid = ""
+    print(f"[knot_agui_streaming] agent_client_uuid lookup — _ws_path='{_ws_path}', cache_keys={list(_WORKSPACE_CONNECTION_CACHE.keys())}", flush=True)
+    if _ws_path and _ws_path != ".":
+        # ★ 确保工作区已在 knot-cli 注册（get_connection_uuid 内部会自动注册未注册的工作区）
+        try:
+            _agent_client_uuid = get_connection_uuid(_ws_path)
+        except Exception as _uuid_err:
+            print(f"[knot_agui_streaming] get_connection_uuid failed: {_uuid_err}", flush=True)
+    if _agent_client_uuid:
+        chat_body["input"]["chat_extra"]["agent_client_uuid"] = _agent_client_uuid
+        print(f"[knot_agui_streaming] Injected agent_client_uuid={_agent_client_uuid} for workspace={_ws_path}", flush=True)
+    else:
+        print(f"[knot_agui_streaming] agent_client_uuid is EMPTY — workspace={_ws_path}, cache_hit={_ws_path in _WORKSPACE_CONNECTION_CACHE}", flush=True)
+
+    # ★ 同时传递 workspace_path 到 chat_extra，让 Knot 平台可以双重验证工作区
+    #   当 agent_client_uuid 对应的工作区与实际 workspace_path 不一致时，
+    #   Knot 平台可以以 workspace_path 为准
+    if _ws_path and _ws_path != ".":
+        chat_body["input"]["chat_extra"]["workspace_path"] = _ws_path
+
     # ★ 工具策略：统一使用 Knot 智能体后台配置的工具（Client 工具）
     #   不再注入本地工具到 system prompt，由 Knot 平台原生处理工具调用。
     #   AG-UI 协议的 ToolCallStart/Args/End/Result 事件会被原样透传给前端展示。
@@ -129,6 +1083,9 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
     }
     if api_user:
         headers["x-knot-api-user"] = api_user
+
+    # ★ 诊断：打印即将发送的 chat_extra，确认 agent_client_uuid 是否在内
+    print(f"[knot_agui_streaming] SEND chat_extra={json.dumps(chat_body.get('input', {}).get('chat_extra', {}), ensure_ascii=False)}", flush=True)
 
     # ★ 持久化用户消息到 session（与 AIAgent 路径的 persist_user_message 行为一致）
     #   这样 SSE done 后 loadGroupChat() 从后端刷新时不会丢失用户消息
@@ -728,22 +1685,28 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
 def run_knot_agui_sync(message: str, *,
                         model_name: str = "",
                         system_prompt: str = "",
-                        enable_web_search: bool = False) -> str:
+                        enable_web_search: bool = False,
+                        workspace: str = "") -> str:
     """同步调用 Knot AG-UI agent 并返回完整文本响应。
 
     供 MCP Gateway Worker（gateway_client.py 的 _execute_task）使用，
     避免在 Worker 子进程中启动完整 AIAgent，改为直接调用 Knot AG-UI API。
     所有 MCP 工具统一使用 knot_agui_mcp_model 配置的模型。
 
+    自动检测并安装 knot-cli，程序化创建工作区。
+
     Args:
         message: 用户消息
         model_name: 模型名称（如 "hy3-preview"），为空时从 settings 读取 knot_agui_mcp_model
         system_prompt: 可选的系统提示词
         enable_web_search: 是否启用联网搜索
+        workspace: 工作区路径（用于程序化创建工作区）
 
     Returns:
         助手的回复文本；若出错则返回 "[Error] ..." 格式的错误信息。
     """
+    # ── Auto-setup knot-cli and workspace ────────────────────
+    print(f"[knot_agui_sync] ENTER — workspace='{workspace}', model_name='{model_name[:40]}'", flush=True)
     # 直接读取完整 settings（不用 _load_agui_settings() 的过滤版本）
     try:
         from api.config import load_settings
@@ -751,6 +1714,24 @@ def run_knot_agui_sync(message: str, *,
     except Exception as _cfg_err:
         return f"[Error] Cannot load settings: {_cfg_err}"
 
+    api_token = _s.get("knot_agui_token", "")
+
+    # Auto-setup knot-cli if not present
+    if not _get_knot_cli_path():
+        print("[knot-agui-sync] knot-cli not found, attempting auto-install...", flush=True)
+        if api_token:
+            install_ok, _install_uuid = _install_knot_cli(workspace or ".", api_token)
+            if install_ok:
+                print("[knot-agui-sync] knot-cli installed successfully", flush=True)
+            else:
+                print("[knot-agui-sync] knot-cli auto-install failed", flush=True)
+        else:
+            print("[knot-agui-sync] knot-cli not found and no token for auto-install", flush=True)
+
+    # ── Original logic continues ─────────────────────────────
+    # NOTE: agent_client_uuid (connection_uuid) is injected into chat_extra below
+    # when available, enabling workspace-level context on Knot platform.
+    
     # agent_id：从 knot_agui_agents 取第一个 agent 的 id
     agents_str = _s.get("knot_agui_agents", "").strip()
     agent_id = ""
@@ -800,6 +1781,26 @@ def run_knot_agui_sync(message: str, *,
         chat_body["input"]["model"] = knot_model
     if system_prompt:
         chat_body["input"]["chat_extra"]["system_prompt"] = system_prompt
+
+    # ★ 注入 agent_client_uuid（工作区 ID）到 chat_extra
+    _ws_path = workspace or "."
+    _agent_client_uuid = ""
+    print(f"[knot_agui_sync] agent_client_uuid lookup — _ws_path='{_ws_path}', cache_keys={list(_WORKSPACE_CONNECTION_CACHE.keys())}", flush=True)
+    if _ws_path and _ws_path != ".":
+        # ★ 使用 get_connection_uuid（内部会自动注册未注册的工作区）
+        try:
+            _agent_client_uuid = get_connection_uuid(_ws_path)
+        except Exception:
+            pass
+    if _agent_client_uuid:
+        chat_body["input"]["chat_extra"]["agent_client_uuid"] = _agent_client_uuid
+        print(f"[knot_agui_sync] Injected agent_client_uuid={_agent_client_uuid} for workspace={_ws_path}", flush=True)
+    else:
+        print(f"[knot_agui_sync] agent_client_uuid is EMPTY — workspace={_ws_path}", flush=True)
+
+    # ★ 同时传递 workspace_path 到 chat_extra，让 Knot 平台可以双重验证工作区
+    if _ws_path and _ws_path != ".":
+        chat_body["input"]["chat_extra"]["workspace_path"] = _ws_path
 
     # 发送请求
     try:

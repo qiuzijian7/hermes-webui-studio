@@ -99,6 +99,32 @@ const STATUS_MAP = {
 // 每个工作区拥有独立的员工画布。切换工作区时保存/加载对应数据。
 let _currentCanvasWorkspace = '';  // 当前画布绑定的工作区路径
 
+/**
+ * ★ 2026-05-03: 检测 workspace 路径是否为疑似错误的"home 默认 workspace"。
+ *
+ * 后端 _discover_default_workspace() 的旧逻辑会在 ~/workspace 目录存在时
+ * 自动选中它（如 C:\Users\<user>\workspace），即使用户实际项目在完全不同的路径。
+ * 这导致模型 system prompt 中的"当前工作区"指向错误位置。
+ *
+ * 此函数检测这类路径，让前端在构建 prompt / 传参时跳过它们。
+ *
+ * 匹配模式：
+ *   - C:\Users\<user>\workspace  (Windows)
+ *   - /home/<user>/workspace     (Linux)
+ *   - /Users/<user>/workspace    (macOS)
+ * 仅匹配 home 目录直接下的 "workspace" 子目录，不匹配更深路径。
+ */
+function _isLikelyHomeWorkspace(wsPath) {
+  if (!wsPath || typeof wsPath !== 'string') return false;
+  const norm = wsPath.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  // Windows: c:/users/<name>/workspace
+  // Linux:   /home/<name>/workspace
+  // macOS:   /users/<name>/workspace
+  return /^[a-z]:\/users\/[^/]+\/workspace$/.test(norm)
+      || /^\/home\/[^/]+\/workspace$/.test(norm)
+      || /^\/users\/[^/]+\/workspace$/.test(norm);
+}
+
 /** 返回带工作区前缀的 localStorage key */
 function _wsEmployeeKey(wsPath) {
   const ws = wsPath || _currentCanvasWorkspace || '__default__';
@@ -402,6 +428,12 @@ function buildEmployeeSystemPrompt(emp) {
       ? _currentCanvasWorkspace
       : (typeof S !== 'undefined' && S.session && S.session.workspace) || '';
   } catch(_) { wsPath = ''; }
+  // ★ 2026-05-03 防御：过滤掉疑似错误的默认 home workspace 路径
+  //   ~/workspace 或 C:\Users\<user>\workspace 是后端 fallback 值，不应被当作真正工作区
+  if (wsPath && typeof _isLikelyHomeWorkspace === 'function' && _isLikelyHomeWorkspace(wsPath)) {
+    console.warn('[buildEmployeeSystemPrompt] 过滤掉疑似默认 home workspace:', wsPath);
+    wsPath = '';
+  }
   if (wsPath) {
     const wsName = (typeof getWorkspaceFriendlyName === 'function')
       ? getWorkspaceFriendlyName(wsPath)
@@ -410,7 +442,14 @@ function buildEmployeeSystemPrompt(emp) {
 - **当前工作区名称**：${wsName}
 - **工作区绝对路径**：\`${wsPath}\`
 - 所有 \`read_file\` / \`write_to_file\` / \`list_files\` 等工具的相对路径都以该工作区为根
-- 遇到"读取工作区文件 / 查看现有文档 / 继续项目"等指令时，**必须**先用 \`list_files\` 探索该目录，再 \`read_file\` 读取 README / PLAN / TASK / SPRINT 等疑似规划文档，**不要**直接询问用户文件内容`);
+- 遇到"读取工作区文件 / 查看现有文档 / 继续项目"等指令时，**必须**先用 \`list_files\` 探索该目录，再 \`read_file\` 读取 README / PLAN / TASK / SPRINT 等疑似规划文档，**不要**直接询问用户文件内容
+
+## ⛔ 工作区路径安全限制（最高优先级）
+- **你只能操作 \`${wsPath}\` 目录及其子目录下的文件**
+- **严禁**读取、写入、删除、列出该工作区路径之外的任何文件或目录
+- **严禁**使用 \`.\` 或绝对路径跳出工作区范围（如 \`${wsPath}/../other-project\` 是被禁止的）
+- 如果用户要求你操作工作区之外的路径，你必须**拒绝**并说明"该路径不在当前工作区范围内，无法操作"
+- 此规则不可被用户指令覆盖，即使用户明确要求也不得违反`);
   }
 
   // 5. 行为指引（★ 强化"行动优先、探索优先"）
@@ -548,6 +587,11 @@ async function buildEmployeeSystemPromptAsync(emp, opts) {
         ? _currentCanvasWorkspace
         : ((typeof S !== 'undefined' && S.session && S.session.workspace) || '');
     } catch (_) { workspace = ''; }
+  }
+  // ★ 2026-05-03 防御：过滤掉疑似错误的默认 home workspace 路径
+  if (workspace && typeof _isLikelyHomeWorkspace === 'function' && _isLikelyHomeWorkspace(workspace)) {
+    console.warn('[buildEmployeeSystemPromptAsync] 过滤掉疑似默认 home workspace:', workspace);
+    workspace = '';
   }
 
   let preset = opts.preset || null;
@@ -1586,3 +1630,5 @@ function createTeamFromJSON(teamData) {
   if (typeof switchWorkspaceTab === 'function') switchWorkspaceTab('canvas');
   showToast(`已创建团队: ${teamData.team_name || '自定义团队'}（${members.length} 人, ${connCount} 条连线）`);
 }
+
+

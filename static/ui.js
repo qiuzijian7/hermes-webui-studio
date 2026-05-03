@@ -1084,6 +1084,39 @@ async function checkInflightOnBoot(sid) {
   } catch(e) { clearInflight(); }
 }
 
+// ── Knot 工作区标记（topbar badge） ─────────────────────────
+let _knotBadgeLastWs = '';  // 上次检查的工作区路径（去重）
+let _knotBadgeInFlight = false;
+/**
+ * 异步检查当前工作区是否已注册到 knot-cli，
+ * 并在顶栏工作区名称旁显示/隐藏 Knot 标记。
+ */
+async function updateKnotBadge(wsPath) {
+  const badge = document.getElementById('knotBadge');
+  if (!badge) return;
+  const ws = wsPath
+    || (typeof _currentCanvasWorkspace !== 'undefined' && _currentCanvasWorkspace && _currentCanvasWorkspace !== '__default__' ? _currentCanvasWorkspace : '')
+    || (S && S.session && S.session.workspace ? S.session.workspace : '');
+  if (!ws) { badge.style.display = 'none'; _knotBadgeLastWs = ''; return; }
+  // 同一路径不重复请求
+  if (ws === _knotBadgeLastWs) return;
+  if (_knotBadgeInFlight) return;
+  _knotBadgeInFlight = true;
+  try {
+    const res = await api('/api/knot-cli/workspace/check', {
+      method: 'POST',
+      body: JSON.stringify({ path: ws })
+    });
+    _knotBadgeLastWs = ws;
+    badge.style.display = (res && res.ok && res.registered) ? 'inline-flex' : 'none';
+  } catch (e) {
+    console.warn('[knot-badge] check failed:', e);
+    badge.style.display = 'none';
+  } finally {
+    _knotBadgeInFlight = false;
+  }
+}
+
 function syncTopbar(){
   // ★ 2026-04-27 Bug 修复：抽取出一个通用的"把当前工作区信息写到 #wsInfoBtn"逻辑，
   //   无论是否有 session 都应该让按钮显示工作区名——因为它本质是"工作区切换按钮"。
@@ -1191,6 +1224,8 @@ function syncTopbar(){
   // Update profile chip label
   const profileLabel=$('profileChipLabel');
   if(profileLabel) profileLabel.textContent=S.activeProfile||'default';
+  // ★ 异步更新 Knot 工作区标记
+  if (typeof updateKnotBadge === 'function') updateKnotBadge();
 }
 
 function msgContent(m){
