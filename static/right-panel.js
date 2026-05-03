@@ -3465,11 +3465,15 @@ async function configHtmlGenerate() {
       return;
     }
 
+    // ★ 修复：传递当前选中的工作区
+    const _ws = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '') 
+                || (emp && emp.workspace) || S.session?.workspace || '';
     const data = await api('/api/chat/start', {
       method: 'POST',
       body: JSON.stringify({
         session_id: sessionId,
         message: genPrompt,
+        workspace: _ws || undefined,
         stream: false,
       }),
     });
@@ -4603,7 +4607,7 @@ function openEmployeeParamsEditor() {
   const contentEl = $('rpParamsContent');
   if (!contentEl) return;
 
-  contentEl.innerHTML = '<div class="rp-params-loading" style="opacity:.6;padding:12px">加载中…</div>';
+  contentEl.innerHTML = '<div class="rp-params-loading">加载中…</div>';
 
   const preset = (emp.presetId && typeof AGENT_PRESETS !== 'undefined')
     ? AGENT_PRESETS.find(p => p.id === emp.presetId)
@@ -4619,11 +4623,14 @@ function openEmployeeParamsEditor() {
       : '自由编辑 key-value（会自动注入到提示词）';
   }
 
-  if (schema) {
-    _renderParamsBySchema(contentEl, emp, schema);
-  } else {
-    _renderParamsKeyValue(contentEl, emp);
-  }
+  // 延迟渲染，让加载动画显示
+  setTimeout(() => {
+    if (schema) {
+      _renderParamsBySchema(contentEl, emp, schema);
+    } else {
+      _renderParamsKeyValue(contentEl, emp);
+    }
+  }, 150);
 }
 
 /** 基于 schema 渲染结构化表单 */
@@ -4632,7 +4639,7 @@ function _renderParamsBySchema(contentEl, emp, schema) {
   const rows = schema.map((field, idx) => {
     const key = field.key;
     const label = _rpEsc(field.label || key);
-    const desc = field.description ? `<div class="rp-params-field-desc" style="font-size:11px;opacity:.6;margin-top:3px">${_rpEsc(field.description)}</div>` : '';
+    const desc = field.description ? `<div class="rp-params-field-desc">${_rpEsc(field.description)}</div>` : '';
     const curVal = (params[key] != null) ? params[key] : (field.default != null ? field.default : '');
     const fieldId = `rpParamField_${idx}`;
     let input = '';
@@ -4641,12 +4648,12 @@ function _renderParamsBySchema(contentEl, emp, schema) {
       case 'number': {
         const min = field.min != null ? ` min="${_rpEsc(field.min)}"` : '';
         const max = field.max != null ? ` max="${_rpEsc(field.max)}"` : '';
-        input = `<input type="number" class="rp-params-input" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="number" value="${_rpEsc(curVal)}"${min}${max}/>`;
+        input = `<input type="number" class="rp-params-input" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="number" value="${_rpEsc(curVal)}"${min}${max} placeholder="${_rpEsc(field.placeholder || '请输入数字')}"/>`;
         break;
       }
       case 'boolean': {
         const checked = (curVal === true || curVal === 'true') ? ' checked' : '';
-        input = `<label class="rp-params-checkbox" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="boolean"${checked}/><span style="font-size:12px;opacity:.7">启用</span></label>`;
+        input = `<label class="rp-params-checkbox"><input type="checkbox" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="boolean"${checked}><span>启用</span></label>`;
         break;
       }
       case 'enum': {
@@ -4656,26 +4663,30 @@ function _renderParamsBySchema(contentEl, emp, schema) {
         break;
       }
       case 'multiline':
-        input = `<textarea class="rp-params-input" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="multiline" rows="3" placeholder="${_rpEsc(field.placeholder || '')}">${_rpEsc(curVal)}</textarea>`;
+        input = `<textarea class="rp-params-input" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="multiline" rows="3" placeholder="${_rpEsc(field.placeholder || '请输入多行文本')}">${_rpEsc(curVal)}</textarea>`;
         break;
       default: // string
-        input = `<input type="text" class="rp-params-input" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="string" value="${_rpEsc(curVal)}" placeholder="${_rpEsc(field.placeholder || '')}"/>`;
+        input = `<input type="text" class="rp-params-input" id="${fieldId}" data-key="${_rpEsc(key)}" data-type="string" value="${_rpEsc(curVal)}" placeholder="${_rpEsc(field.placeholder || '请输入参数值')}"/>`;
     }
 
     return `
-      <div class="rp-params-field" style="margin-bottom:14px">
-        <label for="${fieldId}" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px">${label}${field.required ? ' <span style="color:var(--red)">*</span>' : ''}</label>
+      <div class="rp-params-field">
+        <label for="${fieldId}">${label}${field.required ? '<span class="required">*</span>' : ''}</label>
         ${input}
         ${desc}
       </div>`;
   }).join('');
 
   contentEl.innerHTML = `
-    <div class="rp-params-form" style="padding:12px">
+    <div class="rp-params-form">
       ${rows}
-      <div class="rp-params-hint" style="font-size:11px;opacity:.5;margin-top:8px;padding:8px;background:rgba(255,255,255,.03);border-radius:4px">
+      <div class="rp-params-hint">
         💡 这些值会通过 <code>{{params.key}}</code> 注入到提示词模板。
       </div>
+    </div>
+    <div class="rp-params-save-bar">
+      <span class="rp-params-save-info">修改会自动保存</span>
+      <button class="rp-params-save-btn" onclick="saveEmployeeParams()">保存参数</button>
     </div>`;
 }
 
@@ -4684,24 +4695,61 @@ function _renderParamsKeyValue(contentEl, emp) {
   const params = emp.params || {};
   const keys = Object.keys(params);
 
-  const rows = keys.map((k, i) => `
-    <div class="rp-params-kv-row" data-idx="${i}" style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
-      <input type="text" class="rp-params-kv-key" style="flex:1;min-width:0" value="${_rpEsc(k)}" placeholder="key"/>
-      <input type="text" class="rp-params-kv-val" style="flex:2;min-width:0" value="${_rpEsc(params[k])}" placeholder="value"/>
-      <button class="panel-icon-btn" onclick="this.parentElement.remove()" title="删除" style="flex-shrink:0">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>`).join('');
+  const rows = keys.length > 0 
+    ? keys.map((k, i) => {
+        const val = params[k];
+        // 支持新格式 {value, type} 和旧格式 (纯值)
+        const value = (val && typeof val === 'object' && 'value' in val) ? val.value : val;
+        const type = (val && typeof val === 'object' && 'type' in val) ? val.type : 'string';
+        return _createKvRowHtml(k, value, i, type);
+      }).join('')
+    : `<div class="rp-params-empty">
+        <div class="rp-params-empty-icon">📝</div>
+        <div class="rp-params-empty-title">暂无参数</div>
+        <div class="rp-params-empty-hint">点击下方按钮添加参数，或导入预设配置</div>
+      </div>`;
 
   contentEl.innerHTML = `
-    <div class="rp-params-kv" style="padding:12px">
-      <div id="rpParamsKvList">${rows}</div>
-      <button class="btn btn-secondary" onclick="_rpAddParamsRow()" style="margin-top:8px">
-        + 添加参数
+    <div class="rp-params-kv">
+      <div class="rp-params-kv-header">
+        <span class="rp-params-kv-title">参数列表</span>
+        <span class="rp-params-kv-count">${keys.length} 个参数</span>
+      </div>
+      <div class="rp-params-kv-list" id="rpParamsKvList">${rows}</div>
+      <button class="rp-add-param-btn" onclick="_rpAddParamsRow()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        添加参数
       </button>
-      <div class="rp-params-hint" style="font-size:11px;opacity:.5;margin-top:12px;padding:8px;background:rgba(255,255,255,.03);border-radius:4px">
+      <div class="rp-params-hint">
         💡 这些值会注入到提示词的"配置参数"段，也可通过 <code>{{params.key}}</code> 在自定义 prompt 中引用。
       </div>
+    </div>
+    <div class="rp-params-save-bar">
+      <button class="rp-params-save-btn" onclick="saveEmployeeParams()">保存参数</button>
+    </div>`;
+}
+
+/** 创建 key-value 行 HTML */
+function _createKvRowHtml(key = '', value = '', idx = -1, type = 'string') {
+  return `
+    <div class="rp-params-kv-row" data-idx="${idx}">
+      <input type="text" class="rp-params-kv-key" value="${_rpEsc(key)}" placeholder="参数名"/>
+      <input type="text" class="rp-params-kv-val" value="${_rpEsc(value)}" placeholder="参数值"/>
+      <select class="rp-params-kv-type" title="参数类型">
+        <option value="string"${type === 'string' ? ' selected' : ''}>文本</option>
+        <option value="number"${type === 'number' ? ' selected' : ''}>数字</option>
+        <option value="boolean"${type === 'boolean' ? ' selected' : ''}>布尔</option>
+        <option value="json"${type === 'json' ? ' selected' : ''}>JSON</option>
+      </select>
+      <button class="panel-icon-btn" onclick="_rpRemoveParamsRow(this)" title="删除参数">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
     </div>`;
 }
 
@@ -4709,17 +4757,59 @@ function _renderParamsKeyValue(contentEl, emp) {
 function _rpAddParamsRow() {
   const list = $('rpParamsKvList');
   if (!list) return;
+  
+  // 移除空状态提示（如果存在）
+  const emptyEl = list.querySelector('.rp-params-empty');
+  if (emptyEl) {
+    emptyEl.remove();
+    // 更新计数
+    const countEl = document.querySelector('.rp-params-kv-count');
+    if (countEl) countEl.textContent = '1 个参数';
+  }
+  
   const row = document.createElement('div');
   row.className = 'rp-params-kv-row';
-  row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
-  row.innerHTML = `
-    <input type="text" class="rp-params-kv-key" style="flex:1;min-width:0" placeholder="key"/>
-    <input type="text" class="rp-params-kv-val" style="flex:2;min-width:0" placeholder="value"/>
-    <button class="panel-icon-btn" onclick="this.parentElement.remove()" title="删除" style="flex-shrink:0">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>`;
+  row.innerHTML = _createKvRowHtml('', '', -1, 'string');
   list.appendChild(row);
   row.querySelector('.rp-params-kv-key')?.focus();
+  
+  // 更新计数
+  _updateKvCount();
+}
+
+/** 删除参数行（带动画） */
+function _rpRemoveParamsRow(btn) {
+  const row = btn.closest('.rp-params-kv-row');
+  if (!row) return;
+  
+  // 添加删除动画
+  row.classList.add('removing');
+  
+  // 动画结束后移除元素
+  setTimeout(() => {
+    row.remove();
+    _updateKvCount();
+    
+    // 如果没有参数了，显示空状态
+    const list = $('rpParamsKvList');
+    if (list && list.children.length === 0) {
+      list.innerHTML = `
+        <div class="rp-params-empty">
+          <div class="rp-params-empty-icon">📝</div>
+          <div class="rp-params-empty-title">暂无参数</div>
+          <div class="rp-params-empty-hint">点击下方按钮添加参数，或导入预设配置</div>
+        </div>`;
+    }
+  }, 200);
+}
+
+/** 更新参数计数 */
+function _updateKvCount() {
+  const countEl = document.querySelector('.rp-params-kv-count');
+  const rows = document.querySelectorAll('#rpParamsKvList .rp-params-kv-row');
+  if (countEl) {
+    countEl.textContent = `${rows.length} 个参数`;
+  }
 }
 
 /** 收集表单并保存 */
@@ -4741,18 +4831,42 @@ function saveEmployeeParams() {
     } else {
       val = el.value;
     }
-    if (val !== '' && val != null) newParams[key] = val;
+    if (val !== '' && val != null) {
+      // 使用新格式保存：{value, type}
+      newParams[key] = {value: val, type: type || 'string'};
+    }
   });
   document.querySelectorAll('#rpParamsContent input[data-type="boolean"]').forEach(el => {
     const key = el.dataset.key;
-    if (key) newParams[key] = !!el.checked;
+    if (key) newParams[key] = {value: !!el.checked, type: 'boolean'};
   });
 
   // 2. Key-value fields
   document.querySelectorAll('#rpParamsContent .rp-params-kv-row').forEach(row => {
     const k = row.querySelector('.rp-params-kv-key')?.value?.trim();
     const v = row.querySelector('.rp-params-kv-val')?.value;
-    if (k) newParams[k] = v || '';
+    const typeSelect = row.querySelector('.rp-params-kv-type');
+    const type = typeSelect ? typeSelect.value : 'string';
+    
+    if (k) {
+      // 根据类型转换值
+      let typedValue = v || '';
+      if (type === 'number') {
+        const n = Number(v);
+        typedValue = isNaN(n) ? 0 : n;
+      } else if (type === 'boolean') {
+        typedValue = v === 'true' || v === '1' || v === 'yes';
+      } else if (type === 'json') {
+        try {
+          typedValue = JSON.parse(v);
+        } catch (e) {
+          // 如果不是有效的JSON，保存为字符串
+          typedValue = v || '';
+        }
+      }
+      
+      newParams[k] = {value: typedValue, type: type};
+    }
   });
 
   emp.params = newParams;
@@ -4764,8 +4878,10 @@ function saveEmployeeParams() {
     _syncEmployeePromptToSession(emp);
   }
 
-  if (typeof showToast === 'function') showToast('参数已保存');
-  closeParamsEditor();
+  if (typeof showToast === 'function') showToast('✅ 参数已保存');
+  
+  // 不立即关闭，让用户继续编辑
+  // closeParamsEditor();
 }
 
 /** 关闭参数编辑器 → 回到聊天 */
@@ -4777,10 +4893,109 @@ function closeParamsEditor() {
   }
 }
 
+
 // 暴露到 window（供 onclick 调用）
 if (typeof window !== 'undefined') {
   window.openEmployeeParamsEditor = openEmployeeParamsEditor;
   window.saveEmployeeParams = saveEmployeeParams;
   window.closeParamsEditor = closeParamsEditor;
   window._rpAddParamsRow = _rpAddParamsRow;
+  window._rpRemoveParamsRow = _rpRemoveParamsRow;
+  window._updateKvCount = _updateKvCount;
+  window._exportParams = _exportParams;
+  window._importParams = _importParams;
+}
+
+/** 导出参数配置 */
+function _exportParams() {
+  const emp = getEmployee(EMPLOYEE_STORE.selectedId);
+  if (!emp) {
+    showToast('❌ 请先选择一个员工');
+    return;
+  }
+  
+  const params = emp.params || {};
+  if (Object.keys(params).length === 0) {
+    showToast('⚠️ 暂无参数可导出');
+    return;
+  }
+  
+  // 简化导出格式（只导出value和type）
+  const exportData = {};
+  for (const [key, val] of Object.entries(params)) {
+    if (val && typeof val === 'object' && 'value' in val) {
+      exportData[key] = {value: val.value, type: val.type || 'string'};
+    } else {
+      exportData[key] = {value: val, type: 'string'};
+    }
+  }
+  
+  const dataStr = JSON.stringify(exportData, null, 2);
+  const dataBlob = new Blob([dataStr], {type: 'application/json'});
+  
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(dataBlob);
+  link.download = `${emp.name || 'employee'}_params_${new Date().toISOString().slice(0,10)}.json`;
+  link.click();
+  
+  setTimeout(() => URL.revokeObjectURL(link.href), 100);
+  showToast('✅ 参数配置已导出');
+}
+
+/** 导入参数配置 */
+function _importParams() {
+  const emp = getEmployee(EMPLOYEE_STORE.selectedId);
+  if (!emp) {
+    showToast('❌ 请先选择一个员工');
+    return;
+  }
+  
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      try {
+        const imported = JSON.parse(event.target.result);
+        
+        // 验证格式
+        if (typeof imported !== 'object' || imported === null) {
+          throw new Error('无效的配置格式');
+        }
+        
+        // 合并参数（保留现有参数，合并导入的参数）
+        const currentParams = emp.params || {};
+        
+        for (const [key, val] of Object.entries(imported)) {
+          if (val && typeof val === 'object' && 'value' in val) {
+            currentParams[key] = val;
+          } else {
+            // 兼容旧格式
+            currentParams[key] = {value: val, type: 'string'};
+          }
+        }
+        
+        emp.params = currentParams;
+        
+        // 重新渲染UI
+        const contentEl = document.getElementById('rpParamsContent');
+        if (contentEl) {
+          _renderParamsKeyValue(contentEl, emp);
+        }
+        
+        if (typeof _saveEmployees === 'function') _saveEmployees();
+        showToast(`✅ 已导入 ${Object.keys(imported).length} 个参数`);
+        
+      } catch (err) {
+        showToast('❌ 导入失败：' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+  
+  input.click();
 }

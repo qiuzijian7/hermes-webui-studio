@@ -201,7 +201,8 @@
             taskId,
             emp,
             taskContent: goal || '（未提供任务描述）',
-            workspace: (d.workspace || (typeof S !== 'undefined' && S.session && S.session.workspace) || ''),
+            // ★ 修复：使用 _activeWorkspacePath() 获取当前选中的工作区
+            workspace: (d.workspace || (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '') || (typeof S !== 'undefined' && S.session && S.session.workspace) || ''),
             requesterName: '制作人',
           });
           if (task) {

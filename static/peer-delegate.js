@@ -73,7 +73,9 @@
           (typeof buildEmployeeSystemPrompt === 'function' ? buildEmployeeSystemPrompt(fromEmp) : ''))
       : (typeof buildEmployeeSystemPrompt === 'function' ? buildEmployeeSystemPrompt(fromEmp) : '');
     const model = fromEmp.model || ($('modelSelect') && $('modelSelect').value) || '';
-    const workspace = (typeof S !== 'undefined' && S.session && S.session.workspace) || '';
+    // ★ 修复：使用 _activeWorkspacePath() 获取当前选中的工作区
+    const workspace = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '')
+                  || (typeof S !== 'undefined' && S.session && S.session.workspace) || '';
 
     // 构造回传消息（作为 user message 注入到 A 的会话）
     const feedbackMsg = `[来自 @${toEmp.name} 的任务 #${taskId} 执行结果]

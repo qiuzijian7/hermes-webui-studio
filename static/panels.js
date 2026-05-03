@@ -1240,10 +1240,10 @@ let _settingsThemeOnOpen = null; // track theme at open time for discard revert
 let _settingsSection = 'conversation';
 
 function switchSettingsSection(name){
-  const section=(name==='preferences'||name==='system'||name==='providers'||name==='cli'||name==='knot_agui')?name:'conversation';
+  const section=(name==='preferences'||name==='system'||name==='providers'||name==='cli'||name==='knot_agui'||name==='auxiliary')?name:'conversation';
   _settingsSection=section;
-  const map={conversation:'Conversation',preferences:'Preferences',providers:'Providers',cli:'Cli',knot_agui:'KnotAgui',system:'System'};
-  ['conversation','preferences','providers','cli','knot_agui','system'].forEach(key=>{
+  const map={conversation:'Conversation',preferences:'Preferences',providers:'Providers',cli:'Cli',knot_agui:'KnotAgui',system:'System',auxiliary:'Auxiliary'};
+  ['conversation','preferences','providers','cli','knot_agui','system','auxiliary'].forEach(key=>{
     const tab=$('settingsTab'+map[key]);
     const pane=$('settingsPane'+map[key]);
     const active=key===section;
@@ -1255,6 +1255,8 @@ function switchSettingsSection(name){
   });
   if(section==='providers') loadProvidersPanel();
   if(section==='cli') loadCliBackendsPanel();
+  if(section==='auxiliary') loadAuxiliarySettings();
+
   if(section==='knot_agui') loadKnotAguiPanel();
 }
 
@@ -2627,5 +2629,216 @@ function dismissErrorBanner(){
   _backgroundErrors.length=0;
   const banner=$('bgErrorBanner');
   if(banner) banner.style.display='none';
+}
+
+// ── Auxiliary Models Configuration ─────────────────────────────────────────
+
+// Task name mapping to DOM element IDs
+const _AUX_TASKS = {
+  Vision: {providerId: 'auxVisionProvider', modelId: 'auxVisionModel'},
+  WebExtract: {providerId: 'auxWebExtractProvider', modelId: 'auxWebExtractModel'},
+  SessionSearch: {providerId: 'auxSessionSearchProvider', modelId: 'auxSessionSearchModel'},
+  Compression: {providerId: 'auxCompressionProvider', modelId: 'auxCompressionModel'},
+  GoalJudge: {providerId: 'auxGoalJudgeProvider', modelId: 'auxGoalJudgeModel'},
+  Curator: {providerId: 'auxCuratorProvider', modelId: 'auxCuratorModel'},
+};
+
+async function loadAuxiliaryModelOptions(provider, inputId, currentValue) {
+  // For datalist, the inputId is like "auxVisionModel", and the datalist id is inputId + "List"
+  const dataListId = inputId + 'List';
+  const dataList = $(dataListId);
+  const inputEl = $(inputId);
+  
+  if (!dataList || !inputEl) return;
+  
+  // Clear existing options
+  dataList.innerHTML = '';
+  
+  if (!provider || provider === 'auto' || provider === 'main' || provider === 'custom') {
+    // No model selection needed, clear input value
+    // Keep current value if it's custom text
+    return;
+  }
+  
+  try {
+    if (provider === 'knot') {
+      // Load Knot AG-UI agents
+      const data = await api('/api/knot/agents');
+      const agents = data.agents || [];
+      agents.forEach(agent => {
+        const opt = document.createElement('option');
+        opt.value = 'knot-agui:' + agent.id;
+        let label = agent.name || agent.id;
+        if (agent.models && Array.isArray(agent.models)) {
+          label += ' (' + agent.models.join(', ') + ')';
+        }
+        opt.label = label;
+        if (opt.value === currentValue) inputEl.value = opt.value;
+        dataList.appendChild(opt);
+      });
+    } else {
+      // Load models from /api/models and filter by provider
+      const data = await api('/api/models');
+      const groups = data.groups || [];
+      
+      // Build provider alias mapping
+      const providerAlias = {
+        'openrouter': 'openrouter',
+        'nous': 'nous',
+        'gemini': 'gemini',
+        'anthropic': 'anthropic',
+      };
+      
+      groups.forEach(g => {
+        const p = (g.provider || '').toLowerCase();
+        if (p === providerAlias[provider]) {
+          (g.models || []).forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id || m;
+            opt.label = m.label || m.id || m;
+            if (opt.value === currentValue) inputEl.value = opt.value;
+            dataList.appendChild(opt);
+          });
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Failed to load model options for ' + provider + ':', e);
+  }
+}
+
+async function onAuxProviderChange(taskName) {
+  const task = _AUX_TASKS[taskName];
+  if (!task) return;
+  
+  const providerSel = $(task.providerId);
+  const modelSel = $(task.modelId);
+  if (!providerSel || !modelSel) return;
+  
+  await loadAuxiliaryModelOptions(providerSel.value, task.modelId, '');
+}
+
+async function loadAuxiliarySettings(){
+  try{
+    const config=await api('/api/config');
+    const aux=config.auxiliary||{};
+
+    // Helper to safely set select value
+    function setSelect(id, value){
+      const el=$(id);
+      if(!el) return;
+      // Find option with matching value, or default to "auto"
+      let found=false;
+      for(const opt of el.options){
+        if(opt.value===value){opt.selected=true;found=true;break;}
+      }
+      if(!found) el.value='auto';
+    }
+
+    // Vision
+    const vision=aux.vision||{};
+    setSelect('auxVisionProvider', vision.provider||'auto');
+    // Load model options after setting provider
+    await loadAuxiliaryModelOptions(vision.provider||'auto', 'auxVisionModel', vision.model||'');
+    
+    $('auxVisionTimeout').value=vision.timeout||30;
+    $('auxVisionDownloadTimeout').value=vision.download_timeout||30;
+
+    // Web Extract
+    const webExtract=aux.web_extract||{};
+    setSelect('auxWebExtractProvider', webExtract.provider||'auto');
+    await loadAuxiliaryModelOptions(webExtract.provider||'auto', 'auxWebExtractModel', webExtract.model||'');
+
+    // Session Search
+    const sessionSearch=aux.session_search||{};
+    setSelect('auxSessionSearchProvider', sessionSearch.provider||'auto');
+    await loadAuxiliaryModelOptions(sessionSearch.provider||'auto', 'auxSessionSearchModel', sessionSearch.model||'');
+    
+    $('auxSessionSearchTimeout').value=sessionSearch.timeout||30;
+    $('auxSessionSearchMaxConcurrency').value=sessionSearch.max_concurrency||3;
+
+    // Compression
+    const compression=aux.compression||{};
+    setSelect('auxCompressionProvider', compression.provider||'auto');
+    await loadAuxiliaryModelOptions(compression.provider||'auto', 'auxCompressionModel', compression.model||'');
+    
+    $('auxCompressionTimeout').value=compression.timeout||30;
+
+    // Goal Judge
+    const goalJudge=aux.goal_judge||{};
+    setSelect('auxGoalJudgeProvider', goalJudge.provider||'auto');
+    await loadAuxiliaryModelOptions(goalJudge.provider||'auto', 'auxGoalJudgeModel', goalJudge.model||'');
+    
+    $('auxGoalJudgeTimeout').value=goalJudge.timeout||30;
+
+    // Curator
+    const curator=aux.curator||{};
+    setSelect('auxCuratorProvider', curator.provider||'auto');
+    await loadAuxiliaryModelOptions(curator.provider||'auto', 'auxCuratorModel', curator.model||'');
+    
+    $('auxCuratorTimeout').value=curator.timeout||600;
+
+    const errEl=$('auxiliarySaveError');
+    if(errEl) errEl.style.display='none';
+  }catch(e){
+    console.error('Failed to load auxiliary settings:',e);
+    showToast('Failed to load auxiliary models configuration');
+  }
+}
+
+async function saveAuxiliarySettings(){
+  try{
+    // Build auxiliary config object
+    const aux={
+      vision: {
+        provider: $('auxVisionProvider').value,
+        model: $('auxVisionModel').value.trim(),
+        timeout: parseInt($('auxVisionTimeout').value)||30,
+        download_timeout: parseInt($('auxVisionDownloadTimeout').value)||30
+      },
+      web_extract: {
+        provider: $('auxWebExtractProvider').value,
+        model: $('auxWebExtractModel').value.trim()
+      },
+      session_search: {
+        provider: $('auxSessionSearchProvider').value,
+        model: $('auxSessionSearchModel').value.trim(),
+        timeout: parseInt($('auxSessionSearchTimeout').value)||30,
+        max_concurrency: parseInt($('auxSessionSearchMaxConcurrency').value)||3
+      },
+      compression: {
+        provider: $('auxCompressionProvider').value,
+        model: $('auxCompressionModel').value.trim(),
+        timeout: parseInt($('auxCompressionTimeout').value)||30
+      },
+      goal_judge: {
+        provider: $('auxGoalJudgeProvider').value,
+        model: $('auxGoalJudgeModel').value.trim(),
+        timeout: parseInt($('auxGoalJudgeTimeout').value)||30
+      },
+      curator: {
+        provider: $('auxCuratorProvider').value,
+        model: $('auxCuratorModel').value.trim(),
+        timeout: parseInt($('auxCuratorTimeout').value)||600
+      }
+    };
+
+    // Remove empty model strings (use provider default)
+    for(const key of Object.keys(aux)){
+      if(aux[key].model==='') delete aux[key].model;
+    }
+
+    await api('/api/config',{method:'POST',body:JSON.stringify({auxiliary:aux})});
+    showToast('Auxiliary models configuration saved successfully');
+    const errEl=$('auxiliarySaveError');
+    if(errEl) errEl.style.display='none';
+  }catch(e){
+    console.error('Failed to save auxiliary settings:',e);
+    const errEl=$('auxiliarySaveError');
+    if(errEl){
+      errEl.textContent='Failed to save: '+e.message;
+      errEl.style.display='block';
+    }
+  }
 }
 

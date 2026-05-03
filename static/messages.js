@@ -275,10 +275,13 @@ async function send(){
   // Start the agent via POST, get a stream_id back
   let streamId;
   try{
+    // ★ 修复：使用 _activeWorkspacePath() 获取当前选中的工作区（画布工作区优先）
+    const _ws = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '') 
+                || S.session.workspace || '';
     const startData=await api('/api/chat/start',{method:'POST',body:JSON.stringify({
       session_id:activeSid,message:msgText,
       model:_empModel||S.session.model||$('modelSelect').value,
-      workspace:S.session.workspace,
+      workspace:_ws,
       attachments:uploaded.length?uploaded:undefined,
       system_prompt:_empSysPrompt||undefined,
       employee_name:(_emp&&_emp.name)||'',
@@ -1211,7 +1214,9 @@ async function send(){
                 taskId,
                 emp,
                 taskContent:'（制作人委派任务）',
-                workspace:(S.session && S.session.workspace) || '',
+                // ★ 修复：使用 _activeWorkspacePath() 获取当前选中的工作区
+                workspace:(typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '') 
+                          || (S.session && S.session.workspace) || '',
                 requesterName:'制作人',
               });
             }

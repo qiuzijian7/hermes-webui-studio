@@ -201,6 +201,65 @@ def get_config() -> dict:
     return _cfg_cache
 
 
+def save_config(update: dict) -> dict:
+    """Save configuration to config.yaml.
+    
+    Args:
+        update: Dict of config sections to update (e.g. {"auxiliary": {...}})
+    
+    Returns:
+        The updated full config dict.
+    """
+    with _cfg_lock:
+        # Reload current config from disk first
+        config_path = _get_config_path()
+        current = {}
+        if config_path.exists():
+            try:
+                import yaml as _yaml
+                raw = config_path.read_text(encoding="utf-8")
+                loaded = _yaml.safe_load(raw)
+                if isinstance(loaded, dict):
+                    current = loaded
+            except Exception as exc:
+                print(f"[webui] save_config: failed to read existing config: {exc}", flush=True)
+        
+        # Update with new values
+        for key, value in update.items():
+            if value is None:
+                # Remove key if value is None
+                current.pop(key, None)
+            else:
+                current[key] = value
+        
+        # Write back to disk
+        try:
+            import yaml as _yaml
+            
+            # Use a custom dumper to preserve ordering and comments
+            class _OrderedDumper(_yaml.SafeDumper):
+                pass
+            
+            def _dict_representer(dumper, data):
+                return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+            
+            _OrderedDumper.add_representer(dict, _dict_representer)
+            
+            with open(config_path, 'w', encoding='utf-8') as f:
+                _yaml.dump(current, f, Dumper=_OrderedDumper, allow_unicode=True, sort_keys=False, default_flow_style=False)
+        except ImportError:
+            # Fall back to json if yaml is not available
+            with open(config_path, 'w', encoding='utf-8') as f:
+                import json as _json
+                _json.dump(current, f, indent=2, ensure_ascii=False)
+        
+        # Update cache
+        _cfg_cache.clear()
+        _cfg_cache.update(current)
+        
+        return current
+
+
 def reload_config() -> None:
     """Reload config.yaml from the active profile's directory."""
     with _cfg_lock:

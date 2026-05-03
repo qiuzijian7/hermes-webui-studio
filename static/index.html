@@ -493,14 +493,17 @@
         </div>
         <!-- 参数配置模式（基于 paramsSchema 自动渲染，或回退到 key-value 编辑器） -->
         <div class="rp-params-view" id="rpParamsView" style="display:none">
-          <div class="rp-header">
-            <div class="rp-employee-info">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-              <div class="rp-employee-meta"><span class="rp-employee-name" id="rpParamsTitle">配置参数</span><span class="rp-employee-role" id="rpParamsSubtitle">这些参数会注入到员工的提示词中</span></div>
+          <div class="rp-params-header">
+            <div>
+              <div class="rp-params-title" id="rpParamsTitle">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                配置参数
+              </div>
+              <div class="rp-params-subtitle" id="rpParamsSubtitle">这些参数会注入到员工的提示词中</div>
             </div>
-            <div class="rp-header-actions">
-              <button class="panel-icon-btn" title="保存并返回" onclick="saveEmployeeParams()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-              <button class="panel-icon-btn close-preview" onclick="closeParamsEditor()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            <div class="rp-params-actions">
+              <button class="panel-icon-btn" title="保存并返回" onclick="saveEmployeeParams()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+              <button class="panel-icon-btn close-preview" onclick="closeParamsEditor()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
           </div>
           <div class="rp-params-content" id="rpParamsContent">
@@ -887,6 +890,10 @@
             <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><line x1="6" y1="7" x2="6.01" y2="7"/><line x1="6" y1="17" x2="6.01" y2="17"/></svg>
             <span class="settings-tab-title">System</span>
           </button>
+          <button class="settings-tab" id="settingsTabAuxiliary" type="button" role="tab" aria-selected="false" aria-controls="settingsPaneAuxiliary" onclick="switchSettingsSection('auxiliary')">
+            <svg class="settings-tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            <span class="settings-tab-title">Auxiliary Models</span>
+          </button>
         </div>
         <div class="settings-main">
           <div class="settings-pane active" id="settingsPaneConversation" role="tabpanel" aria-labelledby="settingsTabConversation">
@@ -1068,6 +1075,149 @@
             </div>
             <button class="sm-btn" onclick="saveKnotAguiSettings()" style="margin-top:12px;width:100%;padding:8px;font-weight:600">保存 Knot AG-UI 配置</button>
           </div>
+          <div class="settings-pane" id="settingsPaneAuxiliary" role="tabpanel" aria-labelledby="settingsTabAuxiliary">
+            <div class="settings-section-head">
+              <div>
+                <div class="settings-section-title">Auxiliary Models</div>
+                <div class="settings-section-meta">Configure auxiliary models for side tasks (vision, web extraction, compression, etc.).</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin:8px 0 12px">
+              Auxiliary models are used for side tasks like image analysis, web page summarization, and context compression. Leave provider as "auto" to automatically detect the best available provider.
+            </div>
+            
+            <!-- Vision Configuration -->
+            <div class="settings-field" style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
+              <div style="font-weight:600;margin-bottom:8px;color:var(--text)">Vision (Image Analysis)</div>
+              <label for="auxVisionProvider">Provider</label>
+              <select id="auxVisionProvider" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;margin-bottom:8px" onchange="onAuxProviderChange('Vision')">
+                <option value="auto">Auto (detect best available)</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="nous">Nous Portal</option>
+                <option value="gemini">Google AI Studio (Gemini)</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="main">Main Provider</option>
+                <option value="knot">Knot AG-UI</option>
+                <option value="custom">Custom Endpoint</option>
+              </select>
+              <label for="auxVisionModel">Model (type or select)</label>
+              <input type="text" id="auxVisionModel" list="auxVisionModelList" placeholder="Leave empty for default" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px;margin-bottom:8px">
+              <datalist id="auxVisionModelList"></datalist>
+              <label for="auxVisionTimeout">Timeout (seconds)</label>
+              <input type="number" id="auxVisionTimeout" value="30" min="1" max="300" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px;margin-bottom:8px">
+              <label for="auxVisionDownloadTimeout">Download Timeout (seconds)</label>
+              <input type="number" id="auxVisionDownloadTimeout" value="30" min="1" max="300" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+            </div>
+
+            <!-- Web Extract Configuration -->
+            <div class="settings-field" style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+              <div style="font-weight:600;margin-bottom:8px;color:var(--text)">Web Extract (Page Summarization)</div>
+              <label for="auxWebExtractProvider">Provider</label>
+              <select id="auxWebExtractProvider" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;margin-bottom:8px" onchange="onAuxProviderChange('WebExtract')">
+                <option value="auto">Auto (detect best available)</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="nous">Nous Portal</option>
+                <option value="gemini">Google AI Studio (Gemini)</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="main">Main Provider</option>
+                <option value="knot">Knot AG-UI</option>
+                <option value="custom">Custom Endpoint</option>
+              </select>
+              <label for="auxWebExtractModel">Model (type or select)</label>
+              <input type="text" id="auxWebExtractModel" list="auxWebExtractModelList" placeholder="Leave empty for default" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px;margin-bottom:8px">
+              <datalist id="auxWebExtractModelList"></datalist>
+            </div>
+
+            <!-- Session Search Configuration -->
+            <div class="settings-field" style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+              <div style="font-weight:600;margin-bottom:8px;color:var(--text)">Session Search (History Summarizing)</div>
+              <label for="auxSessionSearchProvider">Provider</label>
+              <select id="auxSessionSearchProvider" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;margin-bottom:8px" onchange="onAuxProviderChange('SessionSearch')">
+                <option value="auto">Auto (detect best available)</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="nous">Nous Portal</option>
+                <option value="gemini">Google AI Studio (Gemini)</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="main">Main Provider</option>
+                <option value="knot">Knot AG-UI</option>
+                <option value="custom">Custom Endpoint</option>
+              </select>
+              <label for="auxSessionSearchModel">Model (type or select)</label>
+              <input type="text" id="auxSessionSearchModel" list="auxSessionSearchModelList" placeholder="Leave empty for default" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px;margin-bottom:8px">
+              <datalist id="auxSessionSearchModelList"></datalist>
+              <label for="auxSessionSearchTimeout">Timeout (seconds)</label>
+              <input type="number" id="auxSessionSearchTimeout" value="30" min="1" max="300" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px;margin-bottom:8px">
+              <label for="auxSessionSearchMaxConcurrency">Max Concurrency</label>
+              <input type="number" id="auxSessionSearchMaxConcurrency" value="3" min="1" max="10" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+            </div>
+
+            <!-- Compression Configuration -->
+            <div class="settings-field" style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+              <div style="font-weight:600;margin-bottom:8px;color:var(--text)">Compression (Context Compression)</div>
+              <label for="auxCompressionProvider">Provider</label>
+              <select id="auxCompressionProvider" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;margin-bottom:8px" onchange="onAuxProviderChange('Compression')">
+                <option value="auto">Auto (detect best available)</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="nous">Nous Portal</option>
+                <option value="gemini">Google AI Studio (Gemini)</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="main">Main Provider</option>
+                <option value="knot">Knot AG-UI</option>
+                <option value="custom">Custom Endpoint</option>
+              </select>
+              <label for="auxCompressionModel">Model (type or select)</label>
+              <input type="text" id="auxCompressionModel" list="auxCompressionModelList" placeholder="Leave empty for default" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px;margin-bottom:8px">
+              <datalist id="auxCompressionModelList"></datalist>
+              <label for="auxCompressionTimeout">Timeout (seconds)</label>
+              <input type="number" id="auxCompressionTimeout" value="30" min="1" max="300" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+            </div>
+
+            <!-- Goal Judge Configuration -->
+            <div class="settings-field" style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+              <div style="font-weight:600;margin-bottom:8px;color:var(--text)">Goal Judge (Goals Feature)</div>
+              <label for="auxGoalJudgeProvider">Provider</label>
+              <select id="auxGoalJudgeProvider" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;margin-bottom:8px" onchange="onAuxProviderChange('GoalJudge')">
+                <option value="auto">Auto (detect best available)</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="nous">Nous Portal</option>
+                <option value="gemini">Google AI Studio (Gemini)</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="main">Main Provider</option>
+                <option value="knot">Knot AG-UI</option>
+                <option value="custom">Custom Endpoint</option>
+              </select>
+              <label for="auxGoalJudgeModel">Model (type or select)</label>
+              <input type="text" id="auxGoalJudgeModel" list="auxGoalJudgeModelList" placeholder="Leave empty for default" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px;margin-bottom:8px">
+              <datalist id="auxGoalJudgeModelList"></datalist>
+              <label for="auxGoalJudgeTimeout">Timeout (seconds)</label>
+              <input type="number" id="auxGoalJudgeTimeout" value="30" min="1" max="300" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+            </div>
+
+            <!-- Curator Configuration -->
+            <div class="settings-field" style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+              <div style="font-weight:600;margin-bottom:8px;color:var(--text)">Curator (Code Review)</div>
+              <label for="auxCuratorProvider">Provider</label>
+              <select id="auxCuratorProvider" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;margin-bottom:8px" onchange="onAuxProviderChange('Curator')">
+                <option value="auto">Auto (detect best available)</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="nous">Nous Portal</option>
+                <option value="gemini">Google AI Studio (Gemini)</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="main">Main Provider</option>
+                <option value="knot">Knot AG-UI</option>
+                <option value="custom">Custom Endpoint</option>
+              </select>
+              <label for="auxCuratorModel">Model (type or select)</label>
+              <input type="text" id="auxCuratorModel" list="auxCuratorModelList" placeholder="Leave empty for default" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px;margin-bottom:8px">
+              <datalist id="auxCuratorModelList"></datalist>
+              <label for="auxCuratorTimeout">Timeout (seconds)</label>
+              <input type="number" id="auxCuratorTimeout" value="600" min="1" max="600" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+            </div>
+
+            <button class="sm-btn" onclick="saveAuxiliarySettings()" style="margin-top:16px;width:100%;padding:10px;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer">Save Auxiliary Models Configuration</button>
+            <div id="auxiliarySaveError" style="font-size:12px;color:var(--accent);margin-top:8px;display:none"></div>
+          </div>
+          
           <div class="settings-pane" id="settingsPaneSystem" role="tabpanel" aria-labelledby="settingsTabSystem">
             <div class="settings-section-head">
               <div>

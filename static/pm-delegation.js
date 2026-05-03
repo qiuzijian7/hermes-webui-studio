@@ -633,9 +633,11 @@ function _buildPMSystemPrompt(opts = {}) {
   // ★ 工作区路径安全限制
   let _pmWsPath = '';
   try {
-    _pmWsPath = (typeof _currentCanvasWorkspace !== 'undefined' && _currentCanvasWorkspace && _currentCanvasWorkspace !== '__default__')
-      ? _currentCanvasWorkspace
-      : (typeof S !== 'undefined' && S.session && S.session.workspace) || '';
+    // ★ 修复：使用 _activeWorkspacePath() 获取当前选中的工作区
+    _pmWsPath = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '')
+                  || (typeof _currentCanvasWorkspace !== 'undefined' && _currentCanvasWorkspace && _currentCanvasWorkspace !== '__default__')
+                    ? _currentCanvasWorkspace
+                    : (typeof S !== 'undefined' && S.session && S.session.workspace) || '';
   } catch(_) { _pmWsPath = ''; }
   // ★ 2026-05-03 防御：过滤掉疑似错误的默认 home workspace 路径
   if (_pmWsPath && typeof _isLikelyHomeWorkspace === 'function' && _isLikelyHomeWorkspace(_pmWsPath)) {
@@ -660,7 +662,10 @@ function _buildPMSystemPrompt(opts = {}) {
 
 async function sendGroupMessage(text) {
   console.log(`[${PM_NAME}] sendGroupMessage called, text=`, text);
-  let ws = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : (S.session?.workspace || '');
+  // ★ 修复：使用 _activeWorkspacePath() 获取当前选中的工作区
+  let ws = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '') 
+            || (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '')
+            || (S.session?.workspace || '');
   // 兼容 __default__：回退到 session 或默认工作区
   if (!ws || ws === '__default__') {
     ws = S.session?.workspace || _getCurrentWorkspace() || '';
@@ -1309,7 +1314,10 @@ ${taskMsg || '请执行任务'}
 
 以上要求对所有委派任务强制生效。${orchestrateBlock}`;
 
-  let ws = typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : (S.session?.workspace || '');
+  // ★ 修复：使用 _activeWorkspacePath() 获取当前选中的工作区（画布工作区优先）
+  let ws = (typeof _activeWorkspacePath === 'function' ? _activeWorkspacePath() : '')
+              || (typeof _currentCanvasWorkspace !== 'undefined' ? _currentCanvasWorkspace : '')
+              || (S.session?.workspace || '');
   if (ws === '__default__') ws = S.session?.workspace || _getCurrentWorkspace() || '';
   // ★ 2026-05-03 防御：过滤掉疑似错误的默认 home workspace 路径
   if (ws && typeof _isLikelyHomeWorkspace === 'function' && _isLikelyHomeWorkspace(ws)) {

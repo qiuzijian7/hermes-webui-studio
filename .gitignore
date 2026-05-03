@@ -59,3 +59,5 @@ tests/run_pm_test.py
 mcp_gateway/gateway.log
 mcp_gateway/venv/
 mcp_gateway/gateway.pid
+knot_agui_debug.log
+knot_agui_debug.log

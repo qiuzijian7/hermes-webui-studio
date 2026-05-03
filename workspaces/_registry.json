@@ -1,5 +1,12 @@
 {
   "version": 1,
   "description": "工作区注册表 — 索引所有工作区实例",
-  "workspaces": []
+  "workspaces": [
+    {
+      "name": "test2",
+      "path": "G:\\HermesWorkspaces\\test2",
+      "slug": "test2",
+      "createdAt": 1777816895735
+    }
+  ]
 }

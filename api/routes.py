@@ -315,6 +315,26 @@ def handle_get(handler, parsed) -> bool:
             pass
         return j(handler, settings)
 
+    # ── Config file (GET / POST) ────────────────────────────────────────
+    if parsed.path == "/api/config":
+        # GET: return full config (with sensitive keys masked)
+        if handler.command == "GET":
+            from api.config import get_config
+            config = get_config()
+            # Mask sensitive keys
+            _SENSITIVE_KEYS = {"api_key", "password", "token", "secret"}
+            def _mask_sensitive(obj, depth=0):
+                if depth > 10:  # prevent infinite recursion
+                    return obj
+                if isinstance(obj, dict):
+                    return {k: "●●●●" if k.lower() in _SENSITIVE_KEYS else _mask_sensitive(v, depth+1) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [_mask_sensitive(item, depth+1) for item in obj]
+                else:
+                    return obj
+            masked_config = _mask_sensitive(config)
+            return j(handler, masked_config)
+    
     # ── Local CLI backends (OpenClaw-style): wrap local AI CLIs as providers ──
     if parsed.path == "/api/cli/backends":
         from api.config import get_config
@@ -864,6 +884,31 @@ def handle_post(handler, parsed) -> bool:
     body = read_body(handler)
     print(f"[POST] path={parsed.path} body_keys={list(body.keys())[:5]}", file=sys.stderr, flush=True)
 
+    # ── Config file (POST) ────────────────────────────────────────
+    if parsed.path == "/api/config":
+        # POST: save config updates
+        if not isinstance(body, dict):
+            return bad(handler, "Invalid request body")
+
+        try:
+            from api.config import save_config
+            updated = save_config(body)
+            # Mask sensitive keys in response
+            _SENSITIVE_KEYS = {"api_key", "password", "token", "secret"}
+            def _mask_sensitive(obj, depth=0):
+                if depth > 10:
+                    return obj
+                if isinstance(obj, dict):
+                    return {k: "●●●●" if k.lower() in _SENSITIVE_KEYS else _mask_sensitive(v, depth+1) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [_mask_sensitive(item, depth+1) for item in obj]
+                else:
+                    return obj
+            masked = _mask_sensitive(updated)
+            return j(handler, {"ok": True, "config": masked})
+        except Exception as e:
+            return bad(handler, f"Failed to save config: {str(e)}")
+
     # ── Knot-CLI management API ────────────────────────────────
     if parsed.path == "/api/knot-cli/check-git-bash":
         """Check if Git Bash is available (needed for knot-cli install on Windows)."""
@@ -1097,6 +1142,16 @@ def handle_post(handler, parsed) -> bool:
                 return j(handler, {"ok": True, "path": path, "action": result["action"]})
             else:
                 return j(handler, {"ok": False, "error": result["message"]}, status=500)
+        except Exception as e:
+            return j(handler, {"ok": False, "error": str(e)}, status=500)
+
+    # ── Knot AG-UI Agents API ─────────────────────────────
+    if parsed.path == "/api/knot/agents":
+        """Return configured Knot AG-UI agents list."""
+        try:
+            from api.knot_agui import get_knot_agents
+            agents = get_knot_agents()
+            return j(handler, {"ok": True, "agents": agents})
         except Exception as e:
             return j(handler, {"ok": False, "error": str(e)}, status=500)
 

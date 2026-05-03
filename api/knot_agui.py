@@ -400,10 +400,9 @@ def ensure_knot_cli(workspace_path: str = ".", token: str = "") -> str:
             success, uuid = _install_knot_cli(workspace_path, token)
             if success:
                 cli_path = _get_knot_cli_path()
-                # If we got connection_uuid from install, cache it
+                # If we got connection_uuid from install, cache it (machine-level UUID)
                 if uuid:
-                    cache_key = workspace_path or "."
-                    _WORKSPACE_CONNECTION_CACHE[cache_key] = uuid
+                    _WORKSPACE_CONNECTION_CACHE["__machine_uuid__"] = uuid
         
         if cli_path is None:
             logger.warning("knot-cli not installed and no token provided for auto-install")
@@ -413,61 +412,40 @@ def ensure_knot_cli(workspace_path: str = ".", token: str = "") -> str:
 
 
 def get_connection_uuid(workspace_path: str = "") -> str:
-    """Get connection_uuid for a workspace.
+    """Get machine-level connection_uuid (IGNORES workspace_path).
     
-    Strategy (in order):
-    1. Check cache for this specific workspace_path
-    2. Try `knot-cli workspace --action list` to find per-workspace UUID
-    3. If not found and workspace is not registered, add it and retry
-    4. Fall back to `knot-cli client-status` (may return wrong workspace's UUID)
+    The connection_uuid is MACHINE-UNIQUE (one per machine).
+    All workspaces on the same machine share the same connection_uuid.
+    
+    The workspace_path is passed SEPARATELY via chat_extra.workspace_path,
+    so Knot server knows which workspace to use.
+    
+    Strategy:
+    1. Check cache (fixed key "__machine_uuid__")
+    2. Call `knot-cli client-status` to get the machine's connection_uuid
+    3. Cache and return (same UUID for ALL workspaces on this machine)
     
     Args:
-        workspace_path: Workspace path (default: current directory)
+        workspace_path: Ignored (kept for backward compatibility)
         
     Returns:
-        str: connection_uuid if found, empty string otherwise
+        str: machine-level connection_uuid if found, empty string otherwise
     """
-    # Check cache first
-    cache_key = workspace_path or "."
+    # Fixed cache key — connection_uuid is machine-unique, NOT workspace-unique
+    cache_key = "__machine_uuid__"
     if cache_key in _WORKSPACE_CONNECTION_CACHE:
-        return _WORKSPACE_CONNECTION_CACHE[cache_key]
+        cached = _WORKSPACE_CONNECTION_CACHE[cache_key]
+        print(f"[get_connection_uuid] Cache hit (machine UUID): {cached[:20]}", flush=True)
+        return cached
     
-    cli_path = ensure_knot_cli(workspace_path)
+    cli_path = ensure_knot_cli(".")
     if not cli_path:
         logger.error("get_connection_uuid: knot-cli not found")
         return ""
     
-    # ★ Strategy 1: Try workspace list for per-workspace UUID (most accurate)
-    if workspace_path and workspace_path != ".":
-        uuid = _get_connection_uuid_from_workspace_list(workspace_path)
-        if uuid:
-            _WORKSPACE_CONNECTION_CACHE[cache_key] = uuid
-            print(f"[get_connection_uuid] Got UUID from workspace list for '{workspace_path}': {uuid[:20]}", flush=True)
-            return uuid
-        
-        # ★ Strategy 2: Workspace not found in list — try to add it
-        if not is_workspace_in_knot_list(workspace_path):
-            print(f"[get_connection_uuid] Workspace '{workspace_path}' not in knot-cli list, adding...", flush=True)
-            success, add_uuid = add_workspace(workspace_path)
-            if success:
-                # If add returned a UUID, use it
-                if add_uuid:
-                    _WORKSPACE_CONNECTION_CACHE[cache_key] = add_uuid
-                    print(f"[get_connection_uuid] Got UUID from add_workspace for '{workspace_path}': {add_uuid[:20]}", flush=True)
-                    return add_uuid
-                
-                # Add succeeded but no UUID in output — retry workspace list
-                time.sleep(2)
-                uuid = _get_connection_uuid_from_workspace_list(workspace_path)
-                if uuid:
-                    _WORKSPACE_CONNECTION_CACHE[cache_key] = uuid
-                    print(f"[get_connection_uuid] Got UUID from workspace list after add for '{workspace_path}': {uuid[:20]}", flush=True)
-                    return uuid
-    
-    # ★ Strategy 3: Fall back to `knot-cli client-status`
-    # WARNING: This returns the DEFAULT workspace's UUID, which may not match workspace_path!
-    logger.info("Falling back to client-status for workspace: %s", workspace_path)
-    print(f"[get_connection_uuid] Falling back to client-status for workspace='{workspace_path}'", flush=True)
+    # Always use client-status to get the machine's connection_uuid
+    # (workspace_path is ignored — the UUID is the same for all workspaces)
+    print(f"[get_connection_uuid] Getting machine-level connection_uuid (workspace_path='{workspace_path}' is ignored)", flush=True)
     
     try:
         result = subprocess.run(
@@ -486,11 +464,9 @@ def get_connection_uuid(workspace_path: str = "") -> str:
         # Try to extract JSON from output (output may have prefix like "✅ success\n...")
         uuid = _extract_uuid_from_output(output)
         if uuid:
-            # ★ Warn if workspace_path was specified — this UUID might be for a different workspace
-            if workspace_path and workspace_path != ".":
-                print(f"[get_connection_uuid] WARNING: client-status UUID may NOT match workspace='{workspace_path}'. "
-                      f"UUID={uuid[:20]} — this could be the DEFAULT workspace's UUID", flush=True)
-            _WORKSPACE_CONNECTION_CACHE[cache_key] = uuid
+            # This is the MACHINE's UUID (same for ALL workspaces on this machine)
+            print(f"[get_connection_uuid] Got machine UUID from client-status: {uuid[:20]}...", flush=True)
+            _WORKSPACE_CONNECTION_CACHE["__machine_uuid__"] = uuid
             return uuid
         
         logger.warning("connection_uuid not found in client-status output: %s", output[:500])
@@ -527,12 +503,12 @@ def ensure_workspace(workspace_path: str, token: str = "") -> str:
         str: connection_uuid if successful, empty string otherwise
     """
     # Ensure knot-cli is available
-    cli_path = ensure_knot_cli(workspace_path, token)
+    cli_path = ensure_knot_cli(".", token)  # workspace_path ignored for UUID
     if not cli_path:
         return ""
     
-    # Get connection_uuid via client-status
-    uuid = get_connection_uuid(workspace_path)
+    # Get machine-level connection_uuid via client-status
+    uuid = get_connection_uuid("")  # ignore workspace_path
     
     # If not registered, try to register workspace
     if not uuid and cli_path:
@@ -540,8 +516,7 @@ def ensure_workspace(workspace_path: str, token: str = "") -> str:
         uuid = _register_workspace(workspace_path, cli_path, token)
         # Update cache if registration succeeded
         if uuid:
-            cache_key = workspace_path or "."
-            _WORKSPACE_CONNECTION_CACHE[cache_key] = uuid
+            _WORKSPACE_CONNECTION_CACHE["__machine_uuid__"] = uuid
             logger.info("Workspace registered successfully, uuid: %s...", uuid[:8])
         else:
             logger.warning("Failed to register workspace")
@@ -573,11 +548,10 @@ def _register_workspace(workspace_path: str, cli_path: str, token: str = "") -> 
     logger.info("Registering workspace (strategy 1: workspace add): %s", workspace_path)
     
     success, add_uuid = add_workspace(workspace_path)
-    cache_key = workspace_path or "."
     if success:
         # Use UUID from add output if available
         if add_uuid:
-            _WORKSPACE_CONNECTION_CACHE[cache_key] = add_uuid
+            _WORKSPACE_CONNECTION_CACHE["__machine_uuid__"] = add_uuid
             return add_uuid
         
         logger.info("Workspace add succeeded, getting connection_uuid...")
@@ -585,11 +559,8 @@ def _register_workspace(workspace_path: str, cli_path: str, token: str = "") -> 
         # Wait a moment for registration to take effect
         time.sleep(2)
         
-        # Clear cache to force fresh lookup
-        _WORKSPACE_CONNECTION_CACHE.pop(cache_key, None)
-        
-        # Get connection_uuid via client-status
-        uuid = get_connection_uuid(workspace_path)
+        # Get machine-level connection_uuid via client-status
+        uuid = get_connection_uuid("")  # ignore workspace_path
         if uuid:
             logger.info("Got connection_uuid after workspace add: %s...", uuid[:8])
             return uuid
@@ -597,8 +568,8 @@ def _register_workspace(workspace_path: str, cli_path: str, token: str = "") -> 
         # Retry after a short delay
         logger.warning("connection_uuid not found after workspace add, retrying...")
         time.sleep(3)
-        _WORKSPACE_CONNECTION_CACHE.pop(cache_key, None)
-        uuid = get_connection_uuid(workspace_path)
+        _WORKSPACE_CONNECTION_CACHE.pop("__machine_uuid__", None)
+        uuid = get_connection_uuid("")  # ignore workspace_path
         if uuid:
             return uuid
     
@@ -614,8 +585,8 @@ def _register_workspace(workspace_path: str, cli_path: str, token: str = "") -> 
         if install_ok:
             # Install succeeded but no uuid yet, try one more time
             time.sleep(3)
-            _WORKSPACE_CONNECTION_CACHE.pop(workspace_path or ".", None)
-            uuid = get_connection_uuid(workspace_path)
+            _WORKSPACE_CONNECTION_CACHE.pop("__machine_uuid__", None)
+            uuid = get_connection_uuid("")  # ignore workspace_path
             if uuid:
                 return uuid
     else:
@@ -711,11 +682,10 @@ def add_workspace(path: str) -> tuple:
             logger.info("Workspace added successfully: %s", path)
             # Clear cache to force refresh
             _WORKSPACE_CONNECTION_CACHE.clear()
-            # Cache the UUID if we got one
+            # Cache the UUID if we got one (machine-level UUID)
             if _uuid:
-                cache_key = path or "."
-                _WORKSPACE_CONNECTION_CACHE[cache_key] = _uuid
-                logger.info("Got connection_uuid from add output for %s: %s...", cache_key, _uuid[:8])
+                _WORKSPACE_CONNECTION_CACHE["__machine_uuid__"] = _uuid
+                logger.info("Got connection_uuid from add output: %s...", _uuid[:8])
             return True, _uuid
         else:
             logger.error("Failed to add workspace: %s", output[:500])
@@ -1049,26 +1019,28 @@ def run_knot_agui_streaming(session_id, msg_text, model, stream_id, put,
     if system_prompt:
         chat_body["input"]["chat_extra"]["system_prompt"] = system_prompt
 
-    # ★ 注入 agent_client_uuid（工作区 ID）到 chat_extra
-    #   让 Knot 平台知道请求来自哪个工作区，用于工作区级别的工具/上下文关联
+    # ★ 注入 agent_client_uuid（机器 ID）到 chat_extra
+    #   NOTE: connection_uuid is MACHINE-UNIQUE (same for ALL workspaces on this machine).
+    #   The workspace is specified SEPARATELY via chat_extra.workspace_path (see below).
+    #   Knot server uses BOTH fields to determine which workspace to use.
     _ws_path = workspace or "."
     _agent_client_uuid = ""
     print(f"[knot_agui_streaming] agent_client_uuid lookup — _ws_path='{_ws_path}', cache_keys={list(_WORKSPACE_CONNECTION_CACHE.keys())}", flush=True)
     if _ws_path and _ws_path != ".":
-        # ★ 确保工作区已在 knot-cli 注册（get_connection_uuid 内部会自动注册未注册的工作区）
+        # ★ Get machine-level UUID (same for all workspaces)
         try:
-            _agent_client_uuid = get_connection_uuid(_ws_path)
+            _agent_client_uuid = get_connection_uuid("")  # ignore workspace_path
         except Exception as _uuid_err:
             print(f"[knot_agui_streaming] get_connection_uuid failed: {_uuid_err}", flush=True)
     if _agent_client_uuid:
         chat_body["input"]["chat_extra"]["agent_client_uuid"] = _agent_client_uuid
-        print(f"[knot_agui_streaming] Injected agent_client_uuid={_agent_client_uuid} for workspace={_ws_path}", flush=True)
+        print(f"[knot_agui_streaming] Injected agent_client_uuid={_agent_client_uuid} (machine ID, same for all workspaces)", flush=True)
     else:
-        print(f"[knot_agui_streaming] agent_client_uuid is EMPTY — workspace={_ws_path}, cache_hit={_ws_path in _WORKSPACE_CONNECTION_CACHE}", flush=True)
+        print(f"[knot_agui_streaming] agent_client_uuid is EMPTY — _ws_path='{_ws_path}'", flush=True)
 
-    # ★ 同时传递 workspace_path 到 chat_extra，让 Knot 平台可以双重验证工作区
-    #   当 agent_client_uuid 对应的工作区与实际 workspace_path 不一致时，
-    #   Knot 平台可以以 workspace_path 为准
+    # ★ 传递 workspace_path 到 chat_extra，告诉 Knot 服务端使用哪个工作区
+    #   This is CRITICAL when the machine has multiple workspaces registered.
+    #   Knot server will use this path to determine which workspace to operate on.
     if _ws_path and _ws_path != ".":
         chat_body["input"]["chat_extra"]["workspace_path"] = _ws_path
 

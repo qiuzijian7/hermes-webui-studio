@@ -6712,3 +6712,510 @@ body.dock-dragging * {
   animation: emp-auto-collab-pulse 2s ease-in-out infinite;
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   参数配置UI优化样式
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 参数配置容器 ──────────────────────────────────────────────── */
+.rp-params-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.rp-params-content {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.rp-params-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rp-params-content::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 3px;
+}
+
+/* ── 参数头部 ────────────────────────────────────────────────── */
+.rp-params-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, .02);
+  flex-shrink: 0;
+}
+
+.rp-params-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rp-params-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.rp-params-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ── Schema 参数表单样式 ──────────────────────────────────────── */
+.rp-params-form {
+  padding: 20px;
+}
+
+.rp-params-field {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(255, 255, 255, .02);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: border-color .15s, background .15s;
+}
+
+.rp-params-field:hover {
+  border-color: rgba(124, 185, 255, .3);
+  background: rgba(124, 185, 255, .04);
+}
+
+.rp-params-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.rp-params-field required {
+  color: var(--accent);
+  margin-left: 2px;
+}
+
+.rp-params-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  font-family: inherit;
+}
+
+.rp-params-input:focus {
+  border-color: rgba(124, 185, 255, .5);
+  box-shadow: 0 0 0 3px rgba(124, 185, 255, .1);
+}
+
+.rp-params-input::placeholder {
+  color: var(--muted);
+  opacity: .6;
+}
+
+.rp-params-field-desc {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.5;
+  opacity: .8;
+}
+
+.rp-params-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 12px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color .15s, background .15s;
+}
+
+.rp-params-checkbox:hover {
+  border-color: rgba(124, 185, 255, .3);
+  background: rgba(124, 185, 255, .04);
+}
+
+.rp-params-checkbox input[type="checkbox"] {
+  accent-color: var(--blue);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* ── Key-Value 编辑器样式 ───────────────────────────────────── */
+.rp-params-kv {
+  padding: 20px;
+}
+
+.rp-params-kv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rp-params-kv-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rp-params-kv-count {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, .05);
+  border-radius: 10px;
+}
+
+.rp-params-kv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.rp-params-kv-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  background: rgba(255, 255, 255, .02);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+  animation: kvRowIn .2s ease-out;
+}
+
+@keyframes kvRowIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rp-params-kv-row:hover {
+  border-color: rgba(124, 185, 255, .3);
+  background: rgba(124, 185, 255, .04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+}
+
+.rp-params-kv-row.removing {
+  animation: kvRowOut .2s ease-in forwards;
+}
+
+@keyframes kvRowOut {
+  to {
+    opacity: 0;
+    transform: translateX(20px);
+    max-height: 0;
+    padding: 0;
+    margin: 0;
+    border: none;
+  }
+}
+
+.rp-params-kv-key,
+.rp-params-kv-val {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  font-family: 'SF Mono', ui-monospace, monospace;
+}
+
+.rp-params-kv-key:focus,
+.rp-params-kv-val:focus {
+  border-color: rgba(124, 185, 255, .5);
+  box-shadow: 0 0 0 3px rgba(124, 185, 255, .1);
+}
+
+.rp-params-kv-key {
+  flex: 1;
+  min-width: 0;
+}
+
+.rp-params-kv-val {
+  flex: 2;
+  min-width: 0;
+}
+
+.rp-params-kv-key::placeholder,
+.rp-params-kv-val::placeholder {
+  color: var(--muted);
+  opacity: .5;
+}
+
+/* 参数类型选择器 */
+.rp-params-kv-type {
+  flex-shrink: 0;
+  padding: 8px 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color .15s;
+  min-width: 80px;
+}
+
+.rp-params-kv-type:focus {
+  border-color: rgba(124, 185, 255, .5);
+}
+
+/* 删除按钮 */
+.rp-params-kv-row .panel-icon-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, .02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.rp-params-kv-row .panel-icon-btn:hover {
+  background: rgba(255, 56, 96, .1);
+  border-color: rgba(255, 56, 96, .3);
+  color: #ff8a9c;
+}
+
+/* ── 添加参数按钮 ────────────────────────────────────────────── */
+.rp-add-param-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  background: rgba(124, 185, 255, .08);
+  border: 2px dashed rgba(124, 185, 255, .3);
+  border-radius: 10px;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.rp-add-param-btn:hover {
+  background: rgba(124, 185, 255, .15);
+  border-color: rgba(124, 185, 255, .5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(124, 185, 255, .2);
+}
+
+.rp-add-param-btn:active {
+  transform: translateY(0);
+}
+
+/* ── 提示信息 ────────────────────────────────────────────────── */
+.rp-params-hint {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-top: 16px;
+}
+
+.rp-params-hint code {
+  padding: 2px 6px;
+  background: rgba(124, 185, 255, .1);
+  border-radius: 4px;
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--blue);
+}
+
+/* ── 保存按钮栏 ────────────────────────────────────────────── */
+.rp-params-save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, .02);
+  flex-shrink: 0;
+}
+
+.rp-params-save-info {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.rp-params-save-btn {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, var(--blue) 0%, #667eea 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .15s;
+  box-shadow: 0 2px 8px rgba(124, 185, 255, .3);
+}
+
+.rp-params-save-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(124, 185, 255, .4);
+}
+
+.rp-params-save-btn:active {
+  transform: translateY(0);
+}
+
+/* ── 加载状态 ────────────────────────────────────────────────── */
+.rp-params-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.rp-params-loading::after {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: rpSpin .6s linear infinite;
+  margin-left: 8px;
+}
+
+@keyframes rpSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── 空状态 ────────────────────────────────────────────────── */
+.rp-params-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.rp-params-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: .5;
+}
+
+.rp-params-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.rp-params-empty-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+/* ── 亮色主题适配 ───────────────────────────────────────────── */
+:root[data-theme="light"] .rp-params-field {
+  background: rgba(0, 0, 0, .02);
+  border-color: rgba(0, 0, 0, .1);
+}
+
+:root[data-theme="light"] .rp-params-field:hover {
+  background: rgba(45, 111, 163, .04);
+  border-color: rgba(45, 111, 163, .3);
+}
+
+:root[data-theme="light"] .rp-params-kv-row {
+  background: rgba(0, 0, 0, .02);
+  border-color: rgba(0, 0, 0, .1);
+}
+
+:root[data-theme="light"] .rp-params-kv-row:hover {
+  background: rgba(45, 111, 163, .04);
+  border-color: rgba(45, 111, 163, .3);
+}
+
+:root[data-theme="light"] .rp-add-param-btn {
+  background: rgba(45, 111, 163, .08);
+  border-color: rgba(45, 111, 163, .3);
+  color: #2d6fa3;
+}
+
+:root[data-theme="light"] .rp-add-param-btn:hover {
+  background: rgba(45, 111, 163, .15);
+  border-color: rgba(45, 111, 163, .5);
+}
+
+:root[data-theme="light"] .rp-params-save-btn {
+  background: linear-gradient(135deg, #2d6fa3 0%, #667eea 100%);
+}
+
+/* ── 移动端适配 ──────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .rp-params-header {
+    padding: 12px 16px;
+  }
+  
+  .rp-params-form,
+  .rp-params-kv {
+    padding: 16px;
+  }
+  
+  .rp-params-kv-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .rp-params-kv-key,
+  .rp-params-kv-val {
+    width: 100%;
+  }
+  
+  .rp-params-kv-type {
+    width: 100%;
+  }
+}
+
