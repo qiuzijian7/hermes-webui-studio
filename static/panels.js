@@ -577,14 +577,33 @@ function _positionProfileDropdown(){
 
 function renderWorkspaceDropdownInto(dd, workspaces, currentWs){
   if(!dd)return;
+  console.log('[renderWorkspaceDropdownInto] workspaces:', workspaces?.length, 'currentWs:', currentWs);
   dd.innerHTML='';
   for(const w of workspaces){
     const opt=document.createElement('div');
     opt.className='ws-opt'+(w.path===currentWs?' active':'');
-    opt.innerHTML=`<span class="ws-opt-name">${esc(w.name)}</span><span class="ws-opt-path">${esc(w.path)}</span>`;
-    opt.onclick=()=>switchToWorkspace(w.path,w.name);
+    // 左侧：点击切换工作区
+    const infoDiv=document.createElement('div');
+    infoDiv.className='ws-opt-info';
+    infoDiv.innerHTML=`<span class="ws-opt-name">${esc(w.name)}</span><span class="ws-opt-path">${esc(w.path)}</span>`;
+    infoDiv.onclick=()=>switchToWorkspace(w.path,w.name);
+    opt.appendChild(infoDiv);
+    // 右侧：删除按钮
+    const delBtn=document.createElement('button');
+    delBtn.className='ws-opt-del';
+    delBtn.title='删除工作区';
+    delBtn.innerHTML=li('x',12);
+    if (!delBtn.innerHTML) {
+      console.warn('[renderWorkspaceDropdownInto] li("x",12) returned empty string for workspace:', w.name);
+    }
+    delBtn.onclick=(e)=>{
+      e.stopPropagation();
+      removeWorkspace(w.path);
+    };
+    opt.appendChild(delBtn);
     dd.appendChild(opt);
   }
+  console.log('[renderWorkspaceDropdownInto] dropdown rendered, child count:', dd.children.length);
   dd.appendChild(document.createElement('div')).className='ws-divider';
   dd.appendChild(_renderWorkspaceAction(
     'Choose workspace path',
@@ -723,6 +742,20 @@ async function removeWorkspace(path){
     _workspaceList=data.workspaces;
     if(typeof _wsSelectorList!=='undefined') _wsSelectorList=_workspaceList.slice();
     renderWorkspacesPanel(data.workspaces);
+    // ★ 同时更新下拉列表：关闭并重新渲染（如果打开了）
+    const dd=$('wsDropdown');
+    const composerDd=$('composerWsDropdown');
+    if(dd&&dd.classList.contains('open')){
+      // 重新渲染下拉列表
+      loadWorkspaceList().then(d=>{
+        renderWorkspaceDropdownInto(dd,d.workspaces,S.session?S.session.workspace:'');
+      });
+    }
+    if(composerDd&&composerDd.classList.contains('open')){
+      loadWorkspaceList().then(d=>{
+        renderWorkspaceDropdownInto(composerDd,d.workspaces,S.session?S.session.workspace:'');
+      });
+    }
     showToast('Workspace removed');
   }catch(e){setStatus('Remove failed: '+e.message);}
 }
