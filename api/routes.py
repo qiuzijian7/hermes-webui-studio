@@ -457,9 +457,19 @@ def handle_get(handler, parsed) -> bool:
         return _handle_session_export(handler, parsed)
 
     if parsed.path == "/api/workspaces":
+        workspaces = load_workspaces()
+        # Ensure each workspace has an id
+        for ws in workspaces:
+            if 'id' not in ws:
+                from api.workspace import _workspace_id
+                ws['id'] = _workspace_id(ws.get('name', 'default'))
         return j(
-            handler, {"workspaces": load_workspaces(), "last": get_last_workspace()}
+            handler, {"workspaces": workspaces, "last": get_last_workspace()}
         )
+
+    # ── Workspace file tree API (GET) ──
+    if parsed.path.startswith("/api/workspaces/") and parsed.path.endswith("/files"):
+        return _handle_workspace_file_tree(handler, parsed)
 
     # ── Employee filesystem API (GET) ──
     if parsed.path == "/api/employees":
@@ -470,6 +480,13 @@ def handle_get(handler, parsed) -> bool:
 
     if parsed.path == "/api/employee/files":
         return _handle_employee_files(handler, parsed)
+
+    # ── Teams filesystem API (GET) ──
+    if parsed.path == "/api/teams":
+        return _handle_teams_list(handler, parsed)
+
+    if parsed.path.startswith("/api/teams/") and len(parsed.path.split("/")) >= 4:
+        return _handle_team_get(handler, parsed)
 
     # ── Employee templates API (GET) ──
     if parsed.path == "/api/employee-templates":
@@ -874,9 +891,11 @@ def handle_get(handler, parsed) -> bool:
 # ── POST routes ───────────────────────────────────────────────────────────────
 
 
-def handle_post(handler, parsed) -> bool:
-    """Handle all POST routes. Returns True if handled, False for 404."""
-    print(f"[POST] path={parsed.path}", file=sys.stderr, flush=True)
+def handle_post(handler, parsed, method: str = None) -> bool:
+    """Handle all POST/PUT/DELETE routes. Returns True if handled, False for 404."""
+    # Determine HTTP method: use override (from do_PUT/do_DELETE) or handler.command
+    http_method = (method or handler.command or "POST").upper()
+    print(f"[POST] path={parsed.path} method={http_method}", file=sys.stderr, flush=True)
     # CSRF: reject cross-origin browser requests
     if not _check_csrf(handler):
         print(f"[POST] CSRF REJECTED path={parsed.path}", file=sys.stderr, flush=True)
@@ -887,6 +906,19 @@ def handle_post(handler, parsed) -> bool:
 
     body = read_body(handler)
     print(f"[POST] path={parsed.path} body_keys={list(body.keys())[:5]}", file=sys.stderr, flush=True)
+
+    # ── Teams API (POST/PUT/DELETE) ────────────────────────────────
+    # POST /api/teams → create
+    # PUT /api/teams/<id> → update
+    # DELETE /api/teams/<id> → delete
+    if parsed.path == "/api/teams" and http_method == "POST":
+        return _handle_team_create(handler, body)
+
+    if parsed.path.startswith("/api/teams/") and http_method == "PUT":
+        return _handle_team_update(handler, body)
+
+    if parsed.path.startswith("/api/teams/") and http_method == "DELETE":
+        return _handle_team_delete(handler, body)
 
     # ── Config file (POST) ────────────────────────────────────────
     if parsed.path == "/api/config":
@@ -2339,6 +2371,50 @@ def _handle_list_dir(handler, parsed):
             {
                 "entries": entries,
                 "path": target_path,
+            },
+        )
+    except (FileNotFoundError, ValueError) as e:
+        return bad(handler, _sanitize_error(e), 404)
+
+
+def _handle_workspace_file_tree(handler, parsed):
+    """Handle GET /api/workspaces/{workspaceId}/files?path=...
+    Returns the file tree for a workspace.
+    """
+    # Parse workspaceId from path
+    parts = parsed.path.split("/")
+    # ['', 'api', 'workspaces', '{workspaceId}', 'files']
+    if len(parts) < 5:
+        return bad(handler, "Invalid path", 400)
+    workspace_id = parts[3]
+
+    # Load workspaces and find the one with matching id
+    workspaces = load_workspaces()
+    target_workspace = None
+    for ws in workspaces:
+        # Use id if exists, otherwise use name as fallback
+        ws_id = ws.get('id') or ws.get('name', 'default')
+        if ws_id == workspace_id:
+            target_workspace = ws
+            break
+
+    if not target_workspace:
+        return bad(handler, f"Workspace not found: {workspace_id}", 404)
+
+    # Get target path from query string
+    qs = parse_qs(parsed.query)
+    target_path = qs.get("path", ["."])[0]
+
+    try:
+        ws_path = Path(target_workspace['path'])
+        if not ws_path.is_dir():
+            return bad(handler, f"Workspace path does not exist: {ws_path}", 404)
+        entries = list_dir(ws_path, target_path)
+        return j(
+            handler,
+            {
+                "items": entries,
+                "currentPath": target_path,
             },
         )
     except (FileNotFoundError, ValueError) as e:
@@ -4716,6 +4792,102 @@ def _handle_employee_experience(handler, body):
         return j(handler, {"ok": True, "filename": filename})
     else:
         return bad(handler, f"Unknown action: {action}")
+
+
+# ── Teams filesystem API (GET) ───────────────────────────────────────
+
+def _handle_teams_list(handler, parsed):
+    """GET /api/teams?workspace=...
+
+    List all teams for a workspace from the filesystem.
+    """
+    from api.teams_fs import list_teams
+    qs = parse_qs(parsed.query)
+    workspace = (qs.get("workspace", [""])[0] or "").strip()
+    if not workspace:
+        return bad(handler, "workspace query parameter is required")
+    try:
+        teams = list_teams(workspace)
+        return j(handler, {"teams": teams})
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)
+
+
+def _handle_team_get(handler, parsed):
+    """GET /api/teams/:id?workspace=...
+
+    Get a single team by ID.
+    """
+    from api.teams_fs import get_team
+    qs = parse_qs(parsed.query)
+    workspace = (qs.get("workspace", [""])[0] or "").strip()
+    # Extract team id from path: /api/teams/<id>
+    parts = parsed.path.split("/")
+    if len(parts) < 4:
+        return bad(handler, "team id is required in path")
+    team_id = parts[3]
+    if not workspace:
+        return bad(handler, "workspace query parameter is required")
+    team = get_team(workspace, team_id)
+    if not team:
+        return bad(handler, "Team not found", 404)
+    return j(handler, {"team": team})
+
+
+def _handle_team_create(handler, body):
+    """POST /api/teams
+
+    Create a new team.
+    Body: { workspace, name, description, leadId, memberIds, color, icon, ... }
+    """
+    from api.teams_fs import create_team
+    workspace = (body.get("workspace") or "").strip()
+    if not workspace:
+        return bad(handler, "workspace is required")
+    try:
+        team = create_team(workspace, body)
+        return j(handler, {"ok": True, "team": team})
+    except ValueError as e:
+        return bad(handler, str(e))
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)
+
+
+def _handle_team_update(handler, body):
+    """PUT /api/teams/:id
+
+    Update an existing team.
+    Body: { workspace, ...updates }
+    """
+    from api.teams_fs import update_team
+    workspace = (body.get("workspace") or "").strip()
+    team_id = (body.get("id") or "").strip()
+    if not workspace or not team_id:
+        return bad(handler, "workspace and id are required")
+    try:
+        team = update_team(workspace, team_id, body)
+        if not team:
+            return bad(handler, "Team not found", 404)
+        return j(handler, {"ok": True, "team": team})
+    except Exception as e:
+        return bad(handler, _sanitize_error(e), 500)
+
+
+def _handle_team_delete(handler, body):
+    """DELETE /api/teams/:id
+
+    Delete a team.
+    Body: { workspace, id }
+    """
+    from api.teams_fs import delete_team
+    workspace = (body.get("workspace") or "").strip()
+    team_id = (body.get("id") or "").strip()
+    if not workspace or not team_id:
+        return bad(handler, "workspace and id are required")
+    ok = delete_team(workspace, team_id)
+    if not ok:
+        return bad(handler, "Team not found", 404)
+    return j(handler, {"ok": True})
 
 
 def _handle_employees_export(handler, body):

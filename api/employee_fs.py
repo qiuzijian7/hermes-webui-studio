@@ -75,6 +75,8 @@ _INFO_FIELDS = [
     "presetId", "characterImg", "model", "customPrompt", "params",
     "subagentOf", "createdAt", "lastActiveAt", "sessionId",
     "_pos", "metadata",
+    # Hub 模板跟踪
+    "hubId", "hubVersion",
 ]
 
 
@@ -265,6 +267,9 @@ def create_employee(workspace: str, data: dict) -> dict:
         "sessionId": None,
         "_pos": data.get("_pos"),
         "metadata": data.get("metadata", {}),
+        # Hub 模板跟踪
+        "hubId": data.get("hubId"),
+        "hubVersion": data.get("hubVersion"),
     }
 
     # Write info.json

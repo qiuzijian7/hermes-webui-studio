@@ -91,6 +91,43 @@ class Handler(BaseHTTPRequestHandler):
             except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
                 return
 
+    def do_PUT(self) -> None:
+        """Handle PUT requests by delegating to handle_post with method override."""
+        self._req_t0 = time.time()
+        try:
+            parsed = urlparse(self.path)
+            if not check_auth(self, parsed): return
+            # Read body and call handle_post; route will distinguish by method or path
+            result = handle_post(self, parsed, method="PUT")
+            if result is False:
+                return j(self, {'error': 'not found'}, status=404)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            return
+        except Exception as e:
+            print(f'[webui] ERROR PUT {self.path}\n' + traceback.format_exc(), flush=True)
+            try:
+                return j(self, {'error': 'Internal server error'}, status=500)
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                return
+
+    def do_DELETE(self) -> None:
+        """Handle DELETE requests by delegating to handle_post with method override."""
+        self._req_t0 = time.time()
+        try:
+            parsed = urlparse(self.path)
+            if not check_auth(self, parsed): return
+            result = handle_post(self, parsed, method="DELETE")
+            if result is False:
+                return j(self, {'error': 'not found'}, status=404)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            return
+        except Exception as e:
+            print(f'[webui] ERROR DELETE {self.path}\n' + traceback.format_exc(), flush=True)
+            try:
+                return j(self, {'error': 'Internal server error'}, status=500)
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                return
+
 
 def main() -> None:
     from api.config import print_startup_config, verify_hermes_imports, _HERMES_FOUND

@@ -144,12 +144,24 @@ def _migrate_global_workspaces() -> list:
         return []
 
 
+def _workspace_id(name: str) -> str:
+    """Generate a URL-friendly ID from workspace name."""
+    import re
+    # Convert to lowercase, replace non-alphanumeric with hyphens, collapse multiple hyphens
+    slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+    return slug or 'default'
+
+
 def load_workspaces() -> list:
     ws_file = _workspaces_file()
     if ws_file.exists():
         try:
             raw = json.loads(ws_file.read_text(encoding='utf-8'))
             cleaned = _clean_workspace_list(raw)
+            # Add id to each workspace
+            for ws in cleaned:
+                if 'id' not in ws:
+                    ws['id'] = _workspace_id(ws.get('name', 'default'))
             if len(cleaned) != len(raw):
                 # Persist the cleaned version so stale entries don't keep reappearing
                 try:
@@ -158,7 +170,7 @@ def load_workspaces() -> list:
                     )
                 except Exception:
                     pass
-            return cleaned or [{'path': _profile_default_workspace(), 'name': 'Home'}]
+            return cleaned or [{'id': 'home', 'path': _profile_default_workspace(), 'name': 'Home'}]
         except Exception:
             pass
     # No profile-local file yet.
@@ -172,9 +184,13 @@ def load_workspaces() -> list:
     if is_default:
         migrated = _migrate_global_workspaces()
         if migrated:
+            # Add id to migrated workspaces
+            for ws in migrated:
+                if 'id' not in ws:
+                    ws['id'] = _workspace_id(ws.get('name', 'default'))
             return migrated
     # Fresh start: single entry from the profile's configured workspace, labeled "Home"
-    return [{'path': _profile_default_workspace(), 'name': 'Home'}]
+    return [{'id': 'home', 'path': _profile_default_workspace(), 'name': 'Home'}]
 
 
 def save_workspaces(workspaces: list) -> None:
